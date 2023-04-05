@@ -11,10 +11,10 @@
 #include "private/monitor/monitor.h"
 #include "private/monitor/subsystem.h"
 
-#include "private/usb/descriptor.h"
-#include "private/usb/libusb.list.h"
-#include "private/usb/lifecycle.h"
-#include "private/usb/private-types.h"
+#include "private/monitor/descriptor.h"
+#include "private/monitor/libusb.list.h"
+#include "private/monitor/lifecycle.h"
+#include "private/monitor/usb_types.h"
 
 static void init_list_all_usb_devices_threaded(void *UNUSED(_ctx), KBMonCTX monitor, const bool *const q) {
 	if (!*q) {

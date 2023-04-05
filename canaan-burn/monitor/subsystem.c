@@ -9,7 +9,7 @@
 #include "private/monitor/monitor.h"
 #include "private/monitor/subsystem.h"
 
-#include "private/usb/private-types.h"
+#include "private/monitor/usb_types.h"
 
 static void thread_libusb_handle_events(void *UNUSED(ctx), KBMonCTX monitor, const bool *const quit) {
 	struct timeval timeout = {

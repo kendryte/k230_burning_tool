@@ -6,8 +6,8 @@
 
 #include "private/monitor/monitor.h"
 
-#include "private/usb/descriptor.h"
-#include "private/usb/private-types.h"
+#include "private/monitor/descriptor.h"
+#include "private/monitor/usb_types.h"
 
 static int on_libusb_hotplug_event(struct libusb_context *UNUSED(ctx), struct libusb_device *dev, libusb_hotplug_event event, void *user_data) {
 	KBMonCTX monitor = user_data;

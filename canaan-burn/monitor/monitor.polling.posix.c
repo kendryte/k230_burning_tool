@@ -3,7 +3,7 @@
 #include "private/lib/components/thread.h"
 
 #include "private/monitor/monitor.h"
-#include "private/usb/private-types.h"
+#include "private/monitor/usb_types.h"
 
 typedef struct polling_context {
 	kbthread thread;

@@ -7,9 +7,9 @@
 #include "private/lib/components/call-user-handler.h"
 #include "private/lib/components/device-link-list.h"
 
-#include "private/usb/lifecycle.h"
-#include "private/usb/descriptor.h"
-#include "private/usb/private-types.h"
+#include "private/monitor/lifecycle.h"
+#include "private/monitor/descriptor.h"
+#include "private/monitor/usb_types.h"
 
 /****************************************************
 Function: get_endpoint

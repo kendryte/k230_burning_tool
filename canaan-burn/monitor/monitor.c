@@ -6,7 +6,7 @@
 #include "private/monitor/subsystem.h"
 #include "private/monitor/monitor.h"
 
-#include "private/usb/private-types.h"
+#include "private/monitor/usb_types.h"
 
 static uint32_t dbg_index = 0;
 

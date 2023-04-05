@@ -9,9 +9,9 @@
 
 #include "private/monitor/subsystem.h"
 
-#include "private/usb/descriptor.h"
-#include "private/usb/lifecycle.h"
-#include "private/usb/private-types.h"
+#include "private/monitor/descriptor.h"
+#include "private/monitor/lifecycle.h"
+#include "private/monitor/usb_types.h"
 
 static inline bool match_device(int vid, int pid, const struct libusb_device_descriptor *desc) {
 	if (vid != KBURN_VIDPID_FILTER_ANY && vid != desc->idVendor) {

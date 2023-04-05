@@ -12,7 +12,7 @@
 
 #include "canaan-burn/canaan-burn.h"
 
-#include "../usb/private-types.h"
+#include "../usb/usb_types.h"
 
 typedef struct polling_context {
 	kbthread thread;

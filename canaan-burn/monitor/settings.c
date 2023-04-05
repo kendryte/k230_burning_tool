@@ -1,4 +1,4 @@
-#include "private/usb/private-types.h"
+#include "private/monitor/usb_types.h"
 
 // #define KBURN_USB_DEFAULT_VID 0x29f1
 // #define KBURN_USB_DEFAULT_PID 0x0230
