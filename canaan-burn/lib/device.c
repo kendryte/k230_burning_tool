@@ -1,18 +1,18 @@
-#include "device.h"
-#include "../usb/private-types.h"
-#include "basic/resource-tracker.h"
-#include "components/device-link-list.h"
+#include "private/lib/device.h"
 
-DEFINE_REGISTER_SWAPPER(kburnOnDeviceDisconnect, scope->on_disconnect, on_device_remove)
-DEFINE_REGISTER_SWAPPER(kburnOnDeviceListChange, scope->on_list_change, on_device_list_change)
+#include "private/lib/basic/resource-tracker.h"
+#include "private/lib/components/device-link-list.h"
+
+DEFINE_REGISTER_SWAPPER(kburnOnDeviceListChange, monitor->on_list_change, on_device_list_change)
+DEFINE_REGISTER_SWAPPER(kburnOnDeviceConnect, monitor->on_connect, on_device_connect)
+DEFINE_REGISTER_SWAPPER(kburnOnDeviceDisconnect, monitor->on_disconnect, on_device_disconnect)
 
 static void destroy_device(void *UNUSED(ctx), kburnDeviceNode *context) {
 	debug_trace_function();
-	// recreate_waitting_list(context->_scope);
 
-	if (context->disconnect_should_call && context->_scope->on_disconnect.handler) {
-		debug_print(KBURN_LOG_DEBUG, "\tscope::on_disconnect()");
-		context->_scope->on_disconnect.handler(context->_scope->on_disconnect.context, context);
+	if (context->disconnect_should_call && context->_monitor->on_disconnect.handler) {
+		debug_print(KBURN_LOG_DEBUG, "\tmonitor::on_disconnect()");
+		context->_monitor->on_disconnect.handler(context->_monitor->on_disconnect.context, context);
 	}
 
 	clear_error(context);
@@ -39,16 +39,13 @@ void mark_destroy_device_node(kburnDeviceNode *instance) {
 	lock_deinit(instance->reference_lock);
 }
 
-kburn_err_t create_empty_device_instance(KBCTX scope, kburnDeviceNode **output) {
+kburn_err_t create_empty_device_instance(KBMonCTX monitor, kburnDeviceNode **output) {
 	DeferEnabled;
 
 	disposable_list_t *disposable_list = CheckNull(disposable_list_init("device instance"));
 
 	kburnDeviceError *error = MyAlloc(kburnDeviceError);
 	register_dispose_pointer(disposable_list, error);
-
-	// kburnSerialDeviceNode *serial = MyAlloc(kburnSerialDeviceNode);
-	// register_dispose_pointer(disposable_list, serial);
 
 	kburnUsbDeviceNode *usb = MyAlloc(kburnUsbDeviceNode);
 	register_dispose_pointer(disposable_list, usb);
@@ -64,7 +61,7 @@ kburn_err_t create_empty_device_instance(KBCTX scope, kburnDeviceNode **output) 
 			.chipInfo = NULL,
 			// .serial = serial,
 			.usb = usb,
-			._scope = scope,
+			._monitor = monitor,
 			.destroy_in_progress = false,
 			.bind_id = 0,
 			.reference_lock = lock_init(),
@@ -75,11 +72,11 @@ kburn_err_t create_empty_device_instance(KBCTX scope, kburnDeviceNode **output) 
 	DeferCall(device_instance_collect, empty_device_instance);
 
 	empty_device_instance->guid = (uint64_t)empty_device_instance;
-	// empty_device_instance->serial->parent = empty_device_instance;
 	empty_device_instance->usb->parent = empty_device_instance;
 
 	*output = empty_device_instance;
 
 	DeferAbort;
+
 	return KBurnNoErr;
 }

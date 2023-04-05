@@ -1,8 +1,9 @@
 
-#include "basic/string.h"
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "private/lib/basic/string.h"
 
 char *sprintf_alloc(const char *fmt, ...) {
 	va_list args;

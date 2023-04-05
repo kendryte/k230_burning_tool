@@ -27,7 +27,7 @@ function(push_source_code target src_dir)
 
 	target_sources("${target}" PRIVATE "${NEW_SOURCES}")
 
-	set(inc_dirs "${CMAKE_CURRENT_LIST_DIR}/${src_dir}")
+	# set(inc_dirs "${CMAKE_CURRENT_LIST_DIR}/${src_dir}/include")
 
 	foreach(dir IN LISTS ARGN)
 		list(APPEND inc_dirs "${CMAKE_CURRENT_LIST_DIR}/${dir}")
@@ -37,7 +37,7 @@ function(push_source_code target src_dir)
 
 	foreach(file IN LISTS NEW_SOURCES)
 		set_source_files_properties("${file}" PROPERTIES
-			INCLUDE_DIRECTORIES "${inc_dirs}"
+			# INCLUDE_DIRECTORIES "${inc_dirs}"
 			COMPILE_OPTIONS "${EXOPT}" # -Wno-error=format-zero-length=0
 			COMPILE_DEFINITIONS _GNU_SOURCE
 		)
@@ -89,10 +89,8 @@ endif()
 target_link_libraries(canaan_burn PUBLIC pthread)
 
 push_source_code(canaan_burn lib)
-push_source_code(canaan_burn monitor lib)
-push_source_code(canaan_burn usb lib)
-# push_source_code(canaan_burn serial lib)
-# push_source_code(canaan_burn bridge lib)
+push_source_code(canaan_burn usb)
+push_source_code(canaan_burn monitor)
 
 target_include_directories(canaan_burn PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include")
 

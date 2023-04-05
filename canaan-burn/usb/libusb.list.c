@@ -1,12 +1,17 @@
-#include "descriptor.h"
-#include "device.h"
-#include "lifecycle.h"
-#include "math.h"
-#include "private-types.h"
-#include "subsystem.h"
-#include "components/call-user-handler.h"
-#include "components/device-link-list.h"
-#include "canaan-burn/canaan-burn.h"
+#include <math.h>
+
+#include "public/canaan-burn.h"
+
+#include "private/lib/device.h"
+
+#include "private/lib/components/call-user-handler.h"
+#include "private/lib/components/device-link-list.h"
+
+#include "private/monitor/subsystem.h"
+
+#include "private/usb/descriptor.h"
+#include "private/usb/lifecycle.h"
+#include "private/usb/private-types.h"
 
 static inline bool match_device(int vid, int pid, const struct libusb_device_descriptor *desc) {
 	if (vid != KBURN_VIDPID_FILTER_ANY && vid != desc->idVendor) {
@@ -18,12 +23,12 @@ static inline bool match_device(int vid, int pid, const struct libusb_device_des
 	return true;
 }
 
-kburn_err_t init_list_all_usb_devices(KBCTX scope) {
-	debug_trace_function("%.4x:%.4x", scope->usb->settings.vid, scope->usb->settings.pid);
+kburn_err_t init_list_all_usb_devices(KBMonCTX monitor) {
+	debug_trace_function("%.4x:%.4x", monitor->usb->settings.vid, monitor->usb->settings.pid);
 	struct libusb_device_descriptor desc;
 
 	libusb_device **list;
-	ssize_t r = libusb_get_device_list(scope->usb->libusb, &list);
+	ssize_t r = libusb_get_device_list(monitor->usb->libusb, &list);
 	if (!check_libusb(r)) {
 		debug_print_libusb_error("libusb_get_device_list()", r);
 		return r;
@@ -51,13 +56,13 @@ kburn_err_t init_list_all_usb_devices(KBCTX scope) {
 
 		debug_print(KBURN_LOG_DEBUG, "[init/poll] \tpath: %s", usb_debug_path_string(path));
 
-		if (get_device_by_usb_port_path(scope, desc.idVendor, desc.idProduct, path) != NULL) {
+		if (get_device_by_usb_port_path(monitor, desc.idVendor, desc.idProduct, path) != NULL) {
 			debug_print(KBURN_LOG_DEBUG, "[init/poll] \tdevice already opened, ignore.");
 			continue;
 		} else {
 			debug_print(KBURN_LOG_DEBUG, "[init/poll] \topen");
 
-			IfErrorReturn(open_single_usb_port(scope, dev, true, NULL));
+			IfErrorReturn(open_single_usb_port(monitor, dev, true, NULL));
 		}
 	}
 	libusb_free_device_list(list, true);

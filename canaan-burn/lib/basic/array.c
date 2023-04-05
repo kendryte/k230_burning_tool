@@ -1,10 +1,11 @@
-#include "array.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include "debug/print.h"
+
+#include "private/lib/basic/array.h"
+#include "private/lib/debug/print.h"
 
 dynamic_array_t *_kb_array_create(size_t element_size, uint32_t init_size) {
 	dynamic_array_t *array = malloc(sizeof(dynamic_array_t));

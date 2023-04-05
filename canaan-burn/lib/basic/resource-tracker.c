@@ -1,9 +1,10 @@
-#include "resource-tracker.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <memory.h>
-#include "debug/print.h"
+
+#include "private/lib/basic/resource-tracker.h"
+#include "private/lib/debug/print.h"
 
 static inline void do_cleanup(const resource_tracker_element element) {
 	if (element.resource != NULL) {

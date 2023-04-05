@@ -1,9 +1,11 @@
 #include "assert.h"
+
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "debug/color.h"
-#include "debug/print.h"
+
+#include "private/lib/debug/color.h"
+#include "private/lib/debug/print.h"
 
 void m_assert_print_abort(const char *ncondition_str, const char *file, int line, const char *message, ...) {
 	static char buffer[1024];

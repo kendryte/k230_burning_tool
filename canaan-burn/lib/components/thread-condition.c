@@ -1,10 +1,12 @@
-#include "thread-condition.h"
-#include "basic/errors.h"
-#include "basic/lock.h"
 #include <stdlib.h>
 #include <pthread.h>
-#include "debug/assert.h"
-#include "debug/print.h"
+
+#include "private/lib/basic/errors.h"
+#include "private/lib/basic/lock.h"
+#include "private/lib/debug/assert.h"
+#include "private/lib/debug/print.h"
+
+#include "private/lib/components/thread-condition.h"
 
 typedef struct thread_condition {
 	pthread_cond_t cond;

@@ -1,10 +1,11 @@
-#include "thread.h"
-#include "context.h"
-#include "basic/errors.h"
-#include "basic/sleep.h"
-#include "thread-condition.h"
-#include <pthread.h>
-#include "debug/print.h"
+#include "private/context.h"
+
+#include "private/lib/basic/errors.h"
+#include "private/lib/basic/sleep.h"
+#include "private/lib/debug/print.h"
+
+#include "private/lib/components/thread-condition.h"
+#include "private/lib/components/thread.h"
 
 enum ThreadStage
 {
@@ -32,7 +33,7 @@ static const char *stage_name(enum ThreadStage stage) {
 }
 
 typedef struct thread_passing_object {
-	KBCTX scope;
+	KBMonCTX monitor;
 	pthread_t thread;
 	thread_function main;
 	void *user_data;
@@ -86,11 +87,11 @@ static DECALRE_DISPOSE(_destroy_thread, thread_passing_object) {
 }
 DECALRE_DISPOSE_END()
 
-void thread_destroy(KBCTX scope, thread_passing_object *thread) {
+void thread_destroy(KBMonCTX monitor, thread_passing_object *thread) {
 	if (!thread) {
 		return;
 	}
-	_destroy_thread(scope->threads, thread);
+	_destroy_thread(monitor->threads, thread);
 }
 
 __thread thread_passing_object *__current_thread_object = NULL;
@@ -98,6 +99,7 @@ thread_condition_t *thread_get_condition(kbthread thread) {
 	m_assert(thread->stage == THREAD_RUNNING, "thread not start, call thread_resume first.");
 	return &thread->condition;
 }
+
 thread_condition_t *get_current_thread_condition() {
 	m_assert_ptr(__current_thread_object, "not call from thread");
 	m_assert(__current_thread_object->stage == THREAD_RUNNING, "thread not even start?!");
@@ -135,7 +137,7 @@ static void *start_routine_wrapper(void *_ctx) {
 	unlock(rawlock);
 
 	debug_print(KBURN_LOG_INFO, "[thread] \"%s\" start", context->debug_title);
-	context->main(context->user_data, context->scope, &context->quit_signal);
+	context->main(context->user_data, context->monitor, &context->quit_signal);
 	debug_print(KBURN_LOG_INFO, "[thread] \"%s\" finished", context->debug_title);
 
 	if (context->stage == THREAD_QUITTING) {
@@ -151,7 +153,7 @@ static void *start_routine_wrapper(void *_ctx) {
 	return NULL;
 }
 
-kburn_err_t thread_create(const char *debug_title, thread_function start_routine, void *context, KBCTX scope, thread_passing_object **out_thread) {
+kburn_err_t thread_create(const char *debug_title, thread_function start_routine, void *context, KBMonCTX monitor, thread_passing_object **out_thread) {
 	thread_passing_object *thread = MyAlloc(thread_passing_object);
 
 	if (debug_title) {
@@ -160,7 +162,7 @@ kburn_err_t thread_create(const char *debug_title, thread_function start_routine
 		thread->debug_title = "<NULL>";
 	}
 
-	thread->scope = scope;
+	thread->monitor = monitor;
 	thread->main = start_routine;
 	thread->user_data = context;
 	if (out_thread == NULL) {
@@ -175,11 +177,11 @@ kburn_err_t thread_create(const char *debug_title, thread_function start_routine
 		return make_error_code(KBURN_ERROR_KIND_SYSCALL, thread_ret);
 	}
 
-	dispose_list_add(scope->threads, toDisposable(_destroy_thread, thread));
+	dispose_list_add(monitor->threads, toDisposable(_destroy_thread, thread));
 
 	if (out_thread != NULL) {
 		*out_thread = thread;
-		dispose_list_add(scope->threads, toDisposable(unset_pointer, (void **)out_thread));
+		dispose_list_add(monitor->threads, toDisposable(unset_pointer, (void **)out_thread));
 	}
 
 	return KBurnNoErr;

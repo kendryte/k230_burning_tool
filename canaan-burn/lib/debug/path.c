@@ -1,6 +1,7 @@
-#include "path.h"
-#include "basic/string.h"
 #include <stdio.h>
+
+#include "private/lib/basic/string.h"
+#include "private/lib/debug/path.h"
 
 const char *cbasename(const char *p) {
 	char *a = strrchr(p, '/');

@@ -1,6 +1,8 @@
-#include "canaan-burn/exported/errors.h"
 #include <error.h>
 #include <sys/types.h>
+
+#include "public/errors.h"
+
 typedef union error_convert {
 	struct {
 #if BYTE_ORDER == LITTLE_ENDIAN

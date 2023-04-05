@@ -1,17 +1,18 @@
-#include "queued-thread.h"
-#include "context.h"
-#include "basic/errors.h"
-#include "basic/event-queue.h"
-#include "basic/lock.h"
-#include "basic/resource-tracker.h"
-#include "thread.h"
-#include <pthread.h>
+#include "private/context.h"
+
+#include "private/lib/basic/errors.h"
+#include "private/lib/basic/event-queue.h"
+#include "private/lib/basic/lock.h"
+#include "private/lib/basic/resource-tracker.h"
+
+#include "private/lib/components/thread.h"
+#include "private/lib/components/queued-thread.h"
 
 typedef struct event_queue_thread {
 	kbthread thread;
 	queue_t queue;
 	event_handler handler;
-	KBCTX scope;
+	KBMonCTX monitor;
 } event_queue_thread;
 
 static DECALRE_DISPOSE(event_thread_queue_deinit, event_queue_thread *) {
@@ -28,40 +29,40 @@ static inline void work_in_queue(event_queue_thread *context) {
 	void *data;
 	while ((data = queue_shift(context->queue)) != NULL) {
 		debug_trace_function("queue:" FMT_SIZET " - 0x%p", queue_size(context->queue) + 1, (void *)data);
-		context->handler(context->scope, data);
+		context->handler(context->monitor, data);
 	}
 }
 
-void event_queue_thread_main(void *_ctx, KBCTX scope, const bool *const quit) {
+void event_queue_thread_main(void *_ctx, KBMonCTX monitor, const bool *const quit) {
 	event_queue_thread *context = _ctx;
 
-	context->scope = scope;
+	context->monitor = monitor;
 	while (!*quit) {
 		current_thread_wait_event(queue_is_not_empty, work_in_queue, context);
 	}
 }
 
-void event_thread_deinit(KBCTX scope, event_queue_thread **queue_thread) {
+void event_thread_deinit(KBMonCTX monitor, event_queue_thread **queue_thread) {
 	if ((*queue_thread)->thread) {
-		thread_destroy(scope, (*queue_thread)->thread);
+		thread_destroy(monitor, (*queue_thread)->thread);
 	}
-	event_thread_queue_deinit(scope->disposables, queue_thread);
+	event_thread_queue_deinit(monitor->disposables, queue_thread);
 	*queue_thread = NULL;
 }
 
-kburn_err_t event_thread_init(KBCTX scope, const char *title, event_handler handler, event_queue_thread **out) {
+kburn_err_t event_thread_init(KBMonCTX monitor, const char *title, event_handler handler, event_queue_thread **out) {
 	DeferEnabled;
 
 	event_queue_thread *ret = DeferFree(MyAlloc(event_queue_thread));
-	register_dispose_pointer(scope->disposables, ret);
+	register_dispose_pointer(monitor->disposables, ret);
 	*out = ret;
-	DeferDispose(scope->disposables, out, event_thread_queue_deinit);
+	DeferDispose(monitor->disposables, out, event_thread_queue_deinit);
 
 	ret->handler = handler;
 
 	IfErrorReturn(queue_create(&ret->queue));
 
-	IfErrorReturn(thread_create(title, event_queue_thread_main, ret, scope, &ret->thread));
+	IfErrorReturn(thread_create(title, event_queue_thread_main, ret, monitor, &ret->thread));
 	thread_resume(ret->thread);
 
 	DeferAbort;

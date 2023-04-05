@@ -1,9 +1,10 @@
-#include "lock.h"
-#include "array.h"
-#include "sleep.h"
 #include <errno.h>
 #include <pthread.h>
-#include "debug/print.h"
+
+#include "private/lib/basic/lock.h"
+#include "private/lib/basic/array.h"
+#include "private/lib/basic/sleep.h"
+#include "private/lib/debug/print.h"
 
 struct mlock {
 	referece_counter_t waitting;

@@ -1,9 +1,11 @@
-#include "print.h"
-#include "context.h"
-#include "basic/string.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <assert.h>
+
+#include "private/context.h"
+
+#include "private/lib/basic/string.h"
+#include "private/lib/debug/print.h"
 
 size_t _kb__print_buffer(char *output, size_t output_length, const char *dir, const uint8_t *buff, size_t size, size_t max_dump) {
 	size_t ret = 0;

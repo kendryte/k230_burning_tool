@@ -1,12 +1,13 @@
-#include "assert.h"
-#include "basic/string.h"
-#include "user-callback.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <assert.h>
 #include <pthread.h>
 #include <time.h>
 #include <sys/time.h>
+
+#include "private/lib/debug/assert.h"
+#include "private/lib/basic/string.h"
+#include "private/lib/debug/user-callback.h"
 
 #define DEBUG_BUFFER_SIZE 4096
 

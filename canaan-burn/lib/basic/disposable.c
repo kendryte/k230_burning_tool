@@ -1,7 +1,4 @@
-#include "disposable.h"
-#include "lock.h"
-#include <stdlib.h>
-#include "debug/print.h"
+#include "private/lib/basic/disposable.h"
 
 typedef struct disposable_list_element {
 	struct disposable_list_element *prev;

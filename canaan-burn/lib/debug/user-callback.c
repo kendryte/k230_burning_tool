@@ -1,7 +1,10 @@
-#include "base.h"
-#include "context.h"
-#include "components/call-user-handler.h"
 #include <stdio.h>
+
+#include "private/base.h"
+#include "private/context.h"
+
+#include "private/lib/components/call-user-handler.h"
+#include "private/lib/debug/user-callback.h"
 
 static void default_log_callback(void *UNUSED(context), kburnLogType UNUSED(type), const char *message) {
 	fputs(message, stderr);
