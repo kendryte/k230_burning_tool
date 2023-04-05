@@ -12,7 +12,7 @@ project(BurningToolMeta)
 
 include(${CMAKE_TOOLCHAIN_FILE})
 
-add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/library")
+add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/canaan-burn")
 
 # add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/cli")
 # add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/gui")

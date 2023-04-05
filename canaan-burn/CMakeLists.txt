@@ -9,7 +9,7 @@ project(
 
 # ##############################################################################
 function(push_source_code target src_dir)
-	file(GLOB_RECURSE NEW_SOURCES "src/${src_dir}/*.c")
+	file(GLOB_RECURSE NEW_SOURCES "${src_dir}/*.c")
 
 	if(WIN32)
 		list(FILTER NEW_SOURCES EXCLUDE REGEX "\\.macos\\.c$")
@@ -27,10 +27,10 @@ function(push_source_code target src_dir)
 
 	target_sources("${target}" PRIVATE "${NEW_SOURCES}")
 
-	set(inc_dirs "${CMAKE_CURRENT_LIST_DIR}/src/${src_dir}")
+	set(inc_dirs "${CMAKE_CURRENT_LIST_DIR}/${src_dir}")
 
 	foreach(dir IN LISTS ARGN)
-		list(APPEND inc_dirs "${CMAKE_CURRENT_LIST_DIR}/src/${dir}")
+		list(APPEND inc_dirs "${CMAKE_CURRENT_LIST_DIR}/${dir}")
 	endforeach()
 
 	set(EXOPT -Wall -Wextra -pedantic -Werror -Wno-format-security)
