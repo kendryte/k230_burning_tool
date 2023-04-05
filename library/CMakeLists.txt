@@ -44,31 +44,31 @@ function(push_source_code target src_dir)
 	endforeach()
 endfunction()
 
-function(load_binary target variable src)
-	file(RELATIVE_PATH rel_path "${CMAKE_CURRENT_LIST_DIR}" "${src}")
-	set(tgt "${CMAKE_CURRENT_BINARY_DIR}/${rel_path}.generate.c")
-	set(tgt_hdr "${CMAKE_CURRENT_BINARY_DIR}/gen-include/generated.${variable}.h")
+# function(load_binary target variable src)
+# 	file(RELATIVE_PATH rel_path "${CMAKE_CURRENT_LIST_DIR}" "${src}")
+# 	set(tgt "${CMAKE_CURRENT_BINARY_DIR}/${rel_path}.generate.c")
+# 	set(tgt_hdr "${CMAKE_CURRENT_BINARY_DIR}/gen-include/generated.${variable}.h")
 
-	if("${src}" IS_NEWER_THAN "${tgt}")
-		file(READ "${src}" content HEX)
-		file(SIZE "${src}" size)
+# 	if("${src}" IS_NEWER_THAN "${tgt}")
+# 		file(READ "${src}" content HEX)
+# 		file(SIZE "${src}" size)
 
-		string(REGEX REPLACE "[0-9a-f][0-9a-f]" "0x\\0," content_rep "${content}")
+# 		string(REGEX REPLACE "[0-9a-f][0-9a-f]" "0x\\0," content_rep "${content}")
 
-		file(
-			WRITE "${tgt}"
-			"#include <stdint.h>\n#include <stddef.h>\nconst uint8_t ${variable}[${size}] = {\n${content_rep}\n};\nconst size_t ${variable}_size = ${size};"
-		)
-		file(
-			WRITE "${tgt_hdr}"
-			"#include <stdint.h>\n#include <stddef.h>\nextern const uint8_t ${variable}[${size}];\nextern const size_t ${variable}_size;"
-		)
-	endif()
+# 		file(
+# 			WRITE "${tgt}"
+# 			"#include <stdint.h>\n#include <stddef.h>\nconst uint8_t ${variable}[${size}] = {\n${content_rep}\n};\nconst size_t ${variable}_size = ${size};"
+# 		)
+# 		file(
+# 			WRITE "${tgt_hdr}"
+# 			"#include <stdint.h>\n#include <stddef.h>\nextern const uint8_t ${variable}[${size}];\nextern const size_t ${variable}_size;"
+# 		)
+# 	endif()
 
-	target_include_directories("${target}"
-		PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/gen-include")
-	target_sources("${target}" PRIVATE "${tgt}")
-endfunction()
+# 	target_include_directories("${target}"
+# 		PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/gen-include")
+# 	target_sources("${target}" PRIVATE "${tgt}")
+# endfunction()
 
 add_library(canaan_burn SHARED)
 set_property(TARGET canaan_burn PROPERTY C_STANDARD 23)
@@ -85,13 +85,14 @@ if(${DISABLE_TERM_HYPERLINK})
 	target_compile_definitions(canaan_burn PRIVATE DISABLE_TERM_HYPERLINK)
 endif()
 
-load_binary(canaan_burn "usb_isp_buffer" "${CMAKE_CURRENT_LIST_DIR}/usbisp.bin")
+# load_binary(canaan_burn "usb_isp_buffer" "${CMAKE_CURRENT_LIST_DIR}/usbisp.bin")
 target_link_libraries(canaan_burn PUBLIC pthread)
 
 push_source_code(canaan_burn lib)
+push_source_code(canaan_burn monitor lib)
 push_source_code(canaan_burn usb lib)
-push_source_code(canaan_burn serial lib)
-push_source_code(canaan_burn bridge lib)
+# push_source_code(canaan_burn serial lib)
+# push_source_code(canaan_burn bridge lib)
 
 target_include_directories(canaan_burn PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include")
 
@@ -109,16 +110,16 @@ target_include_directories(canaan_burn PRIVATE ${LIBUSB_INCLUDE_DIRS})
 target_link_libraries(canaan_burn PRIVATE ${LIBUSB_LIBRARIES})
 
 # ############################  SERIAL  #######################################
-if(WIN32)
-	include("${VCPKG_INSTALLED_DIR}/x64-windows/share/libsercomm/sercommConfig.cmake")
-elseif(UNIX)
-	include("${VCPKG_INSTALLED_DIR}/x64-linux/share/libsercomm/sercommConfig.cmake")
-elseif(APPLE)
-	# todo
-endif()
+# if(WIN32)
+# 	include("${VCPKG_INSTALLED_DIR}/x64-windows/share/libsercomm/sercommConfig.cmake")
+# elseif(UNIX)
+# 	include("${VCPKG_INSTALLED_DIR}/x64-linux/share/libsercomm/sercommConfig.cmake")
+# elseif(APPLE)
+# 	# todo
+# endif()
 
 # find_package(sercomm CONFIG REQUIRED)
-target_link_libraries(canaan_burn PRIVATE sercomm)
+# target_link_libraries(canaan_burn PRIVATE sercomm)
 
 # set(sercomm_srcs
 # "${CMAKE_CURRENT_LIST_DIR}/3rdparty/sercomm/sercomm/base.c"
@@ -146,7 +147,7 @@ if(WIN32)
 	target_link_libraries(canaan_burn PRIVATE "${WIN32LIBS}")
 endif()
 
-include("${CMAKE_CURRENT_LIST_DIR}/3rdparty/slip/CMakeLists.txt")
+# include("${CMAKE_CURRENT_LIST_DIR}/3rdparty/slip/CMakeLists.txt")
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT WIN32)
 	set(SANITIZE_ADDRESS "On")

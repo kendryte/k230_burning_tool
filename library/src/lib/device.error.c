@@ -1,18 +1,18 @@
 #include "device.h"
 #include "basic/errors.h"
 #include "basic/string.h"
-#include "slip.h"
+// #include "slip.h"
 #include <stdarg.h>
 #include <stdlib.h>
 #include <libusb.h>
-#include <sercomm/sercomm.h>
+// #include <sercomm/sercomm.h>
 
-void _copy_last_serial_io_error(kburnDeviceNode *node, uint32_t err) {
-	clear_error(node);
-	node->error->code = make_error_code(KBURN_ERROR_KIND_SERIAL, err);
-	node->error->errorMessage = strdup(sererr_last());
-	debug_print(KBURN_LOG_ERROR, COLOR_FMT("copy_last_serial_io_error") ": %s", COLOR_ARG(RED), node->error->errorMessage);
-}
+// void _copy_last_serial_io_error(kburnDeviceNode *node, uint32_t err) {
+// 	clear_error(node);
+// 	node->error->code = make_error_code(KBURN_ERROR_KIND_SERIAL, err);
+// 	node->error->errorMessage = strdup(sererr_last());
+// 	debug_print(KBURN_LOG_ERROR, COLOR_FMT("copy_last_serial_io_error") ": %s", COLOR_ARG(RED), node->error->errorMessage);
+// }
 
 void _copy_last_libusb_error(kburnDeviceNode *node, int err) {
 	clear_error(node);
@@ -48,40 +48,40 @@ void _clear_error(kburnDeviceNode *node) {
 	}
 }
 
-void slip_error(kburnSerialDeviceNode *node, int err) {
-	switch (err) {
-	case SLIP_ERROR_BUFFER_OVERFLOW:
-		set_error(node, KBURN_ERROR_KIND_SLIP, err, "SLIP_ERROR_BUFFER_OVERFLOW");
-		break;
-	case SLIP_ERROR_UNKNOWN_ESCAPED_BYTE:
-		set_error(node, KBURN_ERROR_KIND_SLIP, err, "SLIP_ERROR_UNKNOWN_ESCAPED_BYTE");
-		break;
-	case SLIP_ERROR_CRC_MISMATCH:
-		set_error(node, KBURN_ERROR_KIND_SLIP, err, "SLIP_ERROR_CRC_MISMATCH");
-		break;
-	default:
-		m_abort("invalid slip error");
-	}
-}
+// void slip_error(kburnSerialDeviceNode *node, int err) {
+// 	switch (err) {
+// 	case SLIP_ERROR_BUFFER_OVERFLOW:
+// 		set_error(node, KBURN_ERROR_KIND_SLIP, err, "SLIP_ERROR_BUFFER_OVERFLOW");
+// 		break;
+// 	case SLIP_ERROR_UNKNOWN_ESCAPED_BYTE:
+// 		set_error(node, KBURN_ERROR_KIND_SLIP, err, "SLIP_ERROR_UNKNOWN_ESCAPED_BYTE");
+// 		break;
+// 	case SLIP_ERROR_CRC_MISMATCH:
+// 		set_error(node, KBURN_ERROR_KIND_SLIP, err, "SLIP_ERROR_CRC_MISMATCH");
+// 		break;
+// 	default:
+// 		m_abort("invalid slip error");
+// 	}
+// }
 
-void _serial_isp_command_error(kburnDeviceNode *node, kburnIspErrorCode err) {
-	switch (err) {
-	case ISP_RET_DEFAULT:
-		set_error(node, KBURN_ERROR_KIND_ISP, err, "ISP_RET_DEFAULT");
-		return;
-	case ISP_RET_BAD_DATA_LEN:
-		set_error(node, KBURN_ERROR_KIND_ISP, err, "ISP_RET_BAD_DATA_LEN");
-		return;
-	case ISP_RET_BAD_DATA_CHECKSUM:
-		set_error(node, KBURN_ERROR_KIND_ISP, err, "ISP_RET_BAD_DATA_CHECKSUM");
-		return;
-	case ISP_RET_INVALID_COMMAND:
-		set_error(node, KBURN_ERROR_KIND_ISP, err, "ISP_RET_INVALID_COMMAND");
-		return;
-	case ISP_RET_INVALID_INITIALIZATION:
-		set_error(node, KBURN_ERROR_KIND_ISP, err, "ISP_RET_INVALID_INITIALIZATION");
-		return;
-	default:
-		set_error(node, KBURN_ERROR_KIND_ISP, err, "invalid isp command error: %d", err);
-	}
-}
+// void _serial_isp_command_error(kburnDeviceNode *node, kburnIspErrorCode err) {
+// 	switch (err) {
+// 	case ISP_RET_DEFAULT:
+// 		set_error(node, KBURN_ERROR_KIND_ISP, err, "ISP_RET_DEFAULT");
+// 		return;
+// 	case ISP_RET_BAD_DATA_LEN:
+// 		set_error(node, KBURN_ERROR_KIND_ISP, err, "ISP_RET_BAD_DATA_LEN");
+// 		return;
+// 	case ISP_RET_BAD_DATA_CHECKSUM:
+// 		set_error(node, KBURN_ERROR_KIND_ISP, err, "ISP_RET_BAD_DATA_CHECKSUM");
+// 		return;
+// 	case ISP_RET_INVALID_COMMAND:
+// 		set_error(node, KBURN_ERROR_KIND_ISP, err, "ISP_RET_INVALID_COMMAND");
+// 		return;
+// 	case ISP_RET_INVALID_INITIALIZATION:
+// 		set_error(node, KBURN_ERROR_KIND_ISP, err, "ISP_RET_INVALID_INITIALIZATION");
+// 		return;
+// 	default:
+// 		set_error(node, KBURN_ERROR_KIND_ISP, err, "invalid isp command error: %d", err);
+// 	}
+// }

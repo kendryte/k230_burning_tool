@@ -8,7 +8,7 @@ DEFINE_REGISTER_SWAPPER(kburnOnDeviceListChange, scope->on_list_change, on_devic
 
 static void destroy_device(void *UNUSED(ctx), kburnDeviceNode *context) {
 	debug_trace_function();
-	recreate_waitting_list(context->_scope);
+	// recreate_waitting_list(context->_scope);
 
 	if (context->disconnect_should_call && context->_scope->on_disconnect.handler) {
 		debug_print(KBURN_LOG_DEBUG, "\tscope::on_disconnect()");
@@ -28,7 +28,7 @@ DECALRE_DISPOSE_END()
 
 void device_instance_collect(kburnDeviceNode *instance) {
 	debug_trace_function();
-	if (!instance->serial->init && !instance->usb->init) {
+	if (/* !instance->serial->init && */ !instance->usb->init) {
 		mark_destroy_device_node(instance);
 	}
 }
@@ -47,8 +47,8 @@ kburn_err_t create_empty_device_instance(KBCTX scope, kburnDeviceNode **output) 
 	kburnDeviceError *error = MyAlloc(kburnDeviceError);
 	register_dispose_pointer(disposable_list, error);
 
-	kburnSerialDeviceNode *serial = MyAlloc(kburnSerialDeviceNode);
-	register_dispose_pointer(disposable_list, serial);
+	// kburnSerialDeviceNode *serial = MyAlloc(kburnSerialDeviceNode);
+	// register_dispose_pointer(disposable_list, serial);
 
 	kburnUsbDeviceNode *usb = MyAlloc(kburnUsbDeviceNode);
 	register_dispose_pointer(disposable_list, usb);
@@ -62,7 +62,7 @@ kburn_err_t create_empty_device_instance(KBCTX scope, kburnDeviceNode **output) 
 			.disposable_list = disposable_list,
 			.error = error,
 			.chipInfo = NULL,
-			.serial = serial,
+			// .serial = serial,
 			.usb = usb,
 			._scope = scope,
 			.destroy_in_progress = false,
@@ -75,7 +75,7 @@ kburn_err_t create_empty_device_instance(KBCTX scope, kburnDeviceNode **output) 
 	DeferCall(device_instance_collect, empty_device_instance);
 
 	empty_device_instance->guid = (uint64_t)empty_device_instance;
-	empty_device_instance->serial->parent = empty_device_instance;
+	// empty_device_instance->serial->parent = empty_device_instance;
 	empty_device_instance->usb->parent = empty_device_instance;
 
 	*output = empty_device_instance;

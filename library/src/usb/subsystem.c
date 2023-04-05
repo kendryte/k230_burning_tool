@@ -3,7 +3,7 @@
 #include "basic/disposable.h"
 #include "basic/errors.h"
 #include "basic/resource-tracker.h"
-#include "monitor.h"
+#include "../monitor/monitor.h"
 #include "private-types.h"
 #include <libusb.h>
 #include <pthread.h>
@@ -51,6 +51,7 @@ static inline const char *level_name(enum libusb_log_level level) {
 		return "???  ";
 	}
 }
+
 static void libusb_logger(libusb_context *UNUSED(ctx), enum libusb_log_level level, const char *str) {
 	// DEBUG_START(KBURN_LOG_DEBUG);
 	// debug_printf(COLOR_FMT("[LIBUSB][%s] %.*s"), COLOR_ARG(GREY, level_name(level), (int)strlen(str) - 1, str));
@@ -102,5 +103,6 @@ kburn_err_t usb_subsystem_init(KBCTX scope) {
 
 	scope->usb->subsystem_inited = true;
 	DeferAbort;
+
 	return KBurnNoErr;
 }

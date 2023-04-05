@@ -1,5 +1,5 @@
 #include "device-link-list.h"
-#include "../../bridge/bind-wait-list.h"
+// #include "../../bridge/bind-wait-list.h"
 #include "basic/resource-tracker.h"
 #include <stdlib.h>
 #include <string.h>
@@ -27,10 +27,10 @@ DECALRE_DISPOSE(port_link_list_deinit, port_link_list) {
 }
 DECALRE_DISPOSE_END()
 
-void recreate_waitting_list(KBCTX scope) {
-	autolock(scope->openDeviceList->exclusion);
-	_recreate_waitting_list(scope);
-}
+// void recreate_waitting_list(KBCTX scope) {
+// 	autolock(scope->openDeviceList->exclusion);
+// 	_recreate_waitting_list(scope);
+// }
 
 void add_to_device_list(kburnDeviceNode *target) {
 	KBCTX scope = target->_scope;
@@ -58,9 +58,9 @@ void add_to_device_list(kburnDeviceNode *target) {
 
 	dispose_list_add(target->disposable_list, toDisposable(delete_from_device_list, target));
 
-	if (_should_insert_waitting_list(target)) {
-		_recreate_waitting_list(target->_scope);
-	}
+	// if (_should_insert_waitting_list(target)) {
+	// 	_recreate_waitting_list(target->_scope);
+	// }
 }
 
 static void do_delete(KBCTX scope, port_link_element *target) {
@@ -85,9 +85,9 @@ static void do_delete(KBCTX scope, port_link_element *target) {
 	m_assert(scope->openDeviceList->size > 0, "delete port from empty list");
 	scope->openDeviceList->size--;
 
-	if (_should_insert_waitting_list(target->node)) {
-		_recreate_waitting_list(scope);
-	}
+	// if (_should_insert_waitting_list(target->node)) {
+	// 	_recreate_waitting_list(scope);
+	// }
 
 	free(target);
 }
@@ -107,20 +107,20 @@ DECALRE_DISPOSE(delete_from_device_list, kburnDeviceNode) {
 }
 DECALRE_DISPOSE_END()
 
-static inline port_link_element *find_serial_device(KBCTX scope, const char *path) {
-	port_link_element *curs = NULL;
+// static inline port_link_element *find_serial_device(KBCTX scope, const char *path) {
+// 	port_link_element *curs = NULL;
 
-	autolock(scope->openDeviceList->exclusion);
-	for (curs = scope->openDeviceList->head; curs != NULL; curs = curs->next) {
-		if (!curs->node->serial->init) {
-			continue;
-		}
-		if (strcmp(curs->node->serial->deviceInfo.path, path) == 0) {
-			break;
-		}
-	}
-	return curs;
-}
+// 	autolock(scope->openDeviceList->exclusion);
+// 	for (curs = scope->openDeviceList->head; curs != NULL; curs = curs->next) {
+// 		if (!curs->node->serial->init) {
+// 			continue;
+// 		}
+// 		if (strcmp(curs->node->serial->deviceInfo.path, path) == 0) {
+// 			break;
+// 		}
+// 	}
+// 	return curs;
+// }
 
 static inline port_link_element *find_usb_device_by_vidpidpath(KBCTX scope, uint16_t vid, uint16_t pid, const uint8_t path[MAX_USB_PATH_LENGTH]) {
 	port_link_element *curs = NULL;
@@ -135,40 +135,40 @@ static inline port_link_element *find_usb_device_by_vidpidpath(KBCTX scope, uint
 	return curs;
 }
 
-kburnDeviceNode *get_device_by_serial_port_path(KBCTX scope, const char path[MAX_USB_PATH_LENGTH]) {
-	port_link_element *ret = find_serial_device(scope, path);
-	return ret ? ret->node : NULL;
-}
+// kburnDeviceNode *get_device_by_serial_port_path(KBCTX scope, const char path[MAX_USB_PATH_LENGTH]) {
+// 	port_link_element *ret = find_serial_device(scope, path);
+// 	return ret ? ret->node : NULL;
+// }
 
 kburnDeviceNode *get_device_by_usb_port_path(KBCTX scope, uint16_t vid, uint16_t pid, const uint8_t path[MAX_USB_PATH_LENGTH]) {
 	port_link_element *ret = find_usb_device_by_vidpidpath(scope, vid, pid, path);
 	return ret ? ret->node : NULL;
 }
 
-static kburnDeviceNode *has_bind_id_used(KBCTX scope, uint32_t id) {
-	port_link_element *curs = NULL;
+// static kburnDeviceNode *has_bind_id_used(KBCTX scope, uint32_t id) {
+// 	port_link_element *curs = NULL;
 
-	for (curs = scope->openDeviceList->head; curs != NULL; curs = curs->next) {
-		if (curs->node->bind_id == id) {
-			return curs->node;
-		}
-	}
-	return NULL;
-}
+// 	for (curs = scope->openDeviceList->head; curs != NULL; curs = curs->next) {
+// 		if (curs->node->bind_id == id) {
+// 			return curs->node;
+// 		}
+// 	}
+// 	return NULL;
+// }
 
-void alloc_new_bind_id(kburnDeviceNode *node) {
-	uint32_t id = 0;
+// void alloc_new_bind_id(kburnDeviceNode *node) {
+// 	uint32_t id = 0;
 
-	autolock(node->_scope->openDeviceList->exclusion);
+// 	autolock(node->_scope->openDeviceList->exclusion);
 
-	do {
-		do {
-			id = rand();
-		} while (id == 0);
-	} while (has_bind_id_used(node->_scope, id));
-	node->bind_id = id;
-}
+// 	do {
+// 		do {
+// 			id = rand();
+// 		} while (id == 0);
+// 	} while (has_bind_id_used(node->_scope, id));
+// 	node->bind_id = id;
+// }
 
-kburnDeviceNode *get_device_by_bind_id(KBCTX scope, uint32_t id) {
-	return has_bind_id_used(scope, id);
-}
+// kburnDeviceNode *get_device_by_bind_id(KBCTX scope, uint32_t id) {
+// 	return has_bind_id_used(scope, id);
+// }

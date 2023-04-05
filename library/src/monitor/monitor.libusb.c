@@ -1,7 +1,7 @@
 #include "monitor.h"
 #include "context.h"
-#include "descriptor.h"
-#include "private-types.h"
+#include "../usb/descriptor.h"
+#include "../usb/private-types.h"
 #include "canaan-burn/canaan-burn.h"
 #include <stdlib.h>
 #include <libusb.h>

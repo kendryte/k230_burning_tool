@@ -14,12 +14,12 @@ typedef struct kburnContext {
 	on_device_remove_t on_disconnect;
 	on_device_list_change_t on_list_change;
 
-	struct serial_subsystem_context *const serial;
+	// struct serial_subsystem_context *const serial;
 	struct usb_subsystem_context *const usb;
 	struct disposable_list *const disposables;
 	struct disposable_list *const threads;
 	struct port_link_list *const openDeviceList;
-	struct waiting_list *const waittingDevice;
+	// struct waiting_list *const waittingDevice;
 	struct event_queue_thread *user_event;
 
 	struct dynamic_array *list1;

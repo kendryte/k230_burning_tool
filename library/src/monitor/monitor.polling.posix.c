@@ -1,6 +1,6 @@
 #include "base.h"
 #include "context.h"
-#include "private-types.h"
+#include "../usb/private-types.h"
 #include "components/thread.h"
 
 typedef struct polling_context {

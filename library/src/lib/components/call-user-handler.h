@@ -4,8 +4,10 @@
 #include "context.h"
 #include "basic/disposable.h"
 
+#include "../../usb/private-types.h"
+
 struct user_handler_wrap_data {
-	on_device_handle handler;
+	private_usb_bootrom_hanshaked handler;
 	void *context;
 	kburnDeviceNode *device;
 };
@@ -13,7 +15,7 @@ struct user_handler_wrap_data {
 #define CALL_HANDLE_SYNC(bundle, ...) bundle.handler(bundle.context, __VA_ARGS__)
 #define CALL_HANDLE_ASYNC(callback, device) _user_handler_wrap_async_new(callback.handler, callback.context, device)
 
-void _user_handler_wrap_async_new(on_device_handle handler, void *context, kburnDeviceNode *device);
+void _user_handler_wrap_async_new(private_usb_bootrom_hanshaked handler, void *context, kburnDeviceNode *device);
 void user_handler_wrap_async(struct user_handler_wrap_data *data);
 void user_handler_wrap_sync(struct user_handler_wrap_data *data);
 

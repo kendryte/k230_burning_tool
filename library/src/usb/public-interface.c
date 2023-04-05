@@ -18,8 +18,9 @@ kburn_err_t kburnPollUsb(KBCTX scope) {
 	return init_list_all_usb_devices(scope);
 }
 
-DEFINE_REGISTER_SWAPPER(kburnOnUsbConnect, scope->usb->on_connect, on_device_connect)
-DEFINE_REGISTER_SWAPPER(kburnOnUsbConfirm, scope->usb->on_handle, on_device_handle)
+DEFINE_REGISTER_SWAPPER(kburnOnUsbConnect, scope->usb->on_connect, on_usb_connect)
+DEFINE_REGISTER_SWAPPER(kburnOnUsbBootromHanshake, scope->usb->on_bootrom, on_usb_bootrom_handle)
+DEFINE_REGISTER_SWAPPER(kburnOnUsbUbootHandshake, scope->usb->on_loader, on_usb_loader_handle)
 
 kburnUsbDeviceList kburnGetUsbList(KBCTX scope) {
 	if (scope->list2 == NULL) {

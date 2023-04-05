@@ -50,3 +50,8 @@ typedef struct kburn_usb_device_list {
 	PCONST size_t size;
 	PCONST struct kburnUsbDeviceInfoSlice *list;
 } kburnUsbDeviceList;
+
+typedef struct kburn_usb_loader_info {
+	uint8_t *data;
+	size_t size;
+} kburnUsbLoaderInfo;

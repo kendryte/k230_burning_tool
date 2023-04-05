@@ -2,5 +2,6 @@
 
 #include "context.h"
 
-kburn_err_t usb_device_hello(kburnDeviceNode *node);
-bool usb_device_serial_print(kburnDeviceNode *node, const uint8_t *buff, size_t buff_size);
+kburn_err_t usb_isp_stage1_handshake(kburnDeviceNode *node);
+
+kburn_err_t usb_isp_stage1_get_cpu_info(kburnDeviceNode *node);

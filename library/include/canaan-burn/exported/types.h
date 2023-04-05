@@ -2,6 +2,7 @@
 
 #include "./errors.h"
 #include "./prefix.h"
+#include "./types.usb.h"
 #include "time.h"
 
 DEFINE_START
@@ -21,7 +22,7 @@ typedef struct kburnDeviceNode {
 	PCONST kburnDeviceError *const error;
 	PCONST void *chipInfo;
 	PCONST struct disposable_list *disposable_list;
-	struct kburnSerialDeviceNode *const serial;
+	// struct kburnSerialDeviceNode *const serial;
 	struct kburnUsbDeviceNode *const usb;
 	PCONST struct kburnContext *const _scope;
 
@@ -52,13 +53,17 @@ typedef enum kburnLogType
 	} CONCAT(name, _t)
 
 declare_callback(void, on_device_list_change, bool isUsb);
-declare_callback(bool, on_device_connect, kburnDeviceNode *dev);
 declare_callback(void, on_device_remove, kburnDeviceNode *dev);
-declare_callback(void, on_device_handle, kburnDeviceNode *dev);
+
+declare_callback(bool, on_usb_connect, kburnDeviceNode *dev);
+
+declare_callback(bool, on_usb_bootrom_handle, kburnDeviceNode *dev, kburnUsbLoaderInfo *info);
+declare_callback(void, on_usb_loader_handle, kburnDeviceNode *dev);
+
 declare_callback(void, on_write_progress, const kburnDeviceNode *dev, size_t current, size_t length);
 declare_callback(void, on_debug_log, kburnLogType type, const char *message);
 
-#include "./types.serial.h"
+// #include "./types.serial.h"
 #include "./types.usb.h"
 
 DEFINE_END

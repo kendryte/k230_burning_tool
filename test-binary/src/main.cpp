@@ -14,10 +14,10 @@ const char *test_null(const char *str) {
 	return str ? str : "NULL";
 }
 
-bool verify(void *ctx, kburnDeviceNode *dev) {
-	cout << "ask connect: " << dev->serial->deviceInfo.path << ", isUSB=" << dev->serial->deviceInfo.isUSB << endl;
-	return true;
-}
+// bool verify(void *ctx, kburnDeviceNode *dev) {
+// 	cout << "ask connect: " << dev->serial->deviceInfo.path << ", isUSB=" << dev->serial->deviceInfo.isUSB << endl;
+// 	return true;
+// }
 
 void print_progress(void *ctx, const struct kburnDeviceNode *dev, size_t current, size_t length) {
 	cout << "loading: " << current << '/' << length << "\t " << (int)(current * 100 / length) << "%" << endl;
@@ -30,99 +30,134 @@ static void perror(const kburnDeviceError *const e) {
 	cout << "    - msg : " << test_null(e->errorMessage) << endl;
 }
 
-void handle(void *ctx, kburnDeviceNode *dev) {
-	cout << "Got Serial Device: " << dev->serial->deviceInfo.path << endl;
-	cout << "  * isOpen: " << dev->serial->isOpen << endl;
-	cout << "  * isConfirm: " << dev->serial->isConfirm << endl;
-	cout << "  * error status: " << dev->error->code << ", " << test_null(dev->error->errorMessage) << endl;
+// void handle(void *ctx, kburnDeviceNode *dev) {
+// 	cout << "Got Serial Device: " << dev->serial->deviceInfo.path << endl;
+// 	cout << "  * isOpen: " << dev->serial->isOpen << endl;
+// 	cout << "  * isConfirm: " << dev->serial->isConfirm << endl;
+// 	cout << "  * error status: " << dev->error->code << ", " << test_null(dev->error->errorMessage) << endl;
 
-	if (dev->error->code != KBurnNoErr) {
-		perror(dev->error);
-		return;
-	}
+// 	if (dev->error->code != KBurnNoErr) {
+// 		perror(dev->error);
+// 		return;
+// 	}
 
-	if (!kburnSerialIspSetBaudrateHigh(dev->serial)) {
-		cout << "Error: can not set baudrate: " << test_null(dev->error->errorMessage) << endl;
-	}
+// 	if (!kburnSerialIspSetBaudrateHigh(dev->serial)) {
+// 		cout << "Error: can not set baudrate: " << test_null(dev->error->errorMessage) << endl;
+// 	}
 
-	if (!kburnSerialIspSwitchUsbMode(dev->serial, print_progress, NULL)) {
-		cout << "Error: can not go usb mode: " << test_null(dev->error->errorMessage) << endl;
-	}
+// 	if (!kburnSerialIspSwitchUsbMode(dev->serial, print_progress, NULL)) {
+// 		cout << "Error: can not go usb mode: " << test_null(dev->error->errorMessage) << endl;
+// 	}
+// }
+
+void on_usb_list_change(void *ctx, bool isUsb)
+{
+	cout << __func__ << endl;
 }
 
-void handle_usb(void *ctx, kburnDeviceNode *dev) {
-	kburn_err_t r;
+bool on_device_connect(void *ctx, kburnDeviceNode *dev)
+{
+	cout << __func__ << endl;
 
-	cout << "Got Usb Device: " << endl;
-	cout << "  * serial port: " << (dev->serial->isUsbBound ? dev->serial->deviceInfo.path : "not bind") << endl;
-	cout << "  * usb port: ";
-	for (auto i = 0; i < MAX_USB_PATH_LENGTH - 1; i++) {
-		cout << hex << (uint8_t)dev->usb->deviceInfo.path[i] << dec << " " << flush;
-	}
-	cout << endl;
-	cout << "    usb vid: 0x" << hex << dev->usb->deviceInfo.idVendor << dec << endl;
-	cout << "    usb pid: 0x" << hex << dev->usb->deviceInfo.idProduct << dec << endl;
-
-	cout << "  * error status: " << dev->error->code << ", " << test_null(dev->error->errorMessage) << endl;
-
-	if (dev->error->code != KBurnNoErr) {
-		return;
-	}
-
-	kburnDeviceMemorySizeInfo size_info;
-	uint8_t test_block[512];
-	for (size_t i = 0; i < 512; i++) {
-		test_block[i] = rand();
-	}
-
-	uint32_t testAddress = (1024 * 1024 * 2) / 512;
-	cout << "test read memory size:" << endl;
-	if (!kburnUsbIspGetMemorySize(dev, KBURN_USB_ISP_EMMC, &size_info)) {
-		cout << "  * error status: " << dev->error->code << ", " << test_null(dev->error->errorMessage) << endl;
-	} else {
-		cout << "  * block_size: " << size_info.block_size << endl;
-		cout << "  * device_size: " << size_info.storage_size << endl;
-		cout << "  * max_block_addr: " << size_info.last_block_address << endl;
-	}
-
-	// cout << "test erase emmc:" << endl;
-	// char oneMb[1024 * 1024];
-	// memset(oneMb, 0, 1024 * 1024);
-	// for (size_t block = 0; block < size_info.block_count; block++) {
-	// 	if (!kburnUsbIspWriteChunk(dev, size_info, block, oneMb, 1024 * 1024)) {
-	// 		perror(dev->error);
-	// 	}
-	// }
-
-	cout << "test write emmc:" << endl;
-	if (!kburnUsbIspWriteChunk(dev, size_info, testAddress, test_block, 512)) {
-		perror(dev->error);
-	}
-
-	cout << "test read emmc:" << endl;
-	uint8_t out_test[512];
-	memset(out_test, 0, 512);
-	if (!kburnUsbIspReadChunk(dev, size_info, testAddress, 512, out_test)) {
-		perror(dev->error);
-	} else {
-		if (memcmp(out_test, test_block, 0) == 0) {
-			cout << "    - data same" << endl;
-		} else {
-			cout << "    - data wrong" << endl;
-		}
-	}
+	return true;
 }
 
-void disconnect(void *ctx, kburnDeviceNode *dev) {
+void on_device_disconnect(void *ctx, kburnDeviceNode *dev) {
 	if (dev == NULL) {
 		cout << "unrelated device disconnected" << endl;
 		return;
 	}
-	cout << "Disconnect: " << dev->serial->deviceInfo.path << endl;
-	cout << "  * isOpen: " << dev->serial->isOpen << endl;
-	cout << "  * isConfirm: " << dev->serial->isConfirm << endl;
+	// cout << "Disconnect: " << dev->serial->deviceInfo.path << endl;
+	// cout << "  * isOpen: " << dev->serial->isOpen << endl;
+	// cout << "  * isConfirm: " << dev->serial->isConfirm << endl;
 	cout << "  * error status: " << dev->error->code << ", " << test_null(dev->error->errorMessage) << endl;
 }
+
+bool on_k230_ready(void *ctx, kburnDeviceNode *dev, kburnUsbLoaderInfo *info) {
+	cout << __func__ << endl;
+
+	if (dev == NULL) {
+		cout << "unrelated device connected" << endl;
+		return false;
+	}
+	// cout << "Connect: " << dev->serial->deviceInfo.path << endl;
+	// cout << "  * isOpen: " << dev->serial->isOpen << endl;
+	// cout << "  * isConfirm: " << dev->serial->isConfirm << endl;
+	cout << "  * error status: " << dev->error->code << ", " << test_null(dev->error->errorMessage) << endl;
+
+	info->size = 114514;
+	info->data = NULL;
+
+	return true;
+}
+
+void on_k230_loader_ready(void *ctx, kburnDeviceNode *dev) {
+	cout << __func__ << endl;
+
+	return;
+
+	// kburn_err_t r;
+
+	// cout << "Got Usb Device: " << endl;
+	// cout << "  * serial port: " << (/*dev->serial->isUsbBound ? dev->serial->deviceInfo.path : */ "not bind") << endl;
+	// cout << "  * usb port: ";
+	// for (auto i = 0; i < MAX_USB_PATH_LENGTH - 1; i++) {
+	// 	cout << hex << (uint8_t)dev->usb->deviceInfo.path[i] << dec << " " << flush;
+	// }
+	// cout << endl;
+	// cout << "    usb vid: 0x" << hex << dev->usb->deviceInfo.idVendor << dec << endl;
+	// cout << "    usb pid: 0x" << hex << dev->usb->deviceInfo.idProduct << dec << endl;
+
+	// cout << "  * error status: " << dev->error->code << ", " << test_null(dev->error->errorMessage) << endl;
+
+	// if (dev->error->code != KBurnNoErr) {
+	// 	return;
+	// }
+
+	// kburnDeviceMemorySizeInfo size_info;
+	// uint8_t test_block[512];
+	// for (size_t i = 0; i < 512; i++) {
+	// 	test_block[i] = rand();
+	// }
+
+	// uint32_t testAddress = (1024 * 1024 * 2) / 512;
+	// cout << "test read memory size:" << endl;
+	// if (!kburnUsbIspGetMemorySize(dev, KBURN_USB_ISP_EMMC, &size_info)) {
+	// 	cout << "  * error status: " << dev->error->code << ", " << test_null(dev->error->errorMessage) << endl;
+	// } else {
+	// 	cout << "  * block_size: " << size_info.block_size << endl;
+	// 	cout << "  * device_size: " << size_info.storage_size << endl;
+	// 	cout << "  * max_block_addr: " << size_info.last_block_address << endl;
+	// }
+
+	// // cout << "test erase emmc:" << endl;
+	// // char oneMb[1024 * 1024];
+	// // memset(oneMb, 0, 1024 * 1024);
+	// // for (size_t block = 0; block < size_info.block_count; block++) {
+	// // 	if (!kburnUsbIspWriteChunk(dev, size_info, block, oneMb, 1024 * 1024)) {
+	// // 		perror(dev->error);
+	// // 	}
+	// // }
+
+	// cout << "test write emmc:" << endl;
+	// if (!kburnUsbIspWriteChunk(dev, size_info, testAddress, test_block, 512)) {
+	// 	perror(dev->error);
+	// }
+
+	// cout << "test read emmc:" << endl;
+	// uint8_t out_test[512];
+	// memset(out_test, 0, 512);
+	// if (!kburnUsbIspReadChunk(dev, size_info, testAddress, 512, out_test)) {
+	// 	perror(dev->error);
+	// } else {
+	// 	if (memcmp(out_test, test_block, 0) == 0) {
+	// 		cout << "    - data same" << endl;
+	// 	} else {
+	// 		cout << "    - data wrong" << endl;
+	// 	}
+	// }
+}
+
 
 int main(int argc, char **argv) {
 	assert(KBURN_ERROR_KIND_SERIAL > UINT32_MAX);
@@ -138,11 +173,13 @@ int main(int argc, char **argv) {
 
 	// kburnSetUsbFilter(context, KBURN_VIDPID_FILTER_ANY, KBURN_VIDPID_FILTER_ANY);
 
-	kburnOnDeviceDisconnect(context, disconnect, NULL);
-	kburnOnSerialConnect(context, verify, NULL);
-	kburnOnSerialConfirm(context, handle, NULL);
+	kburnOnDeviceListChange(context, on_usb_list_change, NULL);
 
-	kburnOnUsbConfirm(context, handle_usb, NULL);
+	kburnOnUsbConnect(context, on_device_connect, NULL);
+	kburnOnDeviceDisconnect(context, on_device_disconnect, NULL);
+
+	kburnOnUsbBootromHanshake(context, on_k230_ready, NULL);
+	kburnOnUsbUbootHandshake(context, on_k230_loader_ready, NULL);
 
 	kburnStartWaitingDevices(context);
 
@@ -158,12 +195,12 @@ int main(int argc, char **argv) {
 	printf("Press ENTER to stop monitoring\n");
 	getchar();
 
-	auto list1 = kburnGetSerialList(context);
+	// auto list1 = kburnGetSerialList(context);
 	auto list2 = kburnGetUsbList(context);
 
-	for (size_t i = 0; i < list1.size; i++) {
-		cout << "[" << i << "] " << list1.list[i].path << endl;
-	}
+	// for (size_t i = 0; i < list1.size; i++) {
+	// 	cout << "[" << i << "] " << list1.list[i].path << endl;
+	// }
 
 	for (size_t i = 0; i < list2.size; i++) {
 		cout << "[" << i << "]";

@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include <assert.h>
 #include <pthread.h>
+#include <time.h>
+#include <sys/time.h>
 
 #define DEBUG_BUFFER_SIZE 4096
 
@@ -48,6 +50,23 @@ void _kb__debug_enter() {
 	debug_output = debug_buffer;
 	debug_buffer_remain = DEBUG_BUFFER_SIZE;
 	debug_buffer[0] = '\0';
+
+	time_t rawtime;
+	struct tm * timeinfo;
+	char buffer [80];
+	char currentTime[128];
+
+	struct timeval curTime;
+	gettimeofday(&curTime, NULL);
+	int milli = curTime.tv_usec / 1000;
+
+	time(&rawtime);
+	timeinfo = localtime(&rawtime);
+	strftime(buffer, 80, "%Y-%m-%d %H:%M:%S", timeinfo);
+
+	sprintf(currentTime, "%s:%d ", buffer, milli);
+
+	debug_puts(currentTime);
 }
 
 void _kb__debug_leave(kburnLogType type) {

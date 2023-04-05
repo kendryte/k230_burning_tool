@@ -1,6 +1,6 @@
 #include "context.h"
-#include "../bridge/bind-wait-list.h"
-#include "../serial/private-types.h"
+// #include "../bridge/bind-wait-list.h"
+// #include "../serial/private-types.h"
 #include "../usb/private-types.h"
 #include "basic/lock.h"
 #include "basic/resource-tracker.h"
@@ -49,13 +49,12 @@ kburn_err_t kburnCreate(KBCTX *ppCtx) {
 	*ppCtx = MyAlloc(kburnContext);
 	register_dispose_pointer(dis, *ppCtx);
 
-	waiting_list_t *wlist = CheckNull(waiting_list_init());
-	dispose_list_add(dis, toDisposable(waiting_list_deinit, wlist));
+	// waiting_list_t *wlist = CheckNull(waiting_list_init());
+	// dispose_list_add(dis, toDisposable(waiting_list_deinit, wlist));
 
-	serial_subsystem_context *serial = MyAlloc(serial_subsystem_context);
-	register_dispose_pointer(dis, serial);
-
-	serial->settings = serial_default_settings;
+	// serial_subsystem_context *serial = MyAlloc(serial_subsystem_context);
+	// register_dispose_pointer(dis, serial);
+	// serial->settings = serial_default_settings;
 
 	usb_subsystem_context *usb = MyAlloc(usb_subsystem_context);
 	register_dispose_pointer(dis, usb);
@@ -68,10 +67,10 @@ kburn_err_t kburnCreate(KBCTX *ppCtx) {
 		*ppCtx,
 		&(kburnContext){
 			.signature = CONTEXT_MEMORY_SIGNATURE,
-			.serial = serial,
+			// .serial = serial,
 			.usb = usb,
 			.openDeviceList = odlist,
-			.waittingDevice = wlist,
+			// .waittingDevice = wlist,
 			.disposables = dis,
 			.threads = threads,
 			.monitor_inited = false,

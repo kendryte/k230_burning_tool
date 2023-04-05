@@ -23,14 +23,18 @@ struct usb_settings {
 	uint16_t pid;
 };
 
+declare_callback(void, private_usb_bootrom_hanshaked, kburnDeviceNode *dev);
+
 typedef struct usb_subsystem_context {
 	struct usb_settings settings;
 
 	bool subsystem_inited;
 	bool detach_kernel_driver;
 
-	on_device_handle_t on_handle;
-	on_device_connect_t on_connect;
+	on_usb_connect_t on_connect;
+
+	on_usb_bootrom_handle_t on_bootrom;
+	on_usb_loader_handle_t on_loader;
 
 	struct libusb_context *libusb;
 	bool monitor_prepared;
@@ -44,6 +48,8 @@ typedef struct usb_subsystem_context {
 	};
 
 	event_queue_thread_t event_queue;
+
+	private_usb_bootrom_hanshaked_t _on_usb_bootrom_handshake;
 } usb_subsystem_context;
 
 #define debug_print_libusb_result(msg, err, ...)                                                                                     \
