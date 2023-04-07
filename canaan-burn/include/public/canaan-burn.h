@@ -40,6 +40,7 @@ PUBLIC uint16_t kburnGetUsbFilterVid(KBMonCTX monitor);
 PUBLIC void kburnSetUsbFilterPid(KBMonCTX monitor, uint16_t pid);
 PUBLIC uint16_t kburnGetUsbFilterPid(KBMonCTX monitor);
 
-void mark_destroy_device_node(kburnDeviceNode *instance);
+PUBLIC kburn_err_t kburnMonitorManualTrig(KBMonCTX monitor);
+PUBLIC void mark_destroy_device_node(kburnDeviceNode *instance);
 
 DEFINE_END

@@ -26,3 +26,5 @@ kburn_err_t usb_monitor_callback_prepare(KBMonCTX monitor);
 void usb_monitor_callback_destroy(KBMonCTX monitor);
 kburn_err_t usb_monitor_callback_resume(KBMonCTX monitor);
 void usb_monitor_callback_pause(KBMonCTX monitor);
+
+kburn_err_t usb_monitor_manual_trig(KBMonCTX monitor);

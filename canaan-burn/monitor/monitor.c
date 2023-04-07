@@ -138,3 +138,7 @@ kburn_err_t kburnMonitorStartWaitingDevices(KBMonCTX monitor) {
 
 	return kburnMonitorWaitDeviceResume(monitor);
 }
+
+kburn_err_t kburnMonitorManualTrig(KBMonCTX monitor) {
+	return usb_monitor_manual_trig(monitor);
+}
