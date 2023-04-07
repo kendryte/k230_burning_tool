@@ -10,24 +10,36 @@
 
 using namespace std;
 
-
 void _on_device_list_change(void *ctx, void *always_null_ptr) {
 	cout << __func__ << endl;
 }
 
 bool _on_device_connect(void *ctx, kburnDeviceNode *dev) {
+	/**
+	 * 设备连接之后，开启定时器，如果没有断开连接，或者是被调用confirm回调，说明连接超时，进行提醒
+	*/
 	cout << __func__ << endl;
 	return true;
 }
 
 void _on_device_disconnect(void *ctx, kburnDeviceNode *dev) {
+	/**
+	 * 设备连接之后断开，可能是被主动断开，或者是握手失败
+	*/
 	cout << __func__ << endl;
 }
 
 void _on_device_confirmed(void *ctx, kburnDeviceNode *dev) {
+	/**
+	 * 设备握手成功，开始进行下载
+	 * 
+	 * 推荐流程，如果是多设备下载，需要新建线程池，在新的线程中进行下载
+	 * 		1. 下载loader并启动loader
+	 * 		2. 下载文件
+	*/
 	cout << __func__ << endl;
 
-	// Now, we directly destory the node.
+	// 用完设备之后，调用该函数，标记可以进行回收
 	mark_destroy_device_node(dev);
 }
 

@@ -26,6 +26,8 @@ enum KBurnCommonError
 	KBurnUsbErrorSense,
 	KBurnUsbProtocolWrong,
 	KBurnUsbUserNoHandle,
+	KBrunUsbCommError,
+
 	KBurnObjectDestroy,
 	KBurnProtocolOpMismatch,
 	KBurnSizeNotAlign,
