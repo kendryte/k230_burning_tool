@@ -1,7 +1,7 @@
 #include <libusb.h>
 
 #include "private/lib/debug/print.h"
-#include "private/monitor/chip.h"
+#include "private/monitor/handshake.h"
 
 #define RETRY_TIMES (3)
 #define USB_TIMEOUT (5000)

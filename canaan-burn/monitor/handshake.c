@@ -1,4 +1,4 @@
-#include "private/monitor/chip.h"
+#include "private/monitor/handshake.h"
 #include "private/lib/debug/print.h"
 
 bool chip_handshake(kburnDeviceNode *node)

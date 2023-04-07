@@ -7,7 +7,7 @@
 #include "private/lib/components/call-user-handler.h"
 #include "private/lib/components/device-link-list.h"
 
-#include "private/monitor/chip.h"
+#include "private/monitor/handshake.h"
 #include "private/monitor/lifecycle.h"
 #include "private/monitor/descriptor.h"
 #include "private/monitor/usb_types.h"
