@@ -117,7 +117,7 @@ typedef struct usb_subsystem_context {
 #undef get_settings
 #undef CREATE_GETTER_SETTER
 #else
-#define get_settings(node) get_scope(node)->usb->settings
+#define get_settings(node) get_monitor(node)->usb->settings
 #define subsystem_settings (monitor->usb->settings)
 #define CREATE_GETTER_SETTER(Field, config_field) _CREATE_GETTER_SETTER(Usb, Field, config_field)
 #endif

@@ -33,7 +33,9 @@ kburn_err_t init_list_all_usb_devices(KBMonCTX monitor) {
 		debug_print_libusb_error("libusb_get_device_list()", r);
 		return r;
 	}
-	for (int i = 0; i < r; i++) {
+
+	int cnt = r;
+	for (int i = 0; i < cnt; i++) {
 		libusb_device *dev = list[i];
 
 		r = libusb_get_device_descriptor(dev, &desc);

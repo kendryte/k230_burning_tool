@@ -16,11 +16,11 @@
 #include "private/monitor/lifecycle.h"
 #include "private/monitor/usb_types.h"
 
-static void init_list_all_usb_devices_threaded(void *UNUSED(_ctx), KBMonCTX monitor, const bool *const q) {
-	if (!*q) {
-		init_list_all_usb_devices(monitor);
-	}
-}
+// static void init_list_all_usb_devices_threaded(void *UNUSED(_ctx), KBMonCTX monitor, const bool *const q) {
+// 	if (!*q) {
+// 		init_list_all_usb_devices(monitor);
+// 	}
+// }
 
 void _auto_libusb_free_device_list(libusb_device ***pval) {
 	if (*pval == NULL)
@@ -164,7 +164,7 @@ kburn_err_t usb_monitor_prepare(KBMonCTX monitor) {
 		IfErrorReturn(usb_monitor_polling_prepare(monitor));
 	}
 
-	thread_create("usb init scan", init_list_all_usb_devices_threaded, NULL, monitor, NULL);
+	// thread_create("usb init scan", init_list_all_usb_devices_threaded, NULL, monitor, NULL);
 
 	return KBurnNoErr;
 }

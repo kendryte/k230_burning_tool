@@ -7,13 +7,12 @@ __attribute__((always_inline)) static inline kburnDeviceNode *__p(kburnDeviceNod
 	return v;
 }
 
-
 __attribute__((always_inline)) static inline kburnDeviceNode *__u(kburnUsbDeviceNode *v) {
 	return v->parent;
 }
 
 #define get_node(node) _Generic((node), kburnDeviceNode * : __p, kburnUsbDeviceNode * : __u)(node)
-#define scopeOf(node) get_node(node)->_monitor
+#define monitorOf(node) get_node(node)->_monitor
 
 #define copy_last_libusb_error(node, errno) _copy_last_libusb_error(get_node(node), errno)
 #define set_error(node, kind, code, errstr, ...) _set_error(get_node(node), kind, code, errstr __VA_OPT__(, ) __VA_ARGS__)

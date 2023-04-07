@@ -29,7 +29,7 @@ kburn_err_t kburnMonitorCreate(KBMonCTX *ppCtx) {
 
 	if (!monitor_global_monitor) {
 		atexit(kburnMonitorGlobalDestroy);
-		monitor_global_monitor = disposable_list_init("library global");
+		monitor_global_monitor = disposable_list_init("monitor global");
 	}
 
 	DeferEnabled;

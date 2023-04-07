@@ -10,7 +10,7 @@ typedef void (*cleanup_function)(void *value);
 typedef struct_debug_bundle resource_tracker_debug;
 typedef void (*handle_function)(void *dev, void *ctx);
 
-#define MAX_TRACE 20
+#define MAX_TRACE 200
 typedef struct resource_tracker_element {
 	cleanup_function callback;
 	handle_function user_callback;

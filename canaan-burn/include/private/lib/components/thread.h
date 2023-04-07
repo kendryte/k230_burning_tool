@@ -20,5 +20,3 @@ thread_condition_t *thread_get_condition(kbthread thread);
 thread_condition_t *get_current_thread_condition();
 
 #define current_thread_wait_event(test, handle, context) thread_wait_event(get_current_thread_condition(), test, handle, context)
-
-

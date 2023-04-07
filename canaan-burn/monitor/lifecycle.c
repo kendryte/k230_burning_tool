@@ -7,6 +7,7 @@
 #include "private/lib/components/call-user-handler.h"
 #include "private/lib/components/device-link-list.h"
 
+#include "private/monitor/chip.h"
 #include "private/monitor/lifecycle.h"
 #include "private/monitor/descriptor.h"
 #include "private/monitor/usb_types.h"
@@ -61,7 +62,13 @@ _quit:
 
 DECALRE_DISPOSE(destroy_usb_port, kburnUsbDeviceNode) {
 	debug_trace_function("USB[0x%p: %s]", (void *)context->device, usb_debug_path_string(context->deviceInfo.path));
-	if (!use_device(context)) {
+	// if (!use_device(context)) {
+	// 	return;
+	// }
+
+	kburnDeviceNode *n = get_node(context);
+	if(!n->destroy_in_progress) {
+		debug_print(KBURN_LOG_WARN, "not to destory device.");
 		return;
 	}
 
@@ -84,32 +91,6 @@ DECALRE_DISPOSE(destroy_usb_port, kburnUsbDeviceNode) {
 	device_instance_collect(get_node(context));
 }
 DECALRE_DISPOSE_END()
-
-// /**
-//  * TODO: change to use thread ?
-// */
-// static void private_on_bootrom_handshake_handle(void *ctx, kburnDeviceNode *node)
-// {
-// 	debug_trace_function();
-
-// 	kburnUsbLoaderInfo info;
-
-// 	(void)ctx;
-// 	if(NULL != node->_monitor->usb->on_bootrom.handler) {
-// 		if (!CALL_HANDLE_SYNC(node->_monitor->usb->on_bootrom, node, &info)) {
-// 			debug_print(KBURN_LOG_ERROR, "get loader info failed");
-// 			return;
-// 		}
-
-// 		debug_print(KBURN_LOG_INFO, "loader size %ld, addr %p", info.size, info.data);
-
-// 		/** TODO: write loader to sram */
-
-// 		/** TODO: handshake with loader*/
-
-// 		CALL_HANDLE_SYNC(node->_monitor->usb->on_loader, node);
-// 	}
-// }
 
 kburn_err_t open_single_usb_port(KBMonCTX monitor, struct libusb_device *dev, bool user_verify, kburnDeviceNode **out_node) {
 	DeferEnabled;
@@ -194,33 +175,27 @@ kburn_err_t open_single_usb_port(KBMonCTX monitor, struct libusb_device *dev, bo
 
 	IfUsbErrorSetReturn(get_endpoint(dev, &node->usb->deviceInfo.endpoint_in, &node->usb->deviceInfo.endpoint_out));
 
-	// IfErrorReturn(usb_device_hello(node));
-	// IfErrorReturn(usb_isp_stage1_handshake(node));
-	TODO;
+	node->usb->init = true;
+	node->disconnect_should_call = true;
 
-	debug_print(KBURN_LOG_DEBUG, COLOR_FMT("stage1 handshake success."), GREEN);
+	if(false == chip_handshake(node)) {
+		debug_print(KBURN_LOG_DEBUG, COLOR_FMT("handshake failed."), RED);
+		return KBurnUsbProtocolWrong;
+	}
+	debug_print(KBURN_LOG_DEBUG, COLOR_FMT("handshake success."), GREEN);
 
 	add_to_device_list(node);
 
-	// alloc_new_bind_id(node);
-	// debug_print(KBURN_LOG_INFO, "	bind id = %d", node->bind_id);
-
-	// IfErrorReturn(usb_device_serial_bind(node));
-
-	node->usb->init = true;
-	node->disconnect_should_call = true;
 	if (out_node) {
 		*out_node = node;
 	}
 
 	DeferAbort;
 
+	/**
+	 * 创建线程，进行烧录
+	*/
 	TODO;
-
-	// kburnOnPriavteUsbBootromHandshake(monitor, private_on_bootrom_handshake_handle, NULL);
-	// CALL_HANDLE_ASYNC(monitor->usb->_on_usb_bootrom_handshake, node);
-
-	// CALL_HANDLE_ASYNC(monitor->usb->on_handle, node);
 
 	return KBurnNoErr;
 }

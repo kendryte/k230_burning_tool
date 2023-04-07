@@ -52,7 +52,13 @@ void thread_tell_quit(thread_passing_object *thread) {
 	thread->quit_signal = true;
 	if (thread->stage != THREAD_COMPLETE) {
 		thread->stage = THREAD_QUITTING;
-		thread_condition_deinit(&thread->condition);
+
+		thread_condition_t cond = thread->condition;
+		thread->condition = NULL;
+		thread_fire_event(&cond);
+
+		pthread_join(thread->thread, NULL);
+		thread_condition_deinit(&cond);
 	}
 }
 
@@ -72,7 +78,6 @@ static DECALRE_DISPOSE(_destroy_thread, thread_passing_object) {
 	case THREAD_PAUSE:
 	case THREAD_RUNNING:
 		thread_tell_quit(context);
-		pthread_join(context->thread, NULL);
 		break;
 	case THREAD_QUITTING:
 		pthread_join(context->thread, NULL);

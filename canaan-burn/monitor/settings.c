@@ -4,7 +4,7 @@
 // #define KBURN_USB_DEFAULT_PID 0x0230
 
 #define KBURN_USB_DEFAULT_VID 0x1a86
-#define KBURN_USB_DEFAULT_PID 0x55d2
+#define KBURN_USB_DEFAULT_PID 0x7523
 
 struct usb_settings usb_default_settings = {
 	.vid = KBURN_USB_DEFAULT_VID,
