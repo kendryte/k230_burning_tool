@@ -24,6 +24,13 @@ void _on_device_disconnect(void *ctx, kburnDeviceNode *dev) {
 	cout << __func__ << endl;
 }
 
+void _on_device_confirmed(void *ctx, kburnDeviceNode *dev) {
+	cout << __func__ << endl;
+
+	// Now, we directly destory the node.
+	mark_destroy_device_node(dev);
+}
+
 int main(int argc, char **argv) {
 	assert(KBURN_ERROR_KIND_SERIAL > UINT32_MAX);
 	cout << '\x1B' << 'c';
@@ -39,6 +46,7 @@ int main(int argc, char **argv) {
 	kburnOnDeviceListChange(monitor, _on_device_list_change, NULL);
 	kburnOnDeviceConnect(monitor, _on_device_connect, NULL);
 	kburnOnDeviceDisconnect(monitor, _on_device_disconnect, NULL);
+	kburnOnDeviceConfirmed(monitor, _on_device_confirmed, NULL);
 
 	kburnMonitorStartWaitingDevices(monitor);
 	getchar();

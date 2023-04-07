@@ -195,7 +195,7 @@ kburn_err_t open_single_usb_port(KBMonCTX monitor, struct libusb_device *dev, bo
 	/**
 	 * 创建线程，进行烧录
 	*/
-	TODO;
+	CALL_HANDLE_ASYNC(monitor->on_confirmed, node);
 
 	return KBurnNoErr;
 }

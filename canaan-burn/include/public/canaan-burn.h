@@ -32,10 +32,14 @@ PUBLIC on_device_connect_t kburnOnDeviceConnect(KBMonCTX monitor, on_device_conn
 
 PUBLIC on_device_disconnect_t kburnOnDeviceDisconnect(KBMonCTX monitor, on_device_disconnect change_callback, void *ctx);
 
+PUBLIC on_device_confirmed_t kburnOnDeviceConfirmed(KBMonCTX monitor, on_device_confirmed change_callback, void *ctx);
+
 PUBLIC void kburnSetUsbFilterVid(KBMonCTX monitor, uint16_t vid);
 PUBLIC uint16_t kburnGetUsbFilterVid(KBMonCTX monitor);
 
 PUBLIC void kburnSetUsbFilterPid(KBMonCTX monitor, uint16_t pid);
 PUBLIC uint16_t kburnGetUsbFilterPid(KBMonCTX monitor);
+
+void mark_destroy_device_node(kburnDeviceNode *instance);
 
 DEFINE_END

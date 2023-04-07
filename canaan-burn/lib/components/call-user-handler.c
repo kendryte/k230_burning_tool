@@ -20,7 +20,7 @@ void user_handler_wrap_sync(struct user_handler_wrap_data *data) {
 	user_callback_thread(NULL, data);
 }
 
-void _user_handler_wrap_async_new(on_device_connect handler, void *context, kburnDeviceNode *device) {
+void _user_handler_wrap_async_new(on_device_confirmed handler, void *context, kburnDeviceNode *device) {
 	struct user_handler_wrap_data *data = calloc(1, sizeof(struct user_handler_wrap_data));
 	data->context = context;
 	data->handler = handler;

@@ -46,7 +46,7 @@ static bool k230_get_cpu_info(kburnUsbDeviceNode *usb)
 bool chip_k230_handshake(kburnUsbDeviceNode *usb)
 {
     for (int i = 0; i < RETRY_TIMES; i++) {
-        if (KBurnNoErr == k230_get_cpu_info(usb)) {
+        if (true == k230_get_cpu_info(usb)) {
             debug_print(KBURN_LOG_ERROR, "k230 handshake success, tried %d times", i + 1);
 
             return true;
