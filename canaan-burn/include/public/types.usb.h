@@ -20,6 +20,7 @@ typedef struct kburnUsbDeviceInfo {
 	PCONST uint16_t idVendor;
 	PCONST uint16_t idProduct;
 	PCONST uint8_t path[MAX_USB_PATH_LENGTH];
+	PCONST char pathStr[MAX_USB_PATH_LENGTH * 3 + 1];
 	PCONST struct libusb_device_descriptor *descriptor;
 
 	PCONST uint8_t endpoint_in;  /* 端点 in */
@@ -39,6 +40,8 @@ typedef struct kburnUsbDeviceNode {
 
 	PCONST bool isOpen;
 	PCONST bool isClaim;
+
+	int stage; /* 1: bootrom, 2: uboot */
 
 	PCONST kburnUsbDeviceInfo deviceInfo;
 

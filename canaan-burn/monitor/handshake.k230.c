@@ -6,11 +6,6 @@
 #define RETRY_TIMES (3)
 #define USB_TIMEOUT (5000)
 
-static inline bool _check_cpu_info(unsigned char *info)
-{
-    return memcmp("K230", info, 4) == 0;
-}
-
 static bool k230_get_cpu_info(kburnUsbDeviceNode *usb)
 {
     debug_trace_function();
@@ -24,7 +19,7 @@ static bool k230_get_cpu_info(kburnUsbDeviceNode *usb)
                                     /* wValue        */ (uint16_t)(((0) << 8) | 0x00),
                                     /* wIndex        */ 0,
                                     /* Data          */ info,
-                                    /* wLength       */ 8,
+                                    /* wLength       */ 32,
                                     USB_TIMEOUT);
 
     if (r < LIBUSB_SUCCESS) {
@@ -34,11 +29,16 @@ static bool k230_get_cpu_info(kburnUsbDeviceNode *usb)
 
     debug_print(KBURN_LOG_TRACE, "cpu info (%d)%s", r, info);
 
-    if (!_check_cpu_info(info)) {
+    if(0x00 == memcmp(info, "K230", 4)) {
+        usb->stage = 1;
+    } else if(0x00 == memcmp(info, "K230 Uboot Device", 17)) {
+        usb->stage = 2;
+    } else {
         debug_print(KBURN_LOG_ERROR, "compare cpu info failed");
-
         return false;
     }
+
+    debug_print(KBURN_LOG_TRACE, "k230 in stage %d", usb->stage);
 
     return true;
 }

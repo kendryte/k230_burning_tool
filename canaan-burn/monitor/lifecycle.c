@@ -118,6 +118,7 @@ kburn_err_t open_single_usb_port(KBMonCTX monitor, struct libusb_device *dev, bo
 	node->usb->deviceInfo.idProduct = node->usb->deviceInfo.descriptor->idProduct;
 
 	IfUsbErrorSetReturn(usb_get_device_path(dev, node->usb->deviceInfo.path));
+	usb_convert_path_to_string(node->usb->deviceInfo.path, node->usb->deviceInfo.pathStr);
 
 	debug_print(KBURN_LOG_INFO, "  * vid: %04x", node->usb->deviceInfo.idVendor);
 	debug_print(KBURN_LOG_INFO, "  * pid: %04x", node->usb->deviceInfo.idProduct);
@@ -178,6 +179,7 @@ kburn_err_t open_single_usb_port(KBMonCTX monitor, struct libusb_device *dev, bo
 	node->usb->init = true;
 	node->disconnect_should_call = true;
 
+	node->usb->stage = -1;
 	if(false == chip_handshake(node)) {
 		debug_print(KBURN_LOG_DEBUG, COLOR_FMT("handshake failed."), RED);
 		return KBurnUsbProtocolWrong;
@@ -192,10 +194,7 @@ kburn_err_t open_single_usb_port(KBMonCTX monitor, struct libusb_device *dev, bo
 
 	DeferAbort;
 
-	/**
-	 * 创建线程，进行烧录
-	*/
-	CALL_HANDLE_ASYNC(monitor->on_confirmed, node);
+	CALL_HANDLE_SYNC(monitor->on_confirmed, node);
 
 	return KBurnNoErr;
 }

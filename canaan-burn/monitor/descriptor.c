@@ -72,3 +72,11 @@ const char *usb_debug_path_string(const uint8_t path[MAX_USB_PATH_LENGTH]) {
 	*(debug_itr - 1) = '\0';
 	return debug;
 }
+
+void usb_convert_path_to_string(const uint8_t path[MAX_USB_PATH_LENGTH], char pathStr[MAX_USB_PATH_LENGTH * 3 + 1]) {
+	char *debug_itr = pathStr;
+	for (int i = 0; i < MAX_USB_PATH_LENGTH - 1; i++) {
+		debug_itr += sprintf(debug_itr, "%02x:", path[i]);
+	}
+	*(debug_itr - 1) = '\0';
+}

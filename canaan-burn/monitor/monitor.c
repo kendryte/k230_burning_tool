@@ -72,7 +72,7 @@ kburn_err_t kburnMonitorCreate(KBMonCTX *ppCtx) {
 	dispose_list_add(monitor_global_monitor, toDisposable(dispose_all_and_deinit, dis));
 	dispose_list_add(monitor_global_monitor, toDisposable(dispose_all_and_deinit, threads));
 
-	IfErrorReturn(global_init_user_handle_thread(*ppCtx));
+	// IfErrorReturn(global_init_user_handle_thread(*ppCtx));
 
 	DeferAbort;
 	return KBurnNoErr;

@@ -11,8 +11,8 @@
 
 using namespace std;
 
-bool should_start = false;
-bool flag_done = false;
+// bool should_start = false;
+// bool flag_done = false;
 
 void _on_device_list_change(void *ctx, void *always_null_ptr) {
 	cout << __func__ << endl;
@@ -22,16 +22,17 @@ bool _on_device_connect(void *ctx, kburnDeviceNode *dev) {
 	/**
 	 * 设备连接之后，开启定时器，如果没有断开连接，或者是被调用confirm回调，说明连接超时，进行提醒
 	*/
-	cout << __func__ << endl;
+	cout << __func__ << " path " << dev->usb->deviceInfo.pathStr << " stage " << dev->usb->stage << endl;
 
-	return should_start;
+	// return should_start;
+	return true;
 }
 
 void _on_device_disconnect(void *ctx, kburnDeviceNode *dev) {
 	/**
 	 * 设备连接之后断开，可能是被主动断开，或者是握手失败
 	*/
-	cout << __func__ << endl;
+	cout << __func__ << " path " << dev->usb->deviceInfo.pathStr << " stage " << dev->usb->stage << endl;
 }
 
 void _on_device_confirmed(void *ctx, kburnDeviceNode *dev) {
@@ -42,12 +43,14 @@ void _on_device_confirmed(void *ctx, kburnDeviceNode *dev) {
 	 * 		1. 下载loader并启动loader
 	 * 		2. 下载文件
 	*/
-	cout << __func__ << endl;
+	cout << __func__ << " path " << dev->usb->deviceInfo.pathStr << " stage " << dev->usb->stage << endl;
 
 	// 用完设备之后，调用该函数，标记可以进行回收
-	mark_destroy_device_node(dev);
+	// if(0x02 == dev->usb->stage) {
+		mark_destroy_device_node(dev);
+	// }
 
-	flag_done = true;
+	// flag_done = true;
 }
 
 int main(int argc, char **argv) {
@@ -69,14 +72,13 @@ int main(int argc, char **argv) {
 
 	kburnMonitorStartWaitingDevices(monitor);
 	getchar();
-	should_start = true;			// 输入之后，使能开始下载
 
-	getchar();
-	kburnMonitorManualTrig(monitor);		// 手动开始下载
-
-	while(false == flag_done) {
-		sleep(2);
-	}
+	// should_start = true;			// 输入之后，使能开始下载
+	// getchar();
+	// kburnMonitorManualTrig(monitor);		// 手动开始下载
+	// while(false == flag_done) {
+	// 	sleep(2);
+	// }
 
 	// kburnMonitorWaitDevicePause(monitor);
 	// kburnSetUsbFilterVid(monitor, 0x0403);
