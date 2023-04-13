@@ -1,0 +1,294 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>757</width>
+    <height>402</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Kendryte buring tool</string>
+  </property>
+  <property name="windowIcon">
+   <iconset resource="../resources/main.qrc">
+    <normaloff>:/icon.png</normaloff>:/icon.png</iconset>
+  </property>
+  <widget class="QWidget" name="mainView">
+   <layout class="QVBoxLayout" name="verticalLayout">
+    <item>
+     <widget class="SettingsWindow" name="settingsWindow" native="true">
+      <property name="minimumSize">
+       <size>
+        <width>0</width>
+        <height>50</height>
+       </size>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QSplitter" name="mainSplitter">
+      <property name="lineWidth">
+       <number>5</number>
+      </property>
+      <property name="orientation">
+       <enum>Qt::Horizontal</enum>
+      </property>
+      <widget class="QWidget" name="layoutWidget">
+       <layout class="QVBoxLayout" name="mainContainer">
+        <property name="rightMargin">
+         <number>3</number>
+        </property>
+        <item>
+         <widget class="BurningControlWindow" name="burnControlWindow" native="true">
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>230</height>
+           </size>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QScrollArea" name="scrollArea">
+          <property name="frameShape">
+           <enum>QFrame::Panel</enum>
+          </property>
+          <property name="verticalScrollBarPolicy">
+           <enum>Qt::ScrollBarAlwaysOn</enum>
+          </property>
+          <property name="horizontalScrollBarPolicy">
+           <enum>Qt::ScrollBarAlwaysOff</enum>
+          </property>
+          <property name="widgetResizable">
+           <bool>true</bool>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
+          </property>
+          <widget class="QWidget" name="jobListContainer">
+           <property name="geometry">
+            <rect>
+             <x>0</x>
+             <y>0</y>
+             <width>143</width>
+             <height>69</height>
+            </rect>
+           </property>
+           <layout class="QVBoxLayout" name="burnJobListView">
+            <property name="spacing">
+             <number>3</number>
+            </property>
+            <property name="sizeConstraint">
+             <enum>QLayout::SetMinimumSize</enum>
+            </property>
+            <property name="leftMargin">
+             <number>3</number>
+            </property>
+            <property name="topMargin">
+             <number>6</number>
+            </property>
+            <property name="rightMargin">
+             <number>3</number>
+            </property>
+            <property name="bottomMargin">
+             <number>6</number>
+            </property>
+            <item>
+             <spacer name="verticalSpacer">
+              <property name="orientation">
+               <enum>Qt::Vertical</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>20</width>
+                <height>40</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+           </layout>
+          </widget>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+      <widget class="LoggerWindow" name="textLog">
+       <property name="verticalScrollBarPolicy">
+        <enum>Qt::ScrollBarAlwaysOn</enum>
+       </property>
+       <property name="lineWrapMode">
+        <enum>QTextEdit::NoWrap</enum>
+       </property>
+       <property name="readOnly">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>757</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menuF_ile">
+    <property name="title">
+     <string>文件(&amp;F)</string>
+    </property>
+    <addaction name="btnToggleLogTrace"/>
+    <addaction name="btnDumpBuffer"/>
+    <addaction name="action"/>
+    <addaction name="btnSaveLog"/>
+    <addaction name="separator"/>
+    <addaction name="btnQuitMenu"/>
+   </widget>
+   <widget class="QMenu" name="menu_A_bout">
+    <property name="title">
+     <string>关于(&amp;A)</string>
+    </property>
+    <addaction name="btnOpenRelease"/>
+    <addaction name="btnOpenWebsite"/>
+   </widget>
+   <widget class="UpdateButton" name="btnUpdate">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
+    <property name="title">
+     <string>检查更新</string>
+    </property>
+   </widget>
+   <addaction name="menuF_ile"/>
+   <addaction name="menu_A_bout"/>
+   <addaction name="btnUpdate"/>
+  </widget>
+  <action name="btnOpenWebsite">
+   <property name="icon">
+    <iconset resource="../resources/main.qrc">
+     <normaloff>:/github-brands.svg</normaloff>:/github-brands.svg</iconset>
+   </property>
+   <property name="text">
+    <string>打开主页</string>
+   </property>
+   <property name="iconVisibleInMenu">
+    <bool>false</bool>
+   </property>
+  </action>
+  <action name="btnQuitMenu">
+   <property name="icon">
+    <iconset resource="../resources/main.qrc">
+     <normaloff>:/power-off-solid.svg</normaloff>:/power-off-solid.svg</iconset>
+   </property>
+   <property name="text">
+    <string>退出(&amp;Q)</string>
+   </property>
+   <property name="toolTip">
+    <string>退出</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::QuitRole</enum>
+   </property>
+  </action>
+  <action name="btnSaveLog">
+   <property name="icon">
+    <iconset resource="../resources/main.qrc">
+     <normaloff>:/hand-holding-medical-solid.svg</normaloff>:/hand-holding-medical-solid.svg</iconset>
+   </property>
+   <property name="text">
+    <string>保存日志(&amp;S)</string>
+   </property>
+   <property name="toolTip">
+    <string>保存日志</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+S</string>
+   </property>
+  </action>
+  <action name="btnToggleLogTrace">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>更详细显示日志</string>
+   </property>
+  </action>
+  <action name="btnDumpBuffer">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>调试数据传输详情</string>
+   </property>
+  </action>
+  <action name="btnOpenRelease">
+   <property name="text">
+    <string>下载最新版本</string>
+   </property>
+  </action>
+  <action name="action">
+   <property name="text">
+    <string>展开日志窗口</string>
+   </property>
+  </action>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>LoggerWindow</class>
+   <extends>QTextEdit</extends>
+   <header>widgets/LoggerWindow.h</header>
+  </customwidget>
+  <customwidget>
+   <class>SettingsWindow</class>
+   <extends>QWidget</extends>
+   <header>widgets/SettingsWindow.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>BurningControlWindow</class>
+   <extends>QWidget</extends>
+   <header>widgets/BurningControlWindow.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>UpdateButton</class>
+   <extends>QMenu</extends>
+   <header>common/UpdateChecker.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources>
+  <include location="../resources/main.qrc"/>
+ </resources>
+ <connections>
+  <connection>
+   <sender>btnQuitMenu</sender>
+   <signal>triggered()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>close()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>532</x>
+     <y>384</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+ <slots>
+  <slot>loadSysImage()</slot>
+  <slot>handleResize()</slot>
+ </slots>
+</ui>

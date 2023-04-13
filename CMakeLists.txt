@@ -6,15 +6,15 @@ endif()
 
 set(BUILD_PARENT On)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_VERBOSE_MAKEFILE ON)
+# set(CMAKE_VERBOSE_MAKEFILE ON)
 
-project(BurningToolMeta)
+project(K230BurningToolMeta)
 
 include(${CMAKE_TOOLCHAIN_FILE})
 
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/canaan-burn")
 
 # add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/cli")
-# add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/gui")
+add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/gui")
 
-add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/test-binary")
+# add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/test-binary")

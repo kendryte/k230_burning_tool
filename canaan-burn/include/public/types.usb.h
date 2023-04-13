@@ -41,7 +41,7 @@ typedef struct kburnUsbDeviceNode {
 	PCONST bool isOpen;
 	PCONST bool isClaim;
 
-	int stage; /* 1: bootrom, 2: uboot */
+	PCONST int stage; /* 1: bootrom, 2: uboot */
 
 	PCONST kburnUsbDeviceInfo deviceInfo;
 

@@ -172,4 +172,4 @@ install(TARGETS canaan_burn
 	RUNTIME DESTINATION bin
 )
 
-install(DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/include/canaan-burn" DESTINATION "include")
+install(DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/include/public" DESTINATION "include")

@@ -10,7 +10,7 @@
 typedef struct kburnMonitorContext {
 	char signature[sizeof(CONTEXT_MEMORY_SIGNATURE)];
 
-	on_device_list_change_t on_list_change;
+	on_before_device_open_t on_before_open;
 	on_device_connect_t on_connect;
 	on_device_disconnect_t on_disconnect;
 	on_device_confirmed_t on_confirmed;

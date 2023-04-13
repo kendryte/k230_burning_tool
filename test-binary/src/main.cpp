@@ -35,7 +35,7 @@ void _on_device_disconnect(void *ctx, kburnDeviceNode *dev) {
 	cout << __func__ << " path " << dev->usb->deviceInfo.pathStr << " stage " << dev->usb->stage << endl;
 }
 
-void _on_device_confirmed(void *ctx, kburnDeviceNode *dev) {
+bool _on_device_confirmed(void *ctx, kburnDeviceNode *dev) {
 	/**
 	 * 设备握手成功，开始进行下载
 	 * 
@@ -72,6 +72,8 @@ int main(int argc, char **argv) {
 
 	kburnMonitorStartWaitingDevices(monitor);
 	getchar();
+	
+	cout << __func__, __LINE__;
 
 	// should_start = true;			// 输入之后，使能开始下载
 	// getchar();

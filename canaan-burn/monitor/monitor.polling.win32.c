@@ -2,17 +2,17 @@
 #include <dbt.h>
 #include <usbiodef.h>
 
-#include "monitor.h"
 #include "private/base.h"
 #include "private/lib/basic/array.h"
 #include "private/lib/basic/errors.h"
-#include "components/thread.h"
+#include "private/lib/components/thread.h"
 #include "private/lib/debug/print.h"
-#include "private/libusb.list.h"
 
-#include "canaan-burn/canaan-burn.h"
+#include "private/monitor/monitor.h"
+#include "private/monitor/libusb.list.h"
+#include "private/monitor/usb_types.h"
 
-#include "../usb/usb_types.h"
+#include "public/canaan-burn.h"
 
 typedef struct polling_context {
 	kbthread thread;

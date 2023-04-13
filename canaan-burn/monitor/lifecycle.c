@@ -68,8 +68,8 @@ DECALRE_DISPOSE(destroy_usb_port, kburnUsbDeviceNode) {
 
 	kburnDeviceNode *n = get_node(context);
 	if(!n->destroy_in_progress) {
-		debug_print(KBURN_LOG_WARN, "not to destory device.");
-		return;
+		debug_print(KBURN_LOG_WARN, COLOR_FMT("not to destory device."), RED);
+		// return;
 	}
 
 	if (context->isClaim) {
@@ -107,6 +107,7 @@ kburn_err_t open_single_usb_port(KBMonCTX monitor, struct libusb_device *dev, bo
 	dispose_list_add(node->disposable_list, toDisposable(destroy_usb_port, node->usb));
 
 	node->usb->device = dev;
+	node->usb->stage = -1;
 
 	IfUsbErrorLogSetReturn(libusb_open(dev, &node->usb->handle));
 	node->usb->isOpen = true;
@@ -127,7 +128,7 @@ kburn_err_t open_single_usb_port(KBMonCTX monitor, struct libusb_device *dev, bo
 	if (user_verify) {
 		if (monitor->on_connect.handler != NULL) {
 			if (!CALL_HANDLE_SYNC(monitor->on_connect, node)) {
-				set_error(node, KBURN_ERROR_KIND_COMMON, KBurnUserCancel, "operation canceled by verify callback");
+				set_error(node, KBURN_ERROR_KIND_COMMON, KBurnUserCancel, "on_connect operation canceled by verify callback");
 				return make_error_code(KBURN_ERROR_KIND_COMMON, KBurnUserCancel);
 			}
 		}
@@ -179,7 +180,6 @@ kburn_err_t open_single_usb_port(KBMonCTX monitor, struct libusb_device *dev, bo
 	node->usb->init = true;
 	node->disconnect_should_call = true;
 
-	node->usb->stage = -1;
 	if(false == chip_handshake(node)) {
 		debug_print(KBURN_LOG_DEBUG, COLOR_FMT("handshake failed."), RED);
 		return KBurnUsbProtocolWrong;
@@ -192,9 +192,14 @@ kburn_err_t open_single_usb_port(KBMonCTX monitor, struct libusb_device *dev, bo
 		*out_node = node;
 	}
 
-	DeferAbort;
+	if (monitor->on_confirmed.handler != NULL) {
+		if (!CALL_HANDLE_SYNC(monitor->on_confirmed, node)) {
+			set_error(node, KBURN_ERROR_KIND_COMMON, KBurnUserCancel, "on_confirmed operation canceled by verify callback");
+			return make_error_code(KBURN_ERROR_KIND_COMMON, KBurnUserCancel);
+		}
+	}
 
-	CALL_HANDLE_SYNC(monitor->on_confirmed, node);
+	DeferAbort;
 
 	return KBurnNoErr;
 }

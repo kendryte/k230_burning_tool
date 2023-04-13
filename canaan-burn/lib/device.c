@@ -3,7 +3,7 @@
 #include "private/lib/basic/resource-tracker.h"
 #include "private/lib/components/device-link-list.h"
 
-DEFINE_REGISTER_SWAPPER(kburnOnDeviceListChange, monitor->on_list_change, on_device_list_change)
+DEFINE_REGISTER_SWAPPER(kburnOnBeforeDeviceOpen, monitor->on_before_open, on_before_device_open)
 DEFINE_REGISTER_SWAPPER(kburnOnDeviceConnect, monitor->on_connect, on_device_connect)
 DEFINE_REGISTER_SWAPPER(kburnOnDeviceDisconnect, monitor->on_disconnect, on_device_disconnect)
 DEFINE_REGISTER_SWAPPER(kburnOnDeviceConfirmed, monitor->on_confirmed, on_device_confirmed)

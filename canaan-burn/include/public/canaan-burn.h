@@ -8,6 +8,7 @@
 #include "./prefix.h"
 #include "./types.h"
 #include "./debug.h"
+#include "./usb.isp.h"
 
 #if BURN_LIB_COMPILING
 #include "private/context.h"
@@ -26,7 +27,7 @@ PUBLIC void kburnMonitorWaitDevicePause(KBMonCTX monitor);
 PUBLIC kburn_err_t kburnMonitorWaitDeviceResume(KBMonCTX monitor);
 PUBLIC kburn_err_t kburnMonitorStartWaitingDevices(KBMonCTX monitor);
 
-PUBLIC on_device_list_change_t kburnOnDeviceListChange(KBMonCTX monitor, on_device_list_change change_callback, void *ctx);
+PUBLIC on_before_device_open_t kburnOnBeforeDeviceOpen(KBMonCTX monitor, on_before_device_open change_callback, void *ctx);
 
 PUBLIC on_device_connect_t kburnOnDeviceConnect(KBMonCTX monitor, on_device_connect change_callback, void *ctx);
 

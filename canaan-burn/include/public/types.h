@@ -53,10 +53,10 @@ typedef enum kburnLogType
 	} CONCAT(name, _t)
 
 // Used by Monitor
-declare_callback(void, on_device_list_change, void *always_null_ptr);
+declare_callback(bool, on_before_device_open, const char *const path);
 declare_callback(bool, on_device_connect, kburnDeviceNode *dev);
 declare_callback(void, on_device_disconnect, kburnDeviceNode *dev);
-declare_callback(void, on_device_confirmed, kburnDeviceNode *dev);
+declare_callback(bool, on_device_confirmed, kburnDeviceNode *dev);
 
 declare_callback(void, on_debug_log, kburnLogType type, const char *message);
 

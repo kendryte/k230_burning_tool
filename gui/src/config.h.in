@@ -1,0 +1,5 @@
+#pragma once
+
+#cmakedefine01 IS_CI
+#define VERSION_STRING "@MY_VERSION_STRING@"
+#define VERSION_HASH "@GITHUB_VERSION@"

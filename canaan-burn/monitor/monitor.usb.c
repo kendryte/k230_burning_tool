@@ -55,6 +55,16 @@ static bool open_this_usb_device(KBMonCTX monitor, uint16_t vid, uint16_t pid, c
 		}
 
 		if (strncmp((const char *)path, (const char *)in_path, MAX_USB_PATH_LENGTH) == 0) {
+			debug_print(KBURN_LOG_INFO, "Open device path %s", usb_debug_path_string(path));
+
+			if(!monitor->on_before_open.handler) {
+				debug_print(KBURN_LOG_ERROR, COLOR_FMT("User have no on_before_open callback"), RED);
+
+				return false;
+			}
+
+			CALL_HANDLE_SYNC(monitor->on_before_open, usb_debug_path_string(path));
+
 			kburn_err_t r = open_single_usb_port(monitor, dev, true, NULL);
 			if (r != KBurnNoErr) {
 				debug_print(KBURN_LOG_ERROR, "failed open single port: %" PRIu64, r);
@@ -73,10 +83,6 @@ static void _pump_libusb_event(struct passing_data *recv) {
 	debug_print(KBURN_LOG_DEBUG, "handle event in thread.");
 
 	KBMonCTX monitor = ((struct passing_data *)recv)->monitor;
-	if(monitor->on_list_change.handler) {
-		CALL_HANDLE_SYNC(monitor->on_list_change, NULL);
-	}
-
 	libusb_hotplug_event event = ((struct passing_data *)recv)->event;
 	kburnUsbDeviceInfoSlice defInfo = ((struct passing_data *)recv)->dev;
 
