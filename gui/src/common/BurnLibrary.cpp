@@ -31,9 +31,9 @@ BurnLibrary::BurnLibrary(QWidget *parent) : parent(parent) {
 
 	_pool = new QThreadPool();
 	GlobalSetting::appBurnThread.connectLambda(_pool, [=](uint value) {
-		if (value > 50) {
-			GlobalSetting::appBurnThread.setValue(50);
-			value = 50;
+		if (value > 20) {
+			GlobalSetting::appBurnThread.setValue(20);
+			value = 20;
 		}
 		_pool->setMaxThreadCount(value);
 	});

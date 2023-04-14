@@ -7,8 +7,6 @@
 
 DEFINE_START
 
-#define KBURN_PROGRAM_BASE_ADDR 0x80080000
-typedef uint32_t kburn_mem_address_t;
 typedef uint32_t kburn_stor_address_t;
 typedef uint32_t kburn_stor_block_t;
 
@@ -34,8 +32,7 @@ typedef struct kburnDeviceNode {
 	PCONST struct mlock *reference_lock;
 } kburnDeviceNode;
 
-typedef enum kburnLogType
-{
+typedef enum kburnLogType {
 	KBURN_LOG_BUFFER,
 	KBURN_LOG_TRACE,
 	KBURN_LOG_DEBUG,
@@ -58,6 +55,7 @@ declare_callback(bool, on_device_connect, kburnDeviceNode *dev);
 declare_callback(void, on_device_disconnect, kburnDeviceNode *dev);
 declare_callback(bool, on_device_confirmed, kburnDeviceNode *dev);
 
+declare_callback(void, on_write_progress, const kburnDeviceNode *dev, size_t current, size_t length);
 declare_callback(void, on_debug_log, kburnLogType type, const char *message);
 
 #include "./types.usb.h"

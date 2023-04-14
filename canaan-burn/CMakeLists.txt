@@ -91,6 +91,7 @@ target_link_libraries(canaan_burn PUBLIC pthread)
 push_source_code(canaan_burn lib)
 push_source_code(canaan_burn usb)
 push_source_code(canaan_burn monitor)
+push_source_code(canaan_burn burn)
 
 target_include_directories(canaan_burn PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include")
 

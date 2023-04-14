@@ -16,6 +16,8 @@
 #include "./context.h"
 #endif
 
+#include "./k230_burn.h"
+
 DEFINE_START
 
 PUBLIC kburn_err_t kburnMonitorCreate(KBMonCTX *ppCtx);

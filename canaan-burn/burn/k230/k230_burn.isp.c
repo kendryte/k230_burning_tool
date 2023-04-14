@@ -1,5 +1,6 @@
 #include "public/k230_burn.h"
 
+#include "private/lib/basic/sleep.h"
 #include "private/monitor/usb_types.h"
 
 #define RETRY_MAX                   (5)
@@ -10,20 +11,20 @@
 #define U32_LOW_U16(addr)           ((addr)&0xffff)
 
 enum USB_KENDRYTE_REQUEST_BASIC {
-    EP0_GET_CPU_INFO = 0,
-    EP0_SET_DATA_ADDRESS,
-    EP0_SET_DATA_LENGTH,
-    EP0_FLUSH_CACHES,
-    EP0_PROG_START
+    EP0_GET_CPU_INFO        = 0,
+    EP0_SET_DATA_ADDRESS    = 1,
+    EP0_SET_DATA_LENGTH     = 2,
+    // EP0_FLUSH_CACHES        = 3, // may not support ?
+    EP0_PROG_START          = 4,
 };
 
-kburn_err_t K230BurnISP_get_cpu_info(kburnDeviceNode *node, char info[32])
+static kburn_err_t K230BurnISP_get_cpu_info(kburnDeviceNode *node, unsigned char info[32])
 {
     memset(info, 0, 32);
 
     int r = libusb_control_transfer(/* dev_handle    */ node->usb->handle,
                                     /* bmRequestType */ (uint8_t)(LIBUSB_ENDPOINT_IN | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE),
-                                    /* bRequest      */ 0 /* ISP_STAGE1_CMD_GET_CPU_INFO */,
+                                    /* bRequest      */ EP0_GET_CPU_INFO,
                                     /* wValue        */ (uint16_t)(((0) << 8) | 0x00),
                                     /* wIndex        */ 0,
                                     /* Data          */ info,
@@ -38,32 +39,13 @@ kburn_err_t K230BurnISP_get_cpu_info(kburnDeviceNode *node, char info[32])
     return KBurnNoErr;
 }
 
-kburn_err_t K230BurnISP_flush_cache(kburnDeviceNode *node)
-{
-    int r = libusb_control_transfer(node->usb->handle,
-                                    /* bmRequestType */ (uint8_t)(LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE),
-                                    /* bRequest      */ EP0_FLUSH_CACHES,
-                                    /* wValue        */ 0,
-                                    /* wIndex        */ 0,
-                                    /* Data          */ 0,
-                                    /* wLength       */ 0,
-                                    USB_TIMEOUT);
-
-    if (r < LIBUSB_SUCCESS) {
-        debug_print(KBURN_LOG_ERROR, "Error - can't flush cache: %i\n", r);
-        return KBrunUsbCommError;
-    }
-
-    return KBurnNoErr;
-}
-
-kburn_err_t K230BurnISP_set_data_addr(kburnDeviceNode *node, unsigned int addr)
+static kburn_err_t K230BurnISP_set_data_addr(kburnDeviceNode *node, uint32_t addr)
 {
     int r = libusb_control_transfer(/* dev_handle    */ node->usb->handle,
                                     /* bmRequestType */ LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE,
                                     /* bRequest      */ EP0_SET_DATA_ADDRESS,
-                                    /* wValue        */ U32_HIGH_U16(stage_addr),
-                                    /* wIndex        */ U32_LOW_U16(stage_addr),
+                                    /* wValue        */ U32_HIGH_U16(addr),
+                                    /* wIndex        */ U32_LOW_U16(addr),
                                     /* Data          */ 0,
                                     /* wLength       */ 0,
                                     /* timeout       */ USB_TIMEOUT);
@@ -76,14 +58,14 @@ kburn_err_t K230BurnISP_set_data_addr(kburnDeviceNode *node, unsigned int addr)
     return KBurnNoErr;
 }
 
-kburn_err_t K230BurnISP_set_data_length(kburnDeviceNode *node, unsigned int length)
+static kburn_err_t K230BurnISP_set_data_length(kburnDeviceNode *node, uint32_t length)
 {
     /* tell the device the length of the file to be uploaded */
-    int r = = libusb_control_transfer(/* dev_handle    */ node->usb->handle,
+    int r = libusb_control_transfer(/* dev_handle    */ node->usb->handle,
                                       /* bmRequestType */ (uint8_t)(LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE),
                                       /* bRequest      */ EP0_SET_DATA_LENGTH,
-                                      /* wValue        */ STAGE_ADDR_MSB(len),
-                                      /* wIndex        */ STAGE_ADDR_LSB(len),
+                                      /* wValue        */ U32_HIGH_U16(length),
+                                      /* wIndex        */ U32_LOW_U16(length),
                                       /* Data          */ 0,
                                       /* wLength       */ 0,
                                       /* timeout       */ USB_TIMEOUT);
@@ -96,7 +78,26 @@ kburn_err_t K230BurnISP_set_data_length(kburnDeviceNode *node, unsigned int leng
     return KBurnNoErr;
 }
 
-kburn_err_t K230BurnISP_write_data(kburnDeviceNode *node, const unsigned char *const data, unsigned int length)
+static kburn_err_t K230BurnISP_boot_from_addr(kburnDeviceNode *node, uint32_t addr)
+{
+    int r = libusb_control_transfer(/* dev_handle    */ node->usb->handle,
+                                      /* bmRequestType */ (uint8_t)(LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE),
+                                      /* bRequest      */ EP0_PROG_START,
+                                      /* wValue        */ U32_HIGH_U16(addr),
+                                      /* wIndex        */ U32_LOW_U16(addr),
+                                      /* Data          */ 0,
+                                      /* wLength       */ 0,
+                                      /* timeout       */ USB_TIMEOUT);
+
+    if (r < LIBUSB_SUCCESS) {
+        debug_print(KBURN_LOG_ERROR, "Error - can't start the uploaded binary on the kendryte device: %i\n", r);
+        return KBrunUsbCommError;
+    }
+
+    return KBurnNoErr;
+}
+
+static kburn_err_t K230BurnISP_write_data(kburnDeviceNode *node, unsigned char *data, int length)
 {
     int r = -1, size = 0, retry = 0;
 
@@ -128,7 +129,7 @@ kburn_err_t K230BurnISP_write_data(kburnDeviceNode *node, const unsigned char *c
     return KBurnNoErr;
 }
 
-kburn_err_t K230BurnISP_read_data(kburnDeviceNode *node, unsigned char *data, unsigned int length)
+kburn_err_t K230BurnISP_read_data(kburnDeviceNode *node, unsigned char *data, int length)
 {
     int r = -1, size = 0, retry = 0;
 
@@ -160,21 +161,113 @@ kburn_err_t K230BurnISP_read_data(kburnDeviceNode *node, unsigned char *data, un
     return KBurnNoErr;
 }
 
-kburn_err_t K230BurnISP_boot_from_addr(kburnDeviceNode *node, unsigned int addr)
-{
-    int r = = libusb_control_transfer(/* dev_handle    */ node->usb->handle,
-                                      /* bmRequestType */ (uint8_t)(LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE),
-                                      /* bRequest      */ rqst,
-                                      /* wValue        */ STAGE_ADDR_MSB(stage_addr),
-                                      /* wIndex        */ STAGE_ADDR_LSB(stage_addr),
-                                      /* Data          */ 0,
-                                      /* wLength       */ 0,
-                                      /* timeout       */ USB_TIMEOUT);
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    if (r < LIBUSB_SUCCESS) {
-        debug_print(KBURN_LOG_ERROR, "Error - can't start the uploaded binary on the kendryte device: %i\n", r);
-        return KBrunUsbCommError;
+#define K230_SRAM_APP_ADDR          (0x80300000)
+#define K230_SRAM_PAGE_SIZE         (1024)
+
+bool K230BurnISP_Greeting(kburnDeviceNode *node) {
+    unsigned char info[32];
+
+    if(KBurnNoErr != K230BurnISP_get_cpu_info(node, &info[0])) {
+        return false;
     }
 
-    return KBurnNoErr;
+    if(0x00 != memcmp(info, "K230", 4)) {
+        return false;
+    }
+
+    return true;
+}
+
+bool K230BurnISP_WriteMemory(kburnDeviceNode *node, const uint8_t *data, const size_t data_size, const uint32_t address, on_write_progress cb, void *ctx) {
+	const uint32_t pages = (data_size + K230_SRAM_PAGE_SIZE - 1) / K230_SRAM_PAGE_SIZE;
+	debug_trace_function("base=0x%X, size=" FMT_SIZET ", pages=%d", address, data_size, pages);
+
+    uint32_t chunk_addr = address;
+    uint32_t chunk_size = K230_SRAM_PAGE_SIZE;
+    uint8_t chunk_data[K230_SRAM_PAGE_SIZE];
+
+	if (cb) {
+		cb(ctx, node, 0, data_size);
+	}
+
+	for (uint32_t page = 0; page < pages; page++) {
+		uint32_t offset = page * K230_SRAM_PAGE_SIZE;
+		chunk_addr = address + offset;
+		if (offset + K230_SRAM_PAGE_SIZE > data_size) {
+			chunk_size = data_size % K230_SRAM_PAGE_SIZE;
+		} else {
+			chunk_size = K230_SRAM_PAGE_SIZE;
+		}
+
+		debug_print(KBURN_LOG_TRACE, "[mem write]: page=%u [0x%X], size=%u", page, chunk_addr, chunk_size);
+
+		memcpy(chunk_data, data + offset, chunk_size);
+
+        if(KBurnNoErr != K230BurnISP_set_data_addr(node, chunk_addr)) {
+            debug_print(KBURN_LOG_ERROR, COLOR_FMT("set write data addr failed"), RED);
+            return false;
+        }
+
+        if(KBurnNoErr != K230BurnISP_set_data_length(node, chunk_size)) {
+            debug_print(KBURN_LOG_ERROR, COLOR_FMT("set write data lenght failed"), RED);
+            return false;
+        }
+
+        if(KBurnNoErr != K230BurnISP_write_data(node, chunk_data, chunk_size)) {
+            debug_print(KBURN_LOG_ERROR, COLOR_FMT("set write data lenght failed"), RED);
+            return false;
+        }
+
+		if (cb) {
+			cb(ctx, node, page * K230_SRAM_PAGE_SIZE + chunk_size, data_size);
+		}
+	}
+
+	return true;
+}
+
+bool K230BurnISP_RunProgram(kburnDeviceNode *node, const void *programBuffer, size_t programBufferSize, on_write_progress page_callback, void *ctx) {
+	debug_trace_function("node[%s]", node->usb->deviceInfo.path);
+
+	if (!K230BurnISP_Greeting(node)) {
+        debug_print(KBURN_LOG_ERROR, COLOR_FMT("greeting failed"), RED);
+
+		return false;
+	}
+
+	if (!K230BurnISP_WriteMemory(node, (const uint8_t *)programBuffer, programBufferSize, K230_SRAM_APP_ADDR, page_callback, ctx)) {
+        debug_print(KBURN_LOG_ERROR, COLOR_FMT("Write data to sram failed"), RED);
+
+		return false;
+	}
+
+	do_sleep(100);
+	if (!K230BurnISP_Greeting(node)) {
+		debug_print(KBURN_LOG_ERROR, COLOR_FMT("	re-greeting failed..."), RED);
+		return false;
+	}
+
+    if(KBurnNoErr != K230BurnISP_boot_from_addr(node, K230_SRAM_APP_ADDR)) {
+        debug_print(KBURN_LOG_ERROR, COLOR_FMT("boot from sram failed"), RED);
+
+        return false;
+    }
+
+    return true;
+}
+
+#include "incbin.h"
+
+INCBIN(App, "app.bin");
+
+size_t K230BurnISP_LoaderSize(void) {
+    return gAppSize;
+}
+
+bool K230BurnISP_LoaderRun(kburnDeviceNode *node, on_write_progress page_callback, void *ctx) {
+    return K230BurnISP_RunProgram(node, gAppData, gAppSize, page_callback, ctx);
 }

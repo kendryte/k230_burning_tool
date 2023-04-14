@@ -14,23 +14,21 @@ typedef enum kburnUsbIspCommandTaget
 	KBURN_USB_ISP_OTP = 0x04,
 } kburnUsbIspCommandTaget;
 
-struct kburnColor {
-	uint8_t red;
-	uint8_t green;
-	uint8_t blue;
-};
 
-static inline struct kburnColor kburnConvertColor(uint32_t color) {
-	return (struct kburnColor){
-		.red = (uint8_t)(color >> 16),
-		.green = (uint8_t)(color >> 8),
-		.blue = (uint8_t)(color),
-	};
-}
+// struct kburnColor {
+// 	uint8_t red;
+// 	uint8_t green;
+// 	uint8_t blue;
+// };
 
-// /**
-//  *
-//  */
+// static inline struct kburnColor kburnConvertColor(uint32_t color) {
+// 	return (struct kburnColor){
+// 		.red = (uint8_t)(color >> 16),
+// 		.green = (uint8_t)(color >> 8),
+// 		.blue = (uint8_t)(color),
+// 	};
+// }
+
 // PUBLIC bool kburnUsbIspLedControl(kburnDeviceNode *node, uint8_t pin, struct kburnColor color);
 
 // typedef struct kburnDeviceMemorySizeInfo {
@@ -41,6 +39,7 @@ static inline struct kburnColor kburnConvertColor(uint32_t color) {
 // 	kburn_stor_block_t block_count;          /* 设备的总容量（块） */
 // 	kburn_stor_address_t last_block_address; /* 最后一个块的地址 */
 // } kburnDeviceMemorySizeInfo;
+
 // /**
 //  * 获取块设备大小信息
 //  * @param target 设备
@@ -75,5 +74,6 @@ static inline struct kburnColor kburnConvertColor(uint32_t color) {
 // /** 读取数据，但不要求任何对齐，效率较低，注意地址单位是字节 */
 // PUBLIC bool kburnUsbIspWriteUnaligned(
 // 	kburnDeviceNode *node, const kburnDeviceMemorySizeInfo dev_info, kburn_stor_address_t address, void *buffer, uint32_t length);
+
 
 DEFINE_END

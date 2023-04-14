@@ -3,6 +3,7 @@
 #include "main.h"
 #include "MyException.h"
 #include <public/canaan-burn.h>
+
 #include <QFileInfo>
 
 #define CHUNK_SIZE 1024 * 1024
@@ -26,29 +27,19 @@ void K230BurningProcess::serial_isp_progress(void *self, const kburnDeviceNode *
 }
 
 qint64 K230BurningProcess::prepare() {
-	// FIXME 串口打开过程中（没开始写isp）断开链接会崩溃
 
-	setStage(::tr("正在打开串口设备"));
-
-	// const auto e = kburnOpenSerial(scope, (const char *)comPort.toLatin1());
-	// if (e != KBurnNoErr) {
-	// 	throw KBurnException(e, ::tr("串口握手失败"));
-	// }
-
-	// setStage(::tr("写入USB ISP"), kburnGetUsbIspProgramSize());
+	setStage(::tr("等待设备上电"));
 
 	node = reinterpret_cast<kburnDeviceNode *>(inputs.pick(0, 30));
 	if (node == NULL) {
 		throw KBurnException(tr("设备上电超时"));
 	}
 
-	// if (!kburnSerialIspSetBaudrateHigh(node->serial)) {
-	// 	throw KBurnException(node->error->code, node->error->errorMessage);
-	// }
+	setStage(::tr("写入USB LOADER"), K230BurnISP_LoaderSize());
 
-	// if (!kburnSerialIspSwitchUsbMode(node->serial, K230BurningProcess::serial_isp_progress, this)) {
-	// 	throw KBurnException(node->error->code, node->error->errorMessage);
-	// }
+	if(!K230BurnISP_LoaderRun(node, K230BurningProcess::serial_isp_progress, this)) {
+		throw KBurnException(tr("写入USB LOADER失败"));
+	}
 
 	setStage(::tr("等待USB ISP启动"));
 
