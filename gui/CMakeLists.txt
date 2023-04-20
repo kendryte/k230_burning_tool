@@ -93,6 +93,27 @@ if(WIN32)
 			COMMAND_ERROR_IS_FATAL ANY
 		)
 	")
+elseif(LINUX)
+	find_package(OpenSSL)
+
+	if(NOT OPENSSL_FOUND)
+		message(FATAL_ERROR "COuld not find Openssl, Please install libssl-dev or others")
+	endif()
+
+	list(APPEND SSL_LIBS ${OPENSSL_LIBRARIES})
+
+	install(CODE "
+	execute_process(
+		COMMAND \"${CMAKE_COMMAND}\"
+		\"-DQT_BIN_DIR=${QT_BIN_DIR}\"
+		\"-DCMAKE_CACHEFILE_DIR=${CMAKE_BINARY_DIR}\"
+		\"-DSSL_LIBS=${SSL_LIBS}\"
+		-P \"${CMAKE_CURRENT_LIST_DIR}/linux-install.cmake\"
+		WORKING_DIRECTORY \"\${CMAKE_INSTALL_PREFIX}\"
+		COMMAND_ECHO STDOUT
+		COMMAND_ERROR_IS_FATAL ANY
+	)
+	")
 endif()
 
 set(MY_VERSION $DATE)

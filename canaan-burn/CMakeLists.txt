@@ -169,8 +169,13 @@ endif()
 install(TARGETS canaan_burn
 	EXPORT canaan_burn
 	LIBRARY DESTINATION lib
-	ARCHIVE DESTINATION lib
-	RUNTIME DESTINATION bin
 )
 
-install(DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/include/public" DESTINATION "include")
+# install(TARGETS canaan_burn
+# 	EXPORT canaan_burn
+# 	LIBRARY DESTINATION lib
+# 	ARCHIVE DESTINATION lib
+# 	RUNTIME DESTINATION bin
+# )
+
+# install(DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/include/public" DESTINATION "include")

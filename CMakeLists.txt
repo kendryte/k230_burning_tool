@@ -10,6 +10,12 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 project(K230BurningToolMeta)
 
+if(WIN32)
+	set(CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/dist")
+elseif(LINUX)
+	set(CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/dist/usr")
+endif()
+
 include(${CMAKE_TOOLCHAIN_FILE})
 
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/canaan-burn")

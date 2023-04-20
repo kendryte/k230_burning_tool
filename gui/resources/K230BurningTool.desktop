@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=K230BurningTool
+Exec=K230BurningTool
+Icon=icon
+Comment=Kendryte K230 chip Burn tool.
+Categories=Development;
