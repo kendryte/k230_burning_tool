@@ -6,13 +6,18 @@
 #include <QMenu>
 #include <QScrollBar>
 #include <QString>
+#include <QDir>
 
 #define STRINGIZE(x) STRINGIZE2(x)
 #define STRINGIZE2(x) #x
 
 LoggerWindow::LoggerWindow(QWidget *parent) : QTextEdit(parent) {
 	logfile.setFileName(QCoreApplication::applicationDirPath() + "/burning_tool.html");
-	logfile.open(QIODeviceBase::Unbuffered | QIODeviceBase::Truncate | QIODeviceBase::WriteOnly);
+	
+	if(false == logfile.open(QIODeviceBase::Unbuffered | QIODeviceBase::Truncate | QIODeviceBase::WriteOnly)) {
+		logfile.setFileName(QDir::tempPath() + "/burning_tool.html");
+		logfile.open(QIODeviceBase::Unbuffered | QIODeviceBase::Truncate | QIODeviceBase::WriteOnly);
+	}
 
 	logfile.write(QStringLiteral("<div>IS_CI=" STRINGIZE(IS_CI) "</div>").toUtf8());
 	logfile.write(QStringLiteral("<div>VERSION_STRING=" VERSION_STRING "</div>").toUtf8());
