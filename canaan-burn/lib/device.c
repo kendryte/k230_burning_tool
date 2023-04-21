@@ -22,10 +22,10 @@ static void destroy_device(void *UNUSED(ctx), kburnDeviceNode *context) {
 	disposable_list_deinit(dlist);
 }
 
-static DECALRE_DISPOSE(dispose_device, kburnDeviceNode) {
-	mark_destroy_device_node(context);
-}
-DECALRE_DISPOSE_END()
+// static DECALRE_DISPOSE(dispose_device, kburnDeviceNode) {
+// 	mark_destroy_device_node(context);
+// }
+// DECALRE_DISPOSE_END()
 
 void device_instance_collect(kburnDeviceNode *instance) {
 	debug_trace_function();
