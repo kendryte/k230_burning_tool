@@ -14,14 +14,10 @@ static MainWindow *w;
 int main(int argc, char *argv[]) {
 	a = new QApplication(argc, argv);
 
-	const QStringList uiLanguages = QLocale::system().uiLanguages();
-	for (const QString &locale : uiLanguages) {
-		const QString baseName = "buringtool-qt_" + QLocale(locale).name();
-		qDebug() << baseName;
-
-		if (translator.load(":/i18n/" + baseName)) {
+	if(QLocale::Chinese != QLocale::system().language()) {
+		const QString baseName = "K230_qt_en";
+		if (translator.load(":/translations/" + baseName)) {
 			a->installTranslator(&translator);
-			break;
 		}
 	}
 

@@ -14,5 +14,6 @@
         <file>trash-solid.svg</file>
         <file>rotate-right-solid.svg</file>
         <file>sliders-solid.svg</file>
+        <file>translations/K230_qt_en.qm</file>
     </qresource>
 </RCC>

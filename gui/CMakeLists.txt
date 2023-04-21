@@ -38,7 +38,7 @@ qt_add_lrelease(K230BurningTool
     TS_FILES ${TS_FILES}
     QM_FILES_OUTPUT_VARIABLE qm_files)
 
-install(FILES ${qm_files} DESTINATION "translations")
+# install(FILES ${qm_files} DESTINATION "translations")
 
 target_include_directories(K230BurningTool PRIVATE "${CMAKE_CURRENT_LIST_DIR}/src")
 
