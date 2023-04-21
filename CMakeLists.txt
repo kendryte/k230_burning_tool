@@ -16,6 +16,10 @@ elseif(LINUX)
 	set(CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/dist/usr")
 endif()
 
+set(_LIC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/Licenses")
+
+install(DIRECTORY ${_LIC_DIR} DESTINATION "${CMAKE_INSTALL_PREFIX}")
+
 include(${CMAKE_TOOLCHAIN_FILE})
 
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/canaan-burn")
