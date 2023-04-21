@@ -27,7 +27,7 @@ foreach(lib ${SSL_LIBS})
 endforeach()
 
 # copy desktop and icon
-set(_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/resources")
+set(_SRC_DIR "${CMAKE_CURRENT_LIST_DIR}/resources")
 set(_ICON "${_SRC_DIR}/icon.png")
 set(_DESKTOP "${_SRC_DIR}/K230BurningTool.desktop")
 set(_APPRUN "${_SRC_DIR}/AppRun")
