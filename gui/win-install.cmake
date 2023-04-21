@@ -23,7 +23,7 @@ get_filename_component(DIST_DIR "." ABSOLUTE)
 message("RUN ${QT_BIN_DIR}/windeployqt.exe K230BurningTool.exe IN ${DIST_DIR}/bin")
 
 execute_process(
-	COMMAND "${QT_BIN_DIR}/windeployqt.exe" K230BurningTool.exe --no-translations
+	COMMAND "${QT_BIN_DIR}/windeployqt.exe" K230BurningTool.exe
 	WORKING_DIRECTORY "${DIST_DIR}/bin"
 	COMMAND_ECHO STDOUT
 	COMMAND_ERROR_IS_FATAL ANY

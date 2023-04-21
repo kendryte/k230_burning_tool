@@ -167,9 +167,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT WIN32)
 endif()
 
 install(TARGETS canaan_burn
-	EXPORT canaan_burn
-	LIBRARY DESTINATION lib
-)
+	RUNTIME DESTINATION bin)
 
 # install(TARGETS canaan_burn
 # 	EXPORT canaan_burn
