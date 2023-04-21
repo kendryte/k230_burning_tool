@@ -18,8 +18,6 @@ find_package(
 	COMPONENTS Widgets LinguistTools Network Svg
 	REQUIRED)
 
-set(TS_FILES src/qt_zh_CN.ts)
-
 file(GLOB_RECURSE PROJECT_SOURCES "src/*.cpp" "src/*.h" "src/*.ui")
 set(PROJECT_RESOURCES "${CMAKE_CURRENT_SOURCE_DIR}/resources/main.qrc")
 
@@ -30,7 +28,15 @@ endif()
 
 qt_add_executable(K230BurningTool MANUAL_FINALIZATION "${PROJECT_SOURCES}" "${WIN32_RESOURCES}" "${PROJECT_RESOURCES}")
 
-qt_create_translation(QM_FILES "${CMAKE_CURRENT_LIST_DIR}/src" ${TS_FILES})
+qt_add_lupdate(K230BurningTool 
+	TS_FILES src/qt_zh_CN.ts
+	SOURCES ${PROJECT_SOURCES})
+
+qt_add_lrelease(K230BurningTool
+    TS_FILES src/qt_zh_CN.ts
+    QM_FILES_OUTPUT_VARIABLE qm_files)
+
+install(FILES ${qm_files} DESTINATION "translations")
 
 target_include_directories(K230BurningTool PRIVATE "${CMAKE_CURRENT_LIST_DIR}/src")
 
