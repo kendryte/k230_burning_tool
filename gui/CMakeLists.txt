@@ -28,12 +28,14 @@ endif()
 
 qt_add_executable(K230BurningTool MANUAL_FINALIZATION "${PROJECT_SOURCES}" "${WIN32_RESOURCES}" "${PROJECT_RESOURCES}")
 
+set(TS_FILES resources/translations/K230_qt_zh_CN.ts resources/translations/K230_qt_en.ts)
+
 qt_add_lupdate(K230BurningTool 
-	TS_FILES src/qt_zh_CN.ts
+	TS_FILES ${TS_FILES}
 	SOURCES ${PROJECT_SOURCES})
 
 qt_add_lrelease(K230BurningTool
-    TS_FILES src/qt_zh_CN.ts
+    TS_FILES ${TS_FILES}
     QM_FILES_OUTPUT_VARIABLE qm_files)
 
 install(FILES ${qm_files} DESTINATION "translations")
