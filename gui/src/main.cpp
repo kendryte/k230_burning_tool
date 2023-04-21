@@ -16,7 +16,7 @@ int main(int argc, char *argv[]) {
 
 	if(QLocale::Chinese != QLocale::system().language()) {
 		const QString baseName = "K230_qt_en";
-		if (translator.load(":/translations/" + baseName)) {
+		if (translator.load(":/i18n/" + baseName)) {
 			a->installTranslator(&translator);
 		}
 	}
