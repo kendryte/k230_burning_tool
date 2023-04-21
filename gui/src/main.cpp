@@ -17,6 +17,8 @@ int main(int argc, char *argv[]) {
 	const QStringList uiLanguages = QLocale::system().uiLanguages();
 	for (const QString &locale : uiLanguages) {
 		const QString baseName = "buringtool-qt_" + QLocale(locale).name();
+		qDebug() << baseName;
+
 		if (translator.load(":/i18n/" + baseName)) {
 			a->installTranslator(&translator);
 			break;

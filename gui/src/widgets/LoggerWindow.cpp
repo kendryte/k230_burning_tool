@@ -68,11 +68,11 @@ void LoggerWindow::contextMenuEvent(QContextMenuEvent *event) {
 	QMenu *menu = createStandardContextMenu();
 	menu->addSeparator();
 
-	QAction *act = menu->addAction(tr("Auto Scroll"), this, &LoggerWindow::toggleAutoScroll);
+	QAction *act = menu->addAction(tr("自动滚动"), this, &LoggerWindow::toggleAutoScroll);
 	act->setCheckable(true);
 	act->setChecked(autoScroll);
 
-	QAction *act2 = menu->addAction(tr("Clear"), this, &LoggerWindow::clearScreen);
+	QAction *act2 = menu->addAction(tr("清空"), this, &LoggerWindow::clearScreen);
 
 	menu->exec(event->globalPos());
 	delete menu;

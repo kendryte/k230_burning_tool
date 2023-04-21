@@ -4,15 +4,15 @@
 
 QString getTitleVersion() {
 	QString r;
-	r += " (" + ::tr("version") + ": " + QString::fromLatin1(VERSION_STRING) + " ";
+	r += " (" + ::tr("版本") + ": " + QString::fromLatin1(VERSION_STRING) + " ";
 
 #ifndef NDEBUG
-	r += ::tr("Debug");
+	r += ::tr("调试");
 #else
-	r += ::tr("Release");
+	r += ::tr("发布");
 #endif
 #if !IS_CI
-	r += " * " + ::tr("local");
+	r += " * " + ::tr("本地构建");
 #endif
 	r += ")";
 	return r;

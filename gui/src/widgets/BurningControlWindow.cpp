@@ -112,7 +112,7 @@ bool BurningControlWindow::checkSysImage() {
 
 	fd.setFileName(fPath);
 	if (fd.exists()) {
-		QString info = tr("file size: ");
+		QString info = tr("文件大小： ");
 
 		QLocale locale = this->locale();
 		info += locale.formattedDataSize(fd.size());
@@ -123,7 +123,7 @@ bool BurningControlWindow::checkSysImage() {
 		return true;
 	} else {
 		fd.setFileName("");
-		ui->txtImageInfo->setText(tr("file not found"));
+		ui->txtImageInfo->setText(tr("未找到文件"));
 		ui->txtImageInfo->setStyleSheet("QLabel { color : red; }");
 
 		return false;

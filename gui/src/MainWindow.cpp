@@ -114,7 +114,7 @@ void MainWindow::on_btnSaveLog_triggered() {
 	QDateTime datetime = QDateTime::currentDateTime();
 	QString str = QFileDialog::getSaveFileName(
 		this, tr("日志保存路径"), QDir::currentPath() + "/help-" + datetime.toString("yyyyMMdd-hhmmss") + ".html",
-		tr("Log File (*.html);;All files (*.*)"), &selFilter);
+		tr("日志文件 (*.html);;All files (*.*)"), &selFilter);
 	if (str.isEmpty()) {
 		return;
 	}
