@@ -9,6 +9,7 @@
 struct kburnUsbDeviceInfoSlice {
 	uint16_t idVendor;
 	uint16_t idProduct;
+	uint16_t bcdDevice;
 	uint8_t path[MAX_USB_PATH_LENGTH];
 	// #ifdef __linux__
 	//  uint32_t major;
@@ -47,6 +48,8 @@ typedef struct kburnUsbDeviceNode {
 
 	PCONST struct libusb_device *device;
 	PCONST struct libusb_device_handle *handle;
+
+	PCONST struct dfu_if *dfu;
 } kburnUsbDeviceNode;
 
 typedef struct kburn_usb_device_list {

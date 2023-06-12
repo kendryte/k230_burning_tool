@@ -34,6 +34,8 @@ class BurningProcess : public QObject, public QRunnable {
 	virtual qint64 prepare() = 0;
 	virtual bool step(kburn_stor_address_t address, const QByteArray &chunk) = 0;
 	virtual void cleanup(bool success){};
+	virtual bool end(kburn_stor_address_t address) = 0;
+	virtual qint64 setalt(const QString &alt) = 0;
 
   public:
     const qint64 imageSize;

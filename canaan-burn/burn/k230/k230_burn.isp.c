@@ -58,25 +58,25 @@ static kburn_err_t K230BurnISP_set_data_addr(kburnDeviceNode *node, uint32_t add
     return KBurnNoErr;
 }
 
-static kburn_err_t K230BurnISP_set_data_length(kburnDeviceNode *node, uint32_t length)
-{
-    /* tell the device the length of the file to be uploaded */
-    int r = libusb_control_transfer(/* dev_handle    */ node->usb->handle,
-                                      /* bmRequestType */ (uint8_t)(LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE),
-                                      /* bRequest      */ EP0_SET_DATA_LENGTH,
-                                      /* wValue        */ U32_HIGH_U16(length),
-                                      /* wIndex        */ U32_LOW_U16(length),
-                                      /* Data          */ 0,
-                                      /* wLength       */ 0,
-                                      /* timeout       */ USB_TIMEOUT);
+// static kburn_err_t K230BurnISP_set_data_length(kburnDeviceNode *node, uint32_t length)
+// {
+//     /* tell the device the length of the file to be uploaded */
+//     int r = libusb_control_transfer(/* dev_handle    */ node->usb->handle,
+//                                       /* bmRequestType */ (uint8_t)(LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE),
+//                                       /* bRequest      */ EP0_SET_DATA_LENGTH,
+//                                       /* wValue        */ U32_HIGH_U16(length),
+//                                       /* wIndex        */ U32_LOW_U16(length),
+//                                       /* Data          */ 0,
+//                                       /* wLength       */ 0,
+//                                       /* timeout       */ USB_TIMEOUT);
 
-    if (r < LIBUSB_SUCCESS) {
-        debug_print(KBURN_LOG_ERROR, "Error - can't set data length on kendryte device: %i\n", r);
-        return KBrunUsbCommError;
-    }
+//     if (r < LIBUSB_SUCCESS) {
+//         debug_print(KBURN_LOG_ERROR, "Error - can't set data length on kendryte device: %i\n", r);
+//         return KBrunUsbCommError;
+//     }
 
-    return KBurnNoErr;
-}
+//     return KBurnNoErr;
+// }
 
 static kburn_err_t K230BurnISP_boot_from_addr(kburnDeviceNode *node, uint32_t addr)
 {
@@ -183,6 +183,7 @@ bool K230BurnISP_Greeting(kburnDeviceNode *node) {
 }
 
 bool K230BurnISP_WriteMemory(kburnDeviceNode *node, const uint8_t *data, const size_t data_size, const uint32_t address, on_write_progress cb, void *ctx) {
+#if 1
 	const uint32_t pages = (data_size + K230_SRAM_PAGE_SIZE - 1) / K230_SRAM_PAGE_SIZE;
 	debug_trace_function("base=0x%X, size=" FMT_SIZET ", pages=%d", address, data_size, pages);
 
@@ -194,6 +195,11 @@ bool K230BurnISP_WriteMemory(kburnDeviceNode *node, const uint8_t *data, const s
 		cb(ctx, node, 0, data_size);
 	}
 
+    if(KBurnNoErr != K230BurnISP_set_data_addr(node, chunk_addr)) {
+        debug_print(KBURN_LOG_ERROR, COLOR_FMT("set write data addr failed"), RED);
+        return false;
+    }
+
 	for (uint32_t page = 0; page < pages; page++) {
 		uint32_t offset = page * K230_SRAM_PAGE_SIZE;
 		chunk_addr = address + offset;
@@ -203,19 +209,19 @@ bool K230BurnISP_WriteMemory(kburnDeviceNode *node, const uint8_t *data, const s
 			chunk_size = K230_SRAM_PAGE_SIZE;
 		}
 
-		debug_print(KBURN_LOG_TRACE, "[mem write]: page=%u [0x%X], size=%u", page, chunk_addr, chunk_size);
+		// debug_print(KBURN_LOG_TRACE, "[mem write]: page=%u [0x%X], size=%u", page, chunk_addr, chunk_size);
 
 		memcpy(chunk_data, data + offset, chunk_size);
 
-        if(KBurnNoErr != K230BurnISP_set_data_addr(node, chunk_addr)) {
-            debug_print(KBURN_LOG_ERROR, COLOR_FMT("set write data addr failed"), RED);
-            return false;
-        }
+        // if(KBurnNoErr != K230BurnISP_set_data_addr(node, chunk_addr)) {
+        //     debug_print(KBURN_LOG_ERROR, COLOR_FMT("set write data addr failed"), RED);
+        //     return false;
+        // }
 
-        if(KBurnNoErr != K230BurnISP_set_data_length(node, chunk_size)) {
-            debug_print(KBURN_LOG_ERROR, COLOR_FMT("set write data lenght failed"), RED);
-            return false;
-        }
+        // if(KBurnNoErr != K230BurnISP_set_data_length(node, chunk_size)) {
+        //     debug_print(KBURN_LOG_ERROR, COLOR_FMT("set write data lenght failed"), RED);
+        //     return false;
+        // }
 
         if(KBurnNoErr != K230BurnISP_write_data(node, chunk_data, chunk_size)) {
             debug_print(KBURN_LOG_ERROR, COLOR_FMT("set write data lenght failed"), RED);
@@ -226,12 +232,35 @@ bool K230BurnISP_WriteMemory(kburnDeviceNode *node, const uint8_t *data, const s
 			cb(ctx, node, page * K230_SRAM_PAGE_SIZE + chunk_size, data_size);
 		}
 	}
+#else
+    (void)ctx;
+    (void)cb;
+
+	if (cb) {
+		cb(ctx, node, 0, data_size);
+	}
+
+    if(KBurnNoErr != K230BurnISP_set_data_addr(node, address)) {
+        debug_print(KBURN_LOG_ERROR, COLOR_FMT("set write data addr failed"), RED);
+        return false;
+    }
+
+    if(KBurnNoErr != K230BurnISP_write_data(node, (unsigned char *)data, data_size)) {
+        debug_print(KBURN_LOG_ERROR, COLOR_FMT("write data failed"), RED);
+        return false;
+    }
+
+	if (cb) {
+		cb(ctx, node, data_size, data_size);
+	}
+
+#endif
 
 	return true;
 }
 
 bool K230BurnISP_RunProgram(kburnDeviceNode *node, const void *programBuffer, size_t programBufferSize, on_write_progress page_callback, void *ctx) {
-	debug_trace_function("node[%s]", node->usb->deviceInfo.path);
+	debug_trace_function("node[0x%p]", (void *)node);
 
 	if (!K230BurnISP_Greeting(node)) {
         debug_print(KBURN_LOG_ERROR, COLOR_FMT("greeting failed"), RED);
@@ -239,6 +268,7 @@ bool K230BurnISP_RunProgram(kburnDeviceNode *node, const void *programBuffer, si
 		return false;
 	}
 
+	do_sleep(10);
 	if (!K230BurnISP_WriteMemory(node, (const uint8_t *)programBuffer, programBufferSize, K230_SRAM_APP_ADDR, page_callback, ctx)) {
         debug_print(KBURN_LOG_ERROR, COLOR_FMT("Write data to sram failed"), RED);
 
@@ -251,23 +281,61 @@ bool K230BurnISP_RunProgram(kburnDeviceNode *node, const void *programBuffer, si
 		return false;
 	}
 
+	do_sleep(10);
     if(KBurnNoErr != K230BurnISP_boot_from_addr(node, K230_SRAM_APP_ADDR)) {
         debug_print(KBURN_LOG_ERROR, COLOR_FMT("boot from sram failed"), RED);
 
         return false;
     }
 
+    node->destroy_in_progress = true;
+
     return true;
 }
 
 #include "incbin.h"
 
-INCBIN(App, "app.bin");
+//0000000080300000
+INCBIN(isp_emmc, "u-boot-emmc.bin");
+INCBIN(isp_norflash, "u-boot-norflash.bin");
 
-size_t K230BurnISP_LoaderSize(void) {
-    return gAppSize;
+size_t K230BurnISP_LoaderSize(kburnUsbIspCommandTaget target) {
+    size_t isp_size = -1;
+
+    switch (target)
+    {
+    case KBURN_USB_ISP_EMMC:
+        isp_size = gisp_emmcSize; 
+        break;
+    case KBURN_USB_ISP_NOR:
+        isp_size = gisp_norflashSize;
+        break;
+    default:
+        debug_print(KBURN_LOG_ERROR, COLOR_FMT("unsupported target"), RED);
+        break;
+    }
+    return isp_size;
 }
 
-bool K230BurnISP_LoaderRun(kburnDeviceNode *node, on_write_progress page_callback, void *ctx) {
-    return K230BurnISP_RunProgram(node, gAppData, gAppSize, page_callback, ctx);
+bool K230BurnISP_LoaderRun(kburnDeviceNode *node, kburnUsbIspCommandTaget target, on_write_progress page_callback, void *ctx) {
+    const void *data;
+    size_t size;
+
+    switch (target)
+    {
+    case KBURN_USB_ISP_EMMC:
+        data = gisp_emmcData;
+        size = gisp_emmcSize;
+        break;
+    case KBURN_USB_ISP_NOR:
+        data = gisp_norflashData;
+        size = gisp_norflashSize;
+        break;
+    default:
+        debug_print(KBURN_LOG_ERROR, COLOR_FMT("unsupported target"), RED);
+        return -1;
+        break;
+    }
+
+    return K230BurnISP_RunProgram(node, data, size, page_callback, ctx);
 }

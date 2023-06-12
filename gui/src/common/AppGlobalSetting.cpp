@@ -8,10 +8,10 @@ namespace Private {
 
 static const QMap<uint, QString> flashTargetMap = {
 	{kburnUsbIspCommandTaget::KBURN_USB_ISP_EMMC,   "EMMC"   },
-	{kburnUsbIspCommandTaget::KBURN_USB_ISP_OTP,    "OTP"    },
-	{kburnUsbIspCommandTaget::KBURN_USB_ISP_NAND,   "NAND"   },
+	// {kburnUsbIspCommandTaget::KBURN_USB_ISP_OTP,    "OTP"    },
+	// {kburnUsbIspCommandTaget::KBURN_USB_ISP_NAND,   "NAND"   },
 	{kburnUsbIspCommandTaget::KBURN_USB_ISP_NOR,    "NOR"},
-	{kburnUsbIspCommandTaget::KBURN_USB_ISP_SDCARD, "SD Card"},
+	// {kburnUsbIspCommandTaget::KBURN_USB_ISP_SDCARD, "SD Card"},
 };
 }
 

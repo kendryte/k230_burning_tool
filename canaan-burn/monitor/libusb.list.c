@@ -102,6 +102,7 @@ size_t list_usb_ports(struct libusb_context *libusb, kburnUsbDeviceInfoSlice *ou
 
 		out[index].idProduct = desc.idProduct;
 		out[index].idVendor = desc.idVendor;
+		out[index].bcdDevice = desc.bcdDevice;
 
 		r = usb_get_device_path(dev, &out[index].path[0]);
 		if (!kburn_not_error(r)) {

@@ -27,6 +27,10 @@ void K230BurningProcess::serial_isp_progress(void *self, const kburnDeviceNode *
 }
 
 qint64 K230BurningProcess::prepare() {
+	qint64 chunkSize = 0;
+
+	QString alt_emmc("mmc");
+	QString alt_norflash("sf");
 
 	setStage(::tr("等待设备上电"));
 
@@ -35,46 +39,82 @@ qint64 K230BurningProcess::prepare() {
 		throw KBurnException(tr("设备上电超时"));
 	}
 
-	setStage(::tr("写入USB LOADER"), K230BurnISP_LoaderSize());
+	kburnUsbIspCommandTaget isp_target = (kburnUsbIspCommandTaget)GlobalSetting::flashTarget.getValue();
 
-	if(!K230BurnISP_LoaderRun(node, K230BurningProcess::serial_isp_progress, this)) {
+	int isp_size = K230BurnISP_LoaderSize(isp_target);
+	if(0 >= isp_size) {
+		throw KBurnException(tr("不支持的目标介质"));
+	}
+
+	setStage(::tr("写入USB LOADER"), isp_size);
+
+	if(!K230BurnISP_LoaderRun(node, isp_target, K230BurningProcess::serial_isp_progress, this)) {
 		throw KBurnException(tr("写入USB LOADER失败"));
 	}
 
 	setStage(::tr("等待USB ISP启动"));
 
-	node = reinterpret_cast<kburnDeviceNode *>(inputs.pick(1, 20));
+	node = reinterpret_cast<kburnDeviceNode *>(inputs.pick(1, 10));
 	if (node == NULL) {
 		throw KBurnException(tr("ISP启动超时"));
 	}
 
-	// usb_ok = true;
+	usb_ok = true;
 
-	// if (!kburnUsbIspGetMemorySize(node, (kburnUsbIspCommandTaget)GlobalSetting::flashTarget.getValue(), &devInfo)) {
+	switch (isp_target)
+	{
+	case KBURN_USB_ISP_EMMC:
+		chunkSize = setalt(alt_emmc);
+		break;
+	case KBURN_USB_ISP_NOR:
+		chunkSize = setalt(alt_norflash);
+		break;
+	default:
+		break;
+	}
+
+	return chunkSize;
+
+	// if (!kburnUsbIspGetMemorySize(node, , &devInfo)) {
 	// 	throw KBurnException(node->error->code, node->error->errorMessage);
 	// }
 
 	// if (imageSize > devInfo.storage_size) {
 	// 	throw KBurnException(tr("文件过大"));
 	// }
-
-	return 0;
-
 	// return ((CHUNK_SIZE / devInfo.block_size) + (CHUNK_SIZE % devInfo.block_size > 0 ? 1 : 0)) * devInfo.block_size;
+}
+
+qint64 K230BurningProcess::setalt(const QString &alt)
+{
+	currAltName = alt;
+
+	if(false == K230Burn_Check_Alt(node, qPrintable(currAltName))) {
+		throw KBurnException(tr("未知异常"));
+	}
+
+	chunk_size = K230Burn_Get_Chunk_Size(node, qPrintable(currAltName));
+
+	if(0 == chunk_size) {
+		throw KBurnException(tr("获取信息失败"));
+	}
+
+	return chunk_size;
 }
 
 #include "AppGlobalSetting.h"
 
 void K230BurningProcess::cleanup(bool success) {
-	qDebug() << __func__, __LINE__;
+	qDebug() << __func__ << __LINE__;
 
 	if(node) {
 		mark_destroy_device_node(node);
 	}
 
-	// if (!usb_ok) {
-	// 	return;
-	// }
+	if (!usb_ok) {
+		return;
+	}
+
 	// uint32_t color = GlobalSetting::usbLedLevel.getValue();
 	// if (success) {
 	// 	color = color << 8;
@@ -85,13 +125,15 @@ void K230BurningProcess::cleanup(bool success) {
 }
 
 bool K230BurningProcess::step(kburn_stor_address_t address, const QByteArray &chunk) {
-	qDebug() << __func__, __LINE__;
+	size_t block = address / chunk_size;
 
-	return true;
+	return 0 < K230Burn_Write_Chunk(node, qPrintable(currAltName), block, (void *)chunk.constData(), chunk.size());
+}
 
-	// size_t block = address / devInfo.block_size;
+bool K230BurningProcess::end(kburn_stor_address_t address) {
+	size_t block = address / chunk_size;
 
-	// return kburnUsbIspWriteChunk(node, devInfo, block, (void *)chunk.constData(), chunk.size());
+	return 0x00 == K230Burn_Write_Chunk(node, qPrintable(currAltName), block, NULL, 0);
 }
 
 bool K230BurningProcess::pollingDevice(kburnDeviceNode *node, BurnLibrary::DeviceEvent event) {

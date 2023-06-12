@@ -71,6 +71,9 @@ static inline bool is_same_port(kburnUsbDeviceInfoSlice *a, kburnUsbDeviceInfoSl
 	if (a->idVendor != b->idVendor) {
 		return false;
 	}
+	if (a->bcdDevice != b->bcdDevice) {
+		return false;
+	}
 	return true;
 }
 
@@ -96,7 +99,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 	if (wParam != DBT_DEVNODES_CHANGED)
 		return 0;
 
-	debug_trace_function("DBT_DEVNODES_CHANGED");
+	// debug_trace_function("DBT_DEVNODES_CHANGED");
 
 	dynamic_array_t *oldList = monitor->usb->polling_context->prevList;
 	dynamic_array_t newList;
@@ -226,8 +229,8 @@ static void usb_monitor_polling_thread(void *UNUSED(context), KBMonCTX monitor, 
 	MSG Msg;
 	while (GetMessage(&Msg, NULL, 0, 0) > 0 && !*quit) {
 		TranslateMessage(&Msg);
-		debug_print(KBURN_LOG_TRACE, "WindowMessage: %d", Msg.message);
 		DispatchMessage(&Msg);
+		debug_print(KBURN_LOG_TRACE, "WindowMessage: %d", Msg.message);
 	}
 	debug_print(KBURN_LOG_INFO, "WIN32 message queue finished");
 

@@ -9,6 +9,9 @@
 #include <QFuture>
 #include <QPromise>
 #include <QThread>
+#include <QElapsedTimer>
+
+#include "AppGlobalSetting.h"
 
 BurningProcess::BurningProcess(KBMonCTX scope, const BurningRequest *request)
 	: scope(scope), imageFile(request->systemImageFile), imageSize(imageFile.size()) {
@@ -55,6 +58,9 @@ void BurningProcess::_run() {
 	buffer = new QByteArray(chunkSize, 0);
 	setStage(::tr("下载中"), imageSize);
 
+	QElapsedTimer timer;
+	timer.start();
+
 	while (!imageStream->atEnd()) {
 		imageStream->readRawData(buffer->data(), buffer->size());
 
@@ -74,6 +80,9 @@ void BurningProcess::_run() {
 		address += chunkSize;
 		setProgress(address);
 	}
+	end(address);
+
+	qDebug() << "耗时" << timer.elapsed() << "ms";
 
 	setStage(::tr("完成"), 100);
 	emit completed();

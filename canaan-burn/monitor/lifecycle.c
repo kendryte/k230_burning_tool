@@ -12,6 +12,8 @@
 #include "private/monitor/descriptor.h"
 #include "private/monitor/usb_types.h"
 
+#include "dfu.h"
+
 /****************************************************
 Function: get_endpoint
 Description: 获取usb设备的端点。in和out
@@ -88,6 +90,20 @@ DECALRE_DISPOSE(destroy_usb_port, kburnUsbDeviceNode) {
 
 	context->init = false;
 
+	if(context->dfu) {
+		struct dfu_if *pdfu;
+		struct dfu_if *prev = NULL;
+
+		for (pdfu = context->dfu; pdfu != NULL; pdfu = pdfu->next) {
+			free(prev);
+			free(pdfu->alt_name);
+			free(pdfu->serial_name);
+			prev = pdfu;
+		}
+		free(prev);
+		context->dfu = NULL;
+	}
+
 	device_instance_collect(get_node(context));
 }
 DECALRE_DISPOSE_END()
@@ -111,7 +127,7 @@ kburn_err_t open_single_usb_port(KBMonCTX monitor, struct libusb_device *dev, bo
 
 	IfUsbErrorLogSetReturn(libusb_open(dev, &node->usb->handle));
 	node->usb->isOpen = true;
-	debug_print(KBURN_LOG_INFO, "usb port open success, handle=%p", (void *)node->usb->handle);
+	debug_print(KBURN_LOG_INFO, "usb port open success, dev=%p, handle=%p", (void *)node->usb->device, (void *)node->usb->handle);
 
 	node->usb->deviceInfo.descriptor = MyAlloc(struct libusb_device_descriptor);
 	IfUsbErrorLogSetReturn(libusb_get_device_descriptor(dev, node->usb->deviceInfo.descriptor));

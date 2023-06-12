@@ -140,6 +140,23 @@ target_link_libraries(canaan_burn PRIVATE ${LIBUSB_LIBRARIES})
 
 # target_link_libraries(canaan_burn PRIVATE setupapi advapi32)
 
+# ############################  DFU-UTIL  #######################################
+set(dfu_srcs
+	"${CMAKE_CURRENT_LIST_DIR}/3rdparty/dfu/src/dfu.c"
+)
+target_sources(canaan_burn PRIVATE "${dfu_srcs}")
+target_include_directories(canaan_burn PRIVATE "${CMAKE_CURRENT_LIST_DIR}/3rdparty/dfu/src/")
+
+if(WIN32)
+	set(DEF HAVE_WINDOWS_H)
+elseif(LINUX)
+	set(DEF HAVE_NANOSLEEP)
+endif()
+
+foreach(file IN LISTS dfu_srcs)
+	set_source_files_properties("${file}" PROPERTIES COMPILE_DEFINITIONS "${DEF}")
+endforeach()
+
 # ############################  END #######################################
 if(WIN32)
 	set(WIN32LIBS ws2_32 Setupapi)

@@ -86,6 +86,12 @@ kburn_err_t usb_subsystem_init(KBMonCTX monitor) {
 	}
 	DeferCall(libusb_exit, monitor->usb->libusb);
 
+// #if defined(LIBUSB_API_VERSION) && LIBUSB_API_VERSION >= 0x01000106
+// 		libusb_set_option(monitor->usb->libusb, LIBUSB_OPTION_LOG_LEVEL, LIBUSB_LOG_LEVEL_DEBUG);
+// #else
+// 		libusb_set_debug(monitor->usb->libusb, 255);
+// #endif
+
 	libusb_set_log_cb(monitor->usb->libusb, libusb_logger, LIBUSB_LOG_CB_GLOBAL);
 	r = libusb_set_option(monitor->usb->libusb, LIBUSB_OPTION_LOG_LEVEL, LIBUSB_LOG_LEVEL_INFO);
 	if (r < 0) {

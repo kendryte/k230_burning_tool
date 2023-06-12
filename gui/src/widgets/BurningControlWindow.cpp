@@ -73,7 +73,7 @@ void BurningControlWindow::on_btnStartBurn_clicked() {
 
 	emit newProcessRequested(request);
 
-	kburnMonitorManualTrig(BurnLibrary::instance()->context());
+	// kburnMonitorManualTrig(BurnLibrary::instance()->context());
 }
 
 void BurningControlWindow::on_btnSelectImage_clicked()
