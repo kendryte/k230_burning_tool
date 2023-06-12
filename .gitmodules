@@ -4,3 +4,6 @@
 [submodule "canaan-burn/3rdparty/sanitizers-cmake"]
 	path = canaan-burn/3rdparty/sanitizers-cmake
 	url = https://github.com/arsenm/sanitizers-cmake.git
+[submodule "canaan-burn/3rdparty/dfu"]
+	path = canaan-burn/3rdparty/dfu
+	url = https://github.com/kendryte747/dfu-util.git
