@@ -142,7 +142,14 @@ void BurnLibrary::executeBurning(BurningProcess *work) {
 }
 
 bool BurnLibrary::hasBurning(const BurningRequest *request) {
-	return jobs.contains(request->getIdentity());
+	auto req = new K230BurningRequest();
+	req->usbPath = QString("WaitingConnect");
+
+	bool have = jobs.contains(request->getIdentity()) || jobs.contains(req->getIdentity());
+
+	delete req;
+
+	return have;
 }
 
 bool BurnLibrary::deleteBurning(BurningProcess *task) {
@@ -193,10 +200,10 @@ bool BurnLibrary::handleBeforeDeviceOpen(const char* const path) {
 		return true;
 	}
 
-	// create new jobs.
-	emit onBeforDeviceOpen(_path);
-
 	if(burnCtrlAutoBurn) {
+		// create new jobs.
+		emit onBeforDeviceOpen(_path);
+
 		// wait 3s for burn jobs create.
 		for(int i = 0; i < 6; i++) {
 			QEventLoop loop;

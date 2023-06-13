@@ -63,8 +63,42 @@ kburn_err_t init_list_all_usb_devices(KBMonCTX monitor) {
 			continue;
 		} else {
 			debug_print(KBURN_LOG_DEBUG, "[init/poll] \topen");
+			// IfErrorReturn(open_single_usb_port(monitor, dev, true, NULL));
 
-			IfErrorReturn(open_single_usb_port(monitor, dev, true, NULL));
+			kburnUsbDeviceInfoSlice devInfo;
+
+			if(!monitor->on_before_open.handler) {
+				libusb_free_device_list(list, true);
+
+				debug_print(KBURN_LOG_ERROR, COLOR_FMT("User have no on_before_open callback"), RED);
+
+				return KBurnNoErr;
+			}
+
+			if(!CALL_HANDLE_SYNC(monitor->on_before_open, usb_debug_path_string(path))) {
+				libusb_free_device_list(list, true);
+
+				debug_print(KBURN_LOG_ERROR, COLOR_FMT("on_before_open no burn process canceled"), RED);
+
+				return KBurnNoErr;
+			}
+
+			int ret = usb_get_vid_pid_path(dev, &devInfo.idVendor, &devInfo.idProduct, devInfo.path);
+			if (ret < LIBUSB_SUCCESS) {
+				libusb_free_device_list(list, true);
+
+				debug_print(KBURN_LOG_ERROR, COLOR_FMT("usb_get_vid_pid_path failed"), RED);
+
+				return KBurnNoErr;
+			}
+
+			push_libusb_event(monitor, LIBUSB_HOTPLUG_EVENT_DEVICE_ARRIVED, &devInfo);
+			event_thread_fire(monitor->usb->event_queue);
+
+			libusb_free_device_list(list, true);
+
+			// only open one device
+			return KBurnNoErr;
 		}
 	}
 	libusb_free_device_list(list, true);

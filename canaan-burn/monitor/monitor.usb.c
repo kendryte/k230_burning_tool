@@ -63,7 +63,11 @@ static bool open_this_usb_device(KBMonCTX monitor, uint16_t vid, uint16_t pid, c
 				return false;
 			}
 
-			CALL_HANDLE_SYNC(monitor->on_before_open, usb_debug_path_string(path));
+			if(!CALL_HANDLE_SYNC(monitor->on_before_open, usb_debug_path_string(path))) {
+				debug_print(KBURN_LOG_ERROR, COLOR_FMT("on_before_open no burn process"), RED);
+
+				return false;
+			}
 
 			kburn_err_t r = open_single_usb_port(monitor, dev, true, NULL);
 			if (r != KBurnNoErr) {
@@ -218,6 +222,7 @@ kburn_err_t usb_monitor_manual_trig(KBMonCTX monitor) {
 		usb_subsystem_init(monitor);
 	}
 
+	init_list_all_usb_devices(monitor);
 	// thread_create("usb maunal scan", init_list_all_usb_devices_threaded, NULL, monitor, NULL);
 
 	return KBurnNoErr;
