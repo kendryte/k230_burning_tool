@@ -28,49 +28,49 @@
         <translation>code:</translation>
     </message>
     <message>
-        <location filename="../../src/common/BurningProcess.cpp" line="18"/>
+        <location filename="../../src/common/BurningProcess.cpp" line="21"/>
         <source>无法打开系统镜像文件</source>
         <translatorcomment>Cano not open Image file</translatorcomment>
         <translation>Cano not open Image file</translation>
     </message>
     <message>
-        <location filename="../../src/common/BurningProcess.cpp" line="56"/>
+        <location filename="../../src/common/BurningProcess.cpp" line="59"/>
         <source>下载中</source>
         <translatorcomment>Downloading...</translatorcomment>
         <translation>Downloading...</translation>
     </message>
     <message>
-        <location filename="../../src/common/BurningProcess.cpp" line="78"/>
+        <location filename="../../src/common/BurningProcess.cpp" line="87"/>
         <source>完成</source>
         <translatorcomment>Done</translatorcomment>
         <translation>Done</translation>
     </message>
     <message>
-        <location filename="../../src/common/BurningProcess.cpp" line="121"/>
+        <location filename="../../src/common/BurningProcess.cpp" line="130"/>
         <source>用户取消操作</source>
         <translatorcomment>User canceled operation</translatorcomment>
         <translation>User canceled operation</translation>
     </message>
     <message>
-        <location filename="../../src/common/K230BurningProcess.cpp" line="31"/>
+        <location filename="../../src/common/K230BurningProcess.cpp" line="35"/>
         <source>等待设备上电</source>
         <translatorcomment>Waiting Device Plug in</translatorcomment>
         <translation>Waiting Device Plug in</translation>
     </message>
     <message>
-        <location filename="../../src/common/K230BurningProcess.cpp" line="38"/>
+        <location filename="../../src/common/K230BurningProcess.cpp" line="49"/>
         <source>写入USB LOADER</source>
         <translatorcomment>Write USB LOADER</translatorcomment>
         <translation>Write USB LOADER</translation>
     </message>
     <message>
-        <location filename="../../src/common/K230BurningProcess.cpp" line="44"/>
+        <location filename="../../src/common/K230BurningProcess.cpp" line="55"/>
         <source>等待USB ISP启动</source>
         <translatorcomment>Waiting USB ISP Boot</translatorcomment>
         <translation>Waiting USB ISP Boot</translation>
     </message>
     <message>
-        <location filename="../../src/common/K230BurningProcess.cpp" line="122"/>
+        <location filename="../../src/common/K230BurningProcess.cpp" line="164"/>
         <source>设备断开</source>
         <translatorcomment>Device Disconnect</translatorcomment>
         <translation>Device Disconnect</translation>
@@ -146,49 +146,54 @@
         <translation>Form</translation>
     </message>
     <message>
-        <location filename="../../src/widgets/BurningControlWindow.ui" line="38"/>
+        <location filename="../../src/widgets/BurningControlWindow.ui" line="39"/>
+        <source>镜像烧录</source>
+        <translation>Image Burn</translation>
+    </message>
+    <message>
+        <location filename="../../src/widgets/BurningControlWindow.ui" line="51"/>
         <source>镜像文件选择</source>
         <translatorcomment>Image Selection</translatorcomment>
         <translation>Image Selection</translation>
     </message>
     <message>
-        <location filename="../../src/widgets/BurningControlWindow.ui" line="49"/>
+        <location filename="../../src/widgets/BurningControlWindow.ui" line="62"/>
         <source>选择文件</source>
         <translatorcomment>Open</translatorcomment>
         <translation>Open</translation>
     </message>
     <message>
-        <location filename="../../src/widgets/BurningControlWindow.ui" line="62"/>
+        <location filename="../../src/widgets/BurningControlWindow.ui" line="75"/>
         <source>...</source>
         <translatorcomment>...</translatorcomment>
         <translation>...</translation>
     </message>
     <message>
-        <location filename="../../src/widgets/BurningControlWindow.ui" line="75"/>
+        <location filename="../../src/widgets/BurningControlWindow.ui" line="88"/>
         <source>设备选项</source>
         <translatorcomment>Device Configure</translatorcomment>
         <translation>Device Configure</translation>
     </message>
     <message>
-        <location filename="../../src/widgets/BurningControlWindow.ui" line="87"/>
+        <location filename="../../src/widgets/BurningControlWindow.ui" line="100"/>
         <source>目标设备</source>
         <translatorcomment>Target</translatorcomment>
         <translation>Target</translation>
     </message>
     <message>
-        <location filename="../../src/widgets/BurningControlWindow.ui" line="130"/>
+        <location filename="../../src/widgets/BurningControlWindow.ui" line="160"/>
         <source>自动烧录</source>
         <translatorcomment>Auto Download</translatorcomment>
         <translation>Auto Download</translation>
     </message>
     <message>
-        <location filename="../../src/widgets/BurningControlWindow.ui" line="159"/>
+        <location filename="../../src/widgets/BurningControlWindow.ui" line="189"/>
         <source>设置</source>
         <translatorcomment>Advanced Setting</translatorcomment>
         <translation>Advanced Setting</translation>
     </message>
     <message>
-        <location filename="../../src/widgets/BurningControlWindow.ui" line="204"/>
+        <location filename="../../src/widgets/BurningControlWindow.ui" line="234"/>
         <source>开始烧录</source>
         <translatorcomment>Start</translatorcomment>
         <translation>Start</translation>
@@ -222,13 +227,13 @@
 <context>
     <name>BurningProcess</name>
     <message>
-        <location filename="../../src/common/BurningProcess.cpp" line="70"/>
+        <location filename="../../src/common/BurningProcess.cpp" line="76"/>
         <source>设备写入失败，地址: 0x</source>
         <translatorcomment>Write Device Failed, Address: 0x</translatorcomment>
         <translation>Write Device Failed, Address: 0x</translation>
     </message>
     <message>
-        <location filename="../../src/common/BurningProcess.cpp" line="129"/>
+        <location filename="../../src/common/BurningProcess.cpp" line="138"/>
         <source>用户主动取消</source>
         <translatorcomment>User Canceled</translatorcomment>
         <translation>User Canceled</translation>
@@ -237,22 +242,37 @@
 <context>
     <name>K230BurningProcess</name>
     <message>
-        <location filename="../../src/common/K230BurningProcess.cpp" line="35"/>
+        <location filename="../../src/common/K230BurningProcess.cpp" line="39"/>
         <source>设备上电超时</source>
         <translatorcomment>Waiting Device timeout</translatorcomment>
         <translation>Waiting Device timeout</translation>
     </message>
     <message>
-        <location filename="../../src/common/K230BurningProcess.cpp" line="41"/>
+        <location filename="../../src/common/K230BurningProcess.cpp" line="46"/>
+        <source>不支持的目标介质</source>
+        <translation>Unsupport Medium</translation>
+    </message>
+    <message>
+        <location filename="../../src/common/K230BurningProcess.cpp" line="52"/>
         <source>写入USB LOADER失败</source>
         <translatorcomment>Write USB LOADER Failed</translatorcomment>
         <translation>Write USB LOADER Failed</translation>
     </message>
     <message>
-        <location filename="../../src/common/K230BurningProcess.cpp" line="48"/>
+        <location filename="../../src/common/K230BurningProcess.cpp" line="59"/>
         <source>ISP启动超时</source>
         <translatorcomment>USB ISP Boot Timeout</translatorcomment>
         <translation>USB ISP Boot Timeout</translation>
+    </message>
+    <message>
+        <location filename="../../src/common/K230BurningProcess.cpp" line="93"/>
+        <source>未知异常</source>
+        <translation>Unknown Error</translation>
+    </message>
+    <message>
+        <location filename="../../src/common/K230BurningProcess.cpp" line="99"/>
+        <source>获取信息失败</source>
+        <translation>Get Device Info Faild.</translation>
     </message>
 </context>
 <context>
