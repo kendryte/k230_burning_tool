@@ -150,7 +150,7 @@ target_include_directories(canaan_burn PRIVATE "${CMAKE_CURRENT_LIST_DIR}/3rdpar
 if(WIN32)
 	set(DEF HAVE_WINDOWS_H)
 elseif(LINUX)
-	set(DEF HAVE_NANOSLEEP)
+	set(DEF HAVE_NANOSLEEP HAVE_UNISTD_H)
 endif()
 
 foreach(file IN LISTS dfu_srcs)

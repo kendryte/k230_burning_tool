@@ -1,3 +1,5 @@
+#include <stdlib.h>
+
 #include <libusb.h>
 
 #include "private/lib/debug/print.h"
