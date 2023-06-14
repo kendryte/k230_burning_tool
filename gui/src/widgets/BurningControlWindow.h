@@ -5,6 +5,11 @@
 #include <QMap>
 #include <QFile>
 #include <QSettings>
+#include <QStandardItemModel>
+#include <QMenu>
+#include <QPoint>
+
+#include "common/CustomTableView.h"
 
 namespace Ui {
 class BurningControlWindow;
@@ -26,7 +31,13 @@ class BurningControlWindow : public QGroupBox {
 
 	QString getFile() { return fd.fileName(); }
 
+private:
+	QPoint 					menuPoint;
+    TableHeaderView        	*tableHeader;
+    QStandardItemModel     	*tableModel;
+
   private:
+	void initTableView(void);
 	void readSettings(void);
 	void saveSettings(void);
 
@@ -45,6 +56,15 @@ class BurningControlWindow : public QGroupBox {
 	void on_btnOpenSettings_clicked() { emit showSettingRequested(); }
     void on_buttonStartAuto_clicked(bool checked);
     void on_btnSelectImage_clicked();
+
+    void tableviewHeaderStateChangedSlot(int state);
+    void tableviewItemChangedSlot(QStandardItem* item);
+	void tabviewBtnOpenClickedSlot(const QModelIndex &index);
+
+	void tableviewMenuAddItemSlot(bool checked);
+	void tableviewMenuDelItemSlot(bool checked);
+	void tableviewMenuImportConfigmSlot(bool checked);
+	void tableviewMenuExportConfigmSlot(bool checked);
 };
 
 #endif // BURINGCONTROL_H

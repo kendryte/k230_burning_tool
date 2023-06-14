@@ -32,7 +32,7 @@
       <string notr="true">background-color: rgb(240, 240, 240);</string>
      </property>
      <property name="currentIndex">
-      <number>0</number>
+      <number>1</number>
      </property>
      <widget class="QWidget" name="ImageBrun">
       <attribute name="title">
@@ -132,6 +132,16 @@
           </size>
          </property>
         </spacer>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="PartitionBurn">
+      <attribute name="title">
+       <string>分区烧录</string>
+      </attribute>
+      <layout class="QGridLayout" name="gridLayout_3">
+       <item row="0" column="0">
+        <widget class="QTableView" name="tableView"/>
        </item>
       </layout>
      </widget>

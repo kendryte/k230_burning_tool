@@ -6,4 +6,4 @@
 	url = https://github.com/arsenm/sanitizers-cmake.git
 [submodule "canaan-burn/3rdparty/dfu"]
 	path = canaan-burn/3rdparty/dfu
-	url = https://github.com/kendryte747/dfu-util.git
+	url = git@g.a-bug.org:xiaenling/dfu-util.git
