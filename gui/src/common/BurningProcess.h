@@ -9,10 +9,13 @@
 #include <QRunnable>
 #include <QString>
 
+#include "common/BurnImageItem.h"
+
 class BurningProcess : public QObject, public QRunnable {
 	Q_OBJECT
 
-	QFile imageFile;
+	// QFile imageFile;
+	QList<struct BurnImageItem>	imageList;
 	class QByteArray *buffer = NULL;
 	bool _isCanceled = false;
 	bool _isStarted = false;
@@ -31,14 +34,14 @@ class BurningProcess : public QObject, public QRunnable {
 	void setStage(const QString &title, int bytesToWrite = 0);
 	void setProgress(int writtenBytes);
 
-	virtual qint64 prepare() = 0;
+	virtual qint64 prepare(struct BurnImageItem *loader) = 0;
 	virtual bool step(kburn_stor_address_t address, const QByteArray &chunk) = 0;
 	virtual void cleanup(bool success){};
 	virtual bool end(kburn_stor_address_t address) = 0;
 	virtual qint64 setalt(const QString &alt) = 0;
 
   public:
-    const qint64 imageSize;
+    // const qint64 imageSize;
     ~BurningProcess();
 
 	void run() Q_DECL_NOTHROW;

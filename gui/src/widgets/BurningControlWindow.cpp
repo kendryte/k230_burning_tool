@@ -14,8 +14,17 @@
 #pragma execution_character_set("utf-8")
 #endif
 
-#define SETTING_SYSTEM_IMAGE_PATH "sys-image-path"
-#define SETTING_BYTE_SIZE "byte-size"
+#define SETTING_SYSTEM_IMAGE_PATH 			"sys-image-path"
+#define SETTING_BYTE_SIZE 					"byte-size"
+
+#define TABWIDGET_IMAGE_BURN_INDEX			(0)
+#define TABWIDGET_PARTITION_BURN_INDEX		(1)
+
+#define TABLEVIEW_SELECT_COL				(0)
+#define TABLEVIEW_ADDRESS_COL				(1)
+#define TABLEVIEW_ALTNAME_COL				(2)
+#define TABLEVIEW_FILE_PATH_COL				(3)
+#define TABLEVIEW_BTN_OPEN_COL				(4)
 
 BurningControlWindow::BurningControlWindow(QWidget *parent)
 	: QGroupBox(parent), ui(new Ui::BurningControlWindow), settings(QSettings::Scope::UserScope, SETTINGS_CATEGORY, "burning") {
@@ -24,7 +33,7 @@ BurningControlWindow::BurningControlWindow(QWidget *parent)
 	initTableView();
 
 	readSettings();
-	GlobalSetting::flashTarget.connectCombobox(ui->inputTarget);
+	GlobalSetting::flashTarget.connectCombobox(ui->inputTarget, true);
 
 	auto instance = BurnLibrary::instance();
 	connect(instance, &BurnLibrary::onBeforDeviceOpen, this, &BurningControlWindow::handleOpenDevice);
@@ -51,7 +60,7 @@ void BurningControlWindow::handleOpenDevice(QString path) {
 
 void BurningControlWindow::on_buttonStartAuto_clicked(bool checked) {
 	if((true == checked) && (false == checkSysImage())) {
-		QMessageBox::critical(Q_NULLPTR, QString(), tr("请先打开系统镜像！！！"));
+		QMessageBox::critical(Q_NULLPTR, QString(), tr("解析固件失败！！！"));
 
 		QTimer::singleShot(0, ui->buttonStartAuto, &AnimatedButton::click);
 		return;
@@ -67,7 +76,7 @@ void BurningControlWindow::on_buttonStartAuto_clicked(bool checked) {
 
 void BurningControlWindow::on_btnStartBurn_clicked() {
 	if(false == checkSysImage()) {
-		QMessageBox::critical(Q_NULLPTR, QString(), tr("请先打开系统镜像！！！"));
+		QMessageBox::critical(Q_NULLPTR, QString(), tr("解析固件失败！！！"));
 		return;
 	}
 
@@ -96,45 +105,223 @@ void BurningControlWindow::on_btnSelectImage_clicked()
 
 void BurningControlWindow::handleSettingsWindowButtonState() {
 	if (autoBurningEnabled) {
-		ui->groupBox_Image->setEnabled(false);
-		ui->groupBox_Target->setEnabled(false);
+		ui->tabWidget->setEnabled(false);
+		ui->inputTarget->setEnabled(false);
 		ui->btnOpenSettings->setEnabled(false);
 	} else if (BurnLibrary::instance()->getBurningJobCount() > 0) {
-		ui->groupBox_Image->setEnabled(false);
-		ui->groupBox_Target->setEnabled(false);
+		ui->tabWidget->setEnabled(false);
+		ui->inputTarget->setEnabled(false);
 		ui->btnOpenSettings->setEnabled(false);
 	} else {
-		ui->groupBox_Image->setEnabled(true);
-		ui->groupBox_Target->setEnabled(true);
+		ui->tabWidget->setEnabled(true);
+		ui->inputTarget->setEnabled(true);
 		ui->btnOpenSettings->setEnabled(true);
 	}
 }
 
 bool BurningControlWindow::checkSysImage() {
-	QString fPath = ui->inputSysImage->text();
+	QFile _fd;
+	struct BurnImageItem item;
 
-	if (fd.fileName() == fPath) {
-		return !fd.fileName().isEmpty();
-	}
+	imageList.clear();
 
-	fd.setFileName(fPath);
-	if (fd.exists()) {
-		QString info = tr("文件大小： ");
+	/* default loader */
+	kburnUsbIspCommandTaget isp_target = (kburnUsbIspCommandTaget)GlobalSetting::flashTarget.getValue();
+	
+	qDebug() << __func__ << __LINE__ << isp_target;
 
-		QLocale locale = this->locale();
-		info += locale.formattedDataSize(fd.size());
+	if(TABWIDGET_IMAGE_BURN_INDEX == ui->tabWidget->currentIndex()) {
+		QString fPath = ui->inputSysImage->text();
 
-		ui->txtImageInfo->setText(info);
-		ui->txtImageInfo->setStyleSheet("");
+		_fd.setFileName(fPath);
+
+		if (_fd.exists()) {
+			QString info = tr("文件大小： ");
+
+			QLocale locale = this->locale();
+			info += locale.formattedDataSize(_fd.size());
+
+			ui->txtImageInfo->setText(info);
+			ui->txtImageInfo->setStyleSheet("");
+
+			item.address = 0;
+			item.size = _fd.size();
+			item.fileName = _fd.fileName();
+			// strncpy(item.altName, "image", 32);
+			switch (isp_target)
+			{
+			case KBURN_USB_ISP_EMMC:
+				strncpy(item.altName, "mmc", 32);
+				break;
+			case KBURN_USB_ISP_NOR:
+				strncpy(item.altName, "sf", 32);
+				break;
+			default:
+				break;
+			}
+			imageList.append(item);
+
+			memset(&item, 0, sizeof(struct BurnImageItem));
+
+			switch (isp_target)
+			{
+			case KBURN_USB_ISP_EMMC:
+				_fd.setFileName(QString(":/u-boot-emmc.bin"));
+				break;
+			case KBURN_USB_ISP_NOR:
+				_fd.setFileName(QString(":/u-boot-norflash.bin"));
+				break;
+			default:
+				break;
+			}
+
+			item.address = 0;
+			item.size = _fd.size();
+			item.fileName = _fd.fileName();
+			strncpy(item.altName, "loader", 32);
+			imageList.append(item);
+
+			return true;
+		} else {
+			ui->txtImageInfo->setText(tr("未找到文件"));
+			ui->txtImageInfo->setStyleSheet("QLabel { color : red; }");
+
+			return false;
+		}
+	} else if(TABWIDGET_PARTITION_BURN_INDEX == ui->tabWidget->currentIndex()) {
+		/* TODO: Check Partition burn files */
+		/**
+		 * 1. 遍历所有的item，将地址，altname，文件名放到对应的QVector，并要判断是否为空
+		 * 2. 检查QVector
+		 */
+
+		bool selected = false;
+		uint address = 0, itemCount = 0;
+		QString  addressString, altNameString, filePathString;
+
+		QVector<uint> addressVector;
+		QVector<QString> altnameVector;
+		QVector<QString> filepathVector;
+
+		for(int row = 0; row < tableModel->rowCount(); row++) {
+			bool selected = tableModel->index(row, 0).data(Qt::UserRole).toBool();
+
+			if(selected) {
+				itemCount++;
+
+				/**
+				 * check altname
+				 */
+				altNameString = tableModel->index(row, TABLEVIEW_ALTNAME_COL).data().toString();
+				if(altNameString.isEmpty()) {
+					QMessageBox::critical(Q_NULLPTR, QString(), tr("Row %1 altName \"%2\" is Empty").arg(row).arg(altNameString));
+					return false;
+				}
+				if(altnameVector.contains(altNameString)) {
+					QMessageBox::critical(Q_NULLPTR, QString(), tr("Row %1 altName \"%2\" is Repeated").arg(row).arg(altNameString));
+					return false;
+				}
+				altnameVector.append(altNameString);
+
+				address = -1;
+				if(altNameString != QString("loader")) {
+					/**
+					 * check address
+					 */
+					addressString = tableModel->index(row, TABLEVIEW_ADDRESS_COL).data().toString();
+					if((addressString.startsWith(QString("0x"))) || (addressString.startsWith(QString("0X")))) {
+						address = addressString.toUInt(&selected, 16);
+					} else {
+						address = addressString.toUInt(&selected, 10);
+					}
+
+					if(false == selected) {
+						QMessageBox::critical(Q_NULLPTR, QString(), tr("Row %1 Convert address \"%2\" failed").arg(row).arg(addressString));
+						return false;
+					}
+
+					if(addressVector.contains(address)) {
+						QMessageBox::critical(Q_NULLPTR, QString(), tr("Row %1 address \"%2\" is Repeated").arg(row).arg(addressString));
+						return false;
+					}
+					addressVector.append(address);
+				}
+
+				/**
+				 * check filepath
+				 */
+				filePathString = tableModel->index(row, TABLEVIEW_FILE_PATH_COL).data().toString();
+				if(filePathString.isEmpty()) {
+					QMessageBox::critical(Q_NULLPTR, QString(), tr("Row %1 filepath \"%2\" is Empty").arg(row).arg(filePathString));
+					return false;
+				}
+
+				/* TBD: check same file? */
+				if(filepathVector.contains(filePathString)) {
+					QMessageBox::critical(Q_NULLPTR, QString(), tr("Row %1 filepath \"%2\" is Repeated").arg(row).arg(filePathString));
+					return false;
+				}
+
+				_fd.setFileName(filePathString);
+				if(!_fd.exists()) {
+					QMessageBox::critical(Q_NULLPTR, QString(), tr("Row %1 file \"%2\" not Exists").arg(row).arg(filePathString));
+					return false;
+				}
+				filepathVector.append(filePathString);
+
+				qDebug() << __func__ << __LINE__ << row << address << addressString << altNameString << filePathString;
+
+				memset(&item, 0, sizeof(struct BurnImageItem));
+
+				item.address = address;
+				item.size = _fd.size();
+				item.fileName = filePathString;
+				strncpy(item.altName, qPrintable(altNameString), 32);
+				imageList.append(item);
+			}
+		}
+
+		if(0x00 == itemCount) {
+			QMessageBox::critical(Q_NULLPTR, QString(), tr("请选择固件"));
+			return false;
+		}
+
+		if(((itemCount - 1) != addressVector.size()) || (itemCount != altnameVector.size()) || (itemCount != filepathVector.size())) {
+			QMessageBox::critical(Q_NULLPTR, QString(), tr("未知错误"));
+			return false;
+		}
+
+		if(false == altnameVector.contains(QString("loader"))) {
+#if 0			
+			memset(&item, 0, sizeof(struct BurnImageItem));
+
+			switch (isp_target)
+			{
+			case KBURN_USB_ISP_EMMC:
+				_fd.setFileName(QString(":/u-boot-emmc.bin"));
+				break;
+			case KBURN_USB_ISP_NOR:
+				_fd.setFileName(QString(":/u-boot-norflash.bin"));
+				break;
+			default:
+				break;
+			}
+
+			item.address = 0;
+			item.size = _fd.size();
+			item.fileName = _fd.fileName();
+			strncpy(item.altName, "loader", 32);
+			imageList.append(item);
+#else
+			QMessageBox::critical(Q_NULLPTR, QString(), tr("未配置Loader"));
+			return false;
+#endif
+		}
 
 		return true;
-	} else {
-		fd.setFileName("");
-		ui->txtImageInfo->setText(tr("未找到文件"));
-		ui->txtImageInfo->setStyleSheet("QLabel { color : red; }");
-
-		return false;
 	}
+
+	return false;
 }
 
 void BurningControlWindow::readSettings(void)
@@ -147,6 +334,7 @@ void BurningControlWindow::readSettings(void)
 			saved = QDir::cleanPath(appDir.absoluteFilePath(saved));
 		}
 		ui->inputSysImage->setText(saved);
+		ui->tabWidget->setCurrentIndex(TABWIDGET_IMAGE_BURN_INDEX);
 		checkSysImage();
 	}
 }
@@ -189,8 +377,8 @@ void BurningControlWindow::initTableView(void)
 
 	QMenu *tableMenu = new QMenu(ui->tableView);
 
-    QAction *addItem = tableMenu->addAction(tr("增加Item"));
-    QAction *delItem = tableMenu->addAction(tr("删除Item"));
+    QAction *addItem = tableMenu->addAction(tr("增加一行"));
+    QAction *delItem = tableMenu->addAction(tr("删除本行"));
     QAction *importConfig = tableMenu->addAction(tr("导入配置"));
     QAction *exportConfig = tableMenu->addAction(tr("导出配置"));
 
@@ -204,56 +392,56 @@ void BurningControlWindow::initTableView(void)
 		tableMenu->exec(mapToGlobal(pos));
 	});
 
-	tableModel->setHorizontalHeaderItem(1, new QStandardItem(tr("目标介质")));
-	tableModel->setHorizontalHeaderItem(2, new QStandardItem(tr("目标地址")));
-	tableModel->setHorizontalHeaderItem(3, new QStandardItem(tr("目标名称")));
-	tableModel->setHorizontalHeaderItem(4, new QStandardItem(tr("文件路径")));
-	tableModel->setHorizontalHeaderItem(5, new QStandardItem(tr("打开文件")));
+	// tableModel->setHorizontalHeaderItem(1, new QStandardItem(tr("目标介质")));
+	tableModel->setHorizontalHeaderItem(TABLEVIEW_ADDRESS_COL, new QStandardItem(tr("目标地址")));
+	tableModel->setHorizontalHeaderItem(TABLEVIEW_ALTNAME_COL, new QStandardItem(tr("目标名称")));
+	tableModel->setHorizontalHeaderItem(TABLEVIEW_FILE_PATH_COL, new QStandardItem(tr("文件路径")));
+	tableModel->setHorizontalHeaderItem(TABLEVIEW_BTN_OPEN_COL, new QStandardItem(tr("打开文件")));
 
 	/**
 	 * 选中
 	 */
 	CheckBoxDelegate *pCheckDelegate = new CheckBoxDelegate(this);
-    ui->tableView->setItemDelegateForColumn(0, pCheckDelegate);
+    ui->tableView->setItemDelegateForColumn(TABLEVIEW_SELECT_COL, pCheckDelegate);
 
 	/**
 	 * 目标介质
 	 */
-	QStringList targetMedium;
-	targetMedium << "eMMC" << "Nor Flash";
+	// QStringList targetMedium;
+	// targetMedium << "eMMC" << "Nor Flash";
 
-	ComboDelegate *pComboMedium = new ComboDelegate(this);
-	pComboMedium->setItems(targetMedium);
-    ui->tableView->setItemDelegateForColumn(1, pComboMedium);
+	// ComboDelegate *pComboMedium = new ComboDelegate(this);
+	// pComboMedium->setItems(targetMedium);
+    // ui->tableView->setItemDelegateForColumn(1, pComboMedium);
 
 	/**
 	 * 目标地址
 	 */
 	for(int i = 0;i < 10;i++) {
-		tableModel->setItem(i, 2, new QStandardItem(QString("0x00000000")));
+		tableModel->setItem(i, TABLEVIEW_ADDRESS_COL, new QStandardItem(QString("0x00000000")));
 	}
 
 	/**
 	 * 目标名称
 	 */
 	QStringList targetAltName;
-	targetAltName << "uboot" << "rtt" << "kernel" << "rootfs";
+	targetAltName << "loader" << "uboot" << "rtt" << "kernel" << "rootfs";
 
 	ComboDelegate *pComboAltName = new ComboDelegate(this);
 	pComboAltName->setItems(targetAltName);
-    ui->tableView->setItemDelegateForColumn(3, pComboAltName);
+    ui->tableView->setItemDelegateForColumn(TABLEVIEW_ALTNAME_COL, pComboAltName);
 
 	/**
 	 * 文件路径
 	 */
     ui->tableView->setModel(tableModel);
-	ui->tableView->horizontalHeader()->setSectionResizeMode(4, QHeaderView::Stretch);
+	ui->tableView->horizontalHeader()->setSectionResizeMode(TABLEVIEW_FILE_PATH_COL, QHeaderView::Stretch);
 
 	/**
 	 * Open
 	 */
 	PushButtonDelegate *pBtnOpen = new PushButtonDelegate(tr("..."), this);
-    ui->tableView->setItemDelegateForColumn(5, pBtnOpen);
+    ui->tableView->setItemDelegateForColumn(TABLEVIEW_BTN_OPEN_COL, pBtnOpen);
 	connect(pBtnOpen, &PushButtonDelegate::btnClicked, this, &BurningControlWindow::tabviewBtnOpenClickedSlot);
 	/*
 	 * tabview init end
@@ -317,7 +505,7 @@ void BurningControlWindow::tabviewBtnOpenClickedSlot(const QModelIndex &index)
 		return;
 	}
 
-	QModelIndex fnameIndex = tableModel->index(index.row(), 4, QModelIndex());
+	QModelIndex fnameIndex = tableModel->index(index.row(), TABLEVIEW_FILE_PATH_COL, QModelIndex());
 
 	tableModel->setData(fnameIndex, str);
 	emit tableModel->dataChanged(fnameIndex, fnameIndex);
@@ -327,7 +515,7 @@ void BurningControlWindow::tableviewMenuAddItemSlot(bool checked)
 {
 	int row = tableModel->rowCount();
 	tableModel->insertRows(row, 1);
-	tableModel->setItem(row, 2, new QStandardItem(QString("0x00000000")));
+	tableModel->setItem(row, TABLEVIEW_ADDRESS_COL, new QStandardItem(QString("0x00000000")));
 }
 
 void BurningControlWindow::tableviewMenuDelItemSlot(bool checked)
@@ -344,18 +532,17 @@ void BurningControlWindow::tableviewMenuImportConfigmSlot(bool checked)
 void BurningControlWindow::tableviewMenuExportConfigmSlot(bool checked)
 {
 	bool selected = false;
-	QString medium, address, altName, filePath;
+	QString  address, altName, filePath;
 	
 	for(int row = 0; row < tableModel->rowCount(); row++) {
 		bool selected = tableModel->index(row, 0).data(Qt::UserRole).toBool();
 
 		if(selected) {
-			medium = tableModel->index(row, 1).data().toString();
-			address = tableModel->index(row, 2).data().toString();
-			altName = tableModel->index(row, 3).data().toString();
-			filePath = tableModel->index(row, 4).data().toString();
+			address = tableModel->index(row, TABLEVIEW_ADDRESS_COL).data().toString();
+			altName = tableModel->index(row, TABLEVIEW_ALTNAME_COL).data().toString();
+			filePath = tableModel->index(row, TABLEVIEW_FILE_PATH_COL).data().toString();
 
-			qDebug() << __func__ << __LINE__ << row << "Selected" << medium << address << altName << filePath;
+			qDebug() << __func__ << __LINE__ << row << "Selected" << address << altName << filePath;
 		} else {
 			qDebug() << __func__ << __LINE__ << row << "Not Seleted";
 		}

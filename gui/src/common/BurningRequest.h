@@ -3,12 +3,15 @@
 #include <public/canaan-burn.h>
 #include <QString>
 
+#include "common/BurnImageItem.h"
+
 class BurningRequest {
   public:
 	virtual ~BurningRequest(){};
 
-	QString systemImageFile;
+	// QString systemImageFile;
 	bool isAutoCreate = false;
+	QList<struct BurnImageItem>	imageList;
 
 	enum DeviceKind
 	{ K230, };

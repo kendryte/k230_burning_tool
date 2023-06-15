@@ -9,6 +9,7 @@
 #include <QMenu>
 #include <QPoint>
 
+#include "common/BurnImageItem.h"
 #include "common/CustomTableView.h"
 
 namespace Ui {
@@ -20,7 +21,7 @@ class BurningControlWindow : public QGroupBox {
 
 	Ui::BurningControlWindow *ui;
 
-	QFile fd;
+	// QFile fd;
 	QSettings settings;
 
 	bool autoBurningEnabled = false;
@@ -29,12 +30,14 @@ class BurningControlWindow : public QGroupBox {
 	explicit BurningControlWindow(QWidget *parent = nullptr);
 	~BurningControlWindow();
 
-	QString getFile() { return fd.fileName(); }
+	// QString getFile() { return fd.fileName(); }
+	QList<struct BurnImageItem> getImageList() { return imageList; }
 
 private:
 	QPoint 					menuPoint;
     TableHeaderView        	*tableHeader;
     QStandardItemModel     	*tableModel;
+	QList<struct BurnImageItem>	imageList;
 
   private:
 	void initTableView(void);

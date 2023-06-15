@@ -14,5 +14,7 @@
         <file>trash-solid.svg</file>
         <file>rotate-right-solid.svg</file>
         <file>sliders-solid.svg</file>
+        <file>u-boot-emmc.bin</file>
+        <file>u-boot-norflash.bin</file>
     </qresource>
 </RCC>

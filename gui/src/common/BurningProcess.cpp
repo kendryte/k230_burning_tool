@@ -14,13 +14,14 @@
 #include "AppGlobalSetting.h"
 
 BurningProcess::BurningProcess(KBMonCTX scope, const BurningRequest *request)
-	: scope(scope), imageFile(request->systemImageFile), imageSize(imageFile.size()) {
+	: scope(scope), imageList(request->imageList) {
+	// imageFile(request->systemImageFile), imageSize(imageFile.size()) {
 	this->setAutoDelete(false);
 
-	if (!imageFile.open(QIODeviceBase::ReadOnly)) {
-		setResult(KBurnException(::tr("无法打开系统镜像文件") + " (" + request->systemImageFile + ")"));
-		return;
-	}
+	// if (!imageFile.open(QIODeviceBase::ReadOnly)) {
+	// 	setResult(KBurnException(::tr("无法打开系统镜像文件") + " (" + request->systemImageFile + ")"));
+	// 	return;
+	// }
 }
 
 BurningProcess::~BurningProcess() {
@@ -44,6 +45,11 @@ void BurningProcess::schedule() {
 }
 
 void BurningProcess::_run() {
+	QFile imageFile;
+	qint64 total_size = 0, burned_size = 0;
+	bool founLoader = false;
+	struct BurnImageItem loader;
+
 	Q_ASSERT(_isStarted);
 
 	QThread::currentThread()->setObjectName("burn:" + getTitle());
@@ -51,36 +57,71 @@ void BurningProcess::_run() {
 
 	throwIfCancel();
 
-	imageStream = new QDataStream(&imageFile);
+	foreach(struct BurnImageItem item, imageList) {
+		if(item.altName == QString("loader")) {
+			founLoader = true;
+			loader = item;
 
-	qint64 chunkSize = prepare();
+			continue;
+		}
+		total_size += item.size;
+	}
 
+	if(false == founLoader) {
+		throw(KBurnException(::tr("无法打开Loader")));
+	}
+
+	qint64 chunkSize = prepare(&loader);
 	buffer = new QByteArray(chunkSize, 0);
-	setStage(::tr("下载中"), imageSize);
+	setStage(::tr("下载中"), total_size);
 
 	QElapsedTimer timer;
 	timer.start();
 
-	while (!imageStream->atEnd()) {
-		imageStream->readRawData(buffer->data(), buffer->size());
+	foreach(struct BurnImageItem item, imageList) {
+		qDebug() << "address" << item.address << "file size" << item.size << "altname" << item.altName << "filename" << item.fileName;
 
-		int tries = 5; // TODO: config
-		while (tries-- > 0) {
-			if (step(address, *buffer)) {
-				break;
-			}
-
-			// TODO: notify when tries>1
-
-			if (tries == 1) {
-				throw KBurnException(tr("设备写入失败，地址: 0x") + QString::number(address, 16));
-			}
+		if(item.altName == QString("loader")) {
+			continue;
 		}
 
-		address += chunkSize;
-		setProgress(address);
+		imageFile.setFileName(item.fileName);
+
+		if (!imageFile.open(QIODeviceBase::ReadOnly)) {
+			throw(KBurnException(::tr("无法打开镜像文件") + " (" + item.fileName + ")"));
+		}
+
+		chunkSize = setalt(item.altName);
+		buffer->resize(chunkSize);
+
+		imageStream = new QDataStream(&imageFile);
+
+		while (!imageStream->atEnd()) {
+			imageStream->readRawData(buffer->data(), buffer->size());
+
+			int tries = 5; // TODO: config
+			while (tries-- > 0) {
+				if (step(address, *buffer)) {
+					break;
+				}
+
+				// TODO: notify when tries>1
+
+				if (tries == 1) {
+					throw KBurnException(tr("设备写入失败，地址: 0x") + QString::number(address, 16));
+				}
+			}
+
+			address += chunkSize;
+			setProgress(address);
+		}
+		end(address);
+
+		imageFile.close();
+
+		delete imageStream;
+		imageStream = nullptr;
 	}
-	end(address);
 
 	qDebug() << "耗时" << timer.elapsed() << "ms";
 

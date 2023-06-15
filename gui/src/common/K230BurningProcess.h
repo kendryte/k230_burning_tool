@@ -16,7 +16,7 @@ class K230BurningProcess : public BurningProcess {
 
 	static void serial_isp_progress(void *, const kburnDeviceNode *, size_t, size_t);
 
-	qint64 prepare();
+	qint64 prepare(struct BurnImageItem *loader);
 	bool step(kburn_stor_address_t address, const QByteArray &chunk);
 	void cleanup(bool success);
 	// void recreateDeviceStatus(const kburnDeviceNode *);

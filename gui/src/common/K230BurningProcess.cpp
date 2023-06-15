@@ -26,29 +26,26 @@ void K230BurningProcess::serial_isp_progress(void *self, const kburnDeviceNode *
 	_this->setProgress(current);
 }
 
-qint64 K230BurningProcess::prepare() {
-	qint64 chunkSize = 0;
-
-	QString alt_emmc("mmc");
-	QString alt_norflash("sf");
+qint64 K230BurningProcess::prepare(struct BurnImageItem *loader) {
+	qint64 chunkSize = 4096; // default
 
 	setStage(::tr("等待设备上电"));
+
+	QFile loaderFile(loader->fileName);
+	if (!loaderFile.open(QIODeviceBase::ReadOnly)) {
+		throw(KBurnException(::tr("无法打开镜像文件") + " (" + loader->fileName + ")"));
+	}
+	QByteArray loaderFileContent = loaderFile.readAll();
+	loaderFile.close();
 
 	node = reinterpret_cast<kburnDeviceNode *>(inputs.pick(0, 30));
 	if (node == NULL) {
 		throw KBurnException(tr("设备上电超时"));
 	}
 
-	kburnUsbIspCommandTaget isp_target = (kburnUsbIspCommandTaget)GlobalSetting::flashTarget.getValue();
+	setStage(::tr("写入USB LOADER"), loaderFileContent.size());
 
-	int isp_size = K230BurnISP_LoaderSize(isp_target);
-	if(0 >= isp_size) {
-		throw KBurnException(tr("不支持的目标介质"));
-	}
-
-	setStage(::tr("写入USB LOADER"), isp_size);
-
-	if(!K230BurnISP_LoaderRun(node, isp_target, K230BurningProcess::serial_isp_progress, this)) {
+	if(!K230BurnISP_RunProgram(node, loaderFileContent.data(), loaderFileContent.size(), K230BurningProcess::serial_isp_progress, this)) {
 		throw KBurnException(tr("写入USB LOADER失败"));
 	}
 
@@ -61,28 +58,7 @@ qint64 K230BurningProcess::prepare() {
 
 	usb_ok = true;
 
-	switch (isp_target)
-	{
-	case KBURN_USB_ISP_EMMC:
-		chunkSize = setalt(alt_emmc);
-		break;
-	case KBURN_USB_ISP_NOR:
-		chunkSize = setalt(alt_norflash);
-		break;
-	default:
-		break;
-	}
-
 	return chunkSize;
-
-	// if (!kburnUsbIspGetMemorySize(node, , &devInfo)) {
-	// 	throw KBurnException(node->error->code, node->error->errorMessage);
-	// }
-
-	// if (imageSize > devInfo.storage_size) {
-	// 	throw KBurnException(tr("文件过大"));
-	// }
-	// return ((CHUNK_SIZE / devInfo.block_size) + (CHUNK_SIZE % devInfo.block_size > 0 ? 1 : 0)) * devInfo.block_size;
 }
 
 qint64 K230BurningProcess::setalt(const QString &alt)

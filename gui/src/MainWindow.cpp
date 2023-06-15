@@ -127,7 +127,8 @@ void MainWindow::on_btnOpenRelease_triggered() {
 }
 
 void MainWindow::startNewBurnJob(BurningRequest *partialRequest) {
-	partialRequest->systemImageFile = ui->burnControlWindow->getFile();
+	// partialRequest->systemImageFile = ui->burnControlWindow->getFile();
+	partialRequest->imageList = ui->burnControlWindow->getImageList();
 
 	auto display = new SingleBurnWindow(this, partialRequest);
 	ui->burnJobListView->insertWidget(ui->burnJobListView->count() - 1, display, 0, Qt::AlignTop);

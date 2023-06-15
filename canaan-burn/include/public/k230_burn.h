@@ -8,9 +8,7 @@
 
 DEFINE_START
 
-PUBLIC size_t K230BurnISP_LoaderSize(kburnUsbIspCommandTaget target);
-
-PUBLIC bool K230BurnISP_LoaderRun(kburnDeviceNode *node, kburnUsbIspCommandTaget target, on_write_progress page_callback, void *ctx);
+PUBLIC bool K230BurnISP_RunProgram(kburnDeviceNode *node, const void *programBuffer, size_t programBufferSize, on_write_progress page_callback, void *ctx);
 
 PUBLIC bool K230Burn_Check_Alt(kburnDeviceNode *node, const char *alt);
 
