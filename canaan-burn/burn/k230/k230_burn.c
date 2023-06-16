@@ -15,7 +15,7 @@ static struct dfu_if *get_alt_dif(kburnDeviceNode *node, const char *alt)
         if(0x00 == strcmp(pdfu->alt_name, alt)) {
             return pdfu;
         }
-        debug_print(KBURN_LOG_INFO, "%s != %s", alt, pdfu->alt_name);
+        // debug_print(KBURN_LOG_INFO, "%s != %s", alt, pdfu->alt_name);
     }
     return NULL;
 }

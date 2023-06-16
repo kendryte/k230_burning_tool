@@ -5,6 +5,7 @@
 #include <public/canaan-burn.h>
 
 #include <QFileInfo>
+#include <QCryptographicHash>
 
 #define CHUNK_SIZE 1024 * 1024
 
@@ -26,21 +27,73 @@ void K230BurningProcess::serial_isp_progress(void *self, const kburnDeviceNode *
 	_this->setProgress(current);
 }
 
-qint64 K230BurningProcess::prepare(struct BurnImageItem *loader) {
+qint64 K230BurningProcess::prepare(QList<struct BurnImageItem> &imageList) {
+	bool founLoader = false;
 	qint64 chunkSize = 4096; // default
+	struct BurnImageItem loader;
 
-	setStage(::tr("等待设备上电"));
+	foreach(struct BurnImageItem item, imageList) {
+		if(item.altName == QString("loader")) {
+			founLoader = true;
+			loader = item;
+		}
+	}
 
-	QFile loaderFile(loader->fileName);
+	if(false == founLoader) {
+		throw(KBurnException(::tr("无法找到Loader")));
+	}
+
+	QFile loaderFile(loader.fileName);
 	if (!loaderFile.open(QIODeviceBase::ReadOnly)) {
-		throw(KBurnException(::tr("无法打开镜像文件") + " (" + loader->fileName + ")"));
+		throw(KBurnException(::tr("无法打开镜像文件") + " (" + loader.fileName + ")"));
 	}
 	QByteArray loaderFileContent = loaderFile.readAll();
 	loaderFile.close();
 
+	int itemCount = imageList.size() - 1;
+	if(0 >= itemCount) {
+		throw(KBurnException(::tr("文件数量不足")));
+	}
+
+	QByteArray cfgByteArray(itemCount * sizeof(struct BurnImageConfigItem) + sizeof(struct BurnImageConfig), 0);
+	struct BurnImageConfig *cfg = (struct BurnImageConfig *)cfgByteArray.data();
+
+	int cfgIndex = 0;
+
+	foreach(struct BurnImageItem item, imageList) {
+		if(item.altName == QString("loader")) {
+			continue;
+		}
+		cfg->cfgs[cfgIndex].size = item.size;
+		cfg->cfgs[cfgIndex].address = item.address;
+		strncpy(cfg->cfgs[cfgIndex].altName, qPrintable(item.altName), 32);
+
+		cfgIndex++;
+	}
+
+	if(itemCount != cfgIndex) {
+		qDebug() << __func__ << __LINE__ << itemCount << cfgIndex;
+		throw(KBurnException(::tr("未知异常")));
+	}
+
+	cfg->cfgMagic = 0x3033324B;
+	cfg->cfgTarget = (kburnUsbIspCommandTaget)GlobalSetting::flashTarget.getValue();
+	cfg->cfgCount = itemCount;
+	cfg->cfgCrc32 = crc32(0, (const unsigned char *)(cfgByteArray.data() + sizeof(struct BurnImageConfig)), cfgByteArray.size() - sizeof(struct BurnImageConfig));
+
+	qDebug() << __func__ << __LINE__ << cfgByteArray.toHex();
+
+	setStage(::tr("等待设备上电"));
 	node = reinterpret_cast<kburnDeviceNode *>(inputs.pick(0, 30));
 	if (node == NULL) {
 		throw KBurnException(tr("设备上电超时"));
+	}
+
+	/* TODO: 写入dfu配置 */
+	setStage(::tr("写入USB 配置"), cfgByteArray.size());
+
+	if(!K230BurnISP_WriteBurnImageConfig(node, cfgByteArray.data(), cfgByteArray.size(), K230BurningProcess::serial_isp_progress, this)) {
+		throw KBurnException(tr("写入USB 配置失败"));
 	}
 
 	setStage(::tr("写入USB LOADER"), loaderFileContent.size());
@@ -57,6 +110,7 @@ qint64 K230BurningProcess::prepare(struct BurnImageItem *loader) {
 	}
 
 	usb_ok = true;
+	write_seq = 0;
 
 	return chunkSize;
 }
@@ -101,15 +155,15 @@ void K230BurningProcess::cleanup(bool success) {
 }
 
 bool K230BurningProcess::step(kburn_stor_address_t address, const QByteArray &chunk) {
-	size_t block = address / chunk_size;
+	// size_t block = address / chunk_size;
 
-	return 0 < K230Burn_Write_Chunk(node, qPrintable(currAltName), block, (void *)chunk.constData(), chunk.size());
+	return 0 < K230Burn_Write_Chunk(node, qPrintable(currAltName), write_seq++, (void *)chunk.constData(), chunk.size());
 }
 
 bool K230BurningProcess::end(kburn_stor_address_t address) {
-	size_t block = address / chunk_size;
+	// size_t block = address / chunk_size;
 
-	return 0x00 == K230Burn_Write_Chunk(node, qPrintable(currAltName), block, NULL, 0);
+	return 0x00 == K230Burn_Write_Chunk(node, qPrintable(currAltName), write_seq++, NULL, 0);
 }
 
 bool K230BurningProcess::pollingDevice(kburnDeviceNode *node, BurnLibrary::DeviceEvent event) {

@@ -34,7 +34,7 @@ class BurningProcess : public QObject, public QRunnable {
 	void setStage(const QString &title, int bytesToWrite = 0);
 	void setProgress(int writtenBytes);
 
-	virtual qint64 prepare(struct BurnImageItem *loader) = 0;
+	virtual qint64 prepare(QList<struct BurnImageItem>	&imageList) = 0;
 	virtual bool step(kburn_stor_address_t address, const QByteArray &chunk) = 0;
 	virtual void cleanup(bool success){};
 	virtual bool end(kburn_stor_address_t address) = 0;

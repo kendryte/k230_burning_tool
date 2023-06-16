@@ -11,12 +11,13 @@ class K230BurningProcess : public BurningProcess {
 	QString usbPath;
 	QString _detailInfo;
 
+	size_t write_seq;
 	uint32_t chunk_size;
 	QString currAltName;
 
 	static void serial_isp_progress(void *, const kburnDeviceNode *, size_t, size_t);
 
-	qint64 prepare(struct BurnImageItem *loader);
+	qint64 prepare(QList<struct BurnImageItem> &imageList);
 	bool step(kburn_stor_address_t address, const QByteArray &chunk);
 	void cleanup(bool success);
 	// void recreateDeviceStatus(const kburnDeviceNode *);

@@ -147,34 +147,12 @@ bool BurningControlWindow::checkSysImage() {
 			item.address = 0;
 			item.size = _fd.size();
 			item.fileName = _fd.fileName();
-			// strncpy(item.altName, "image", 32);
-			switch (isp_target)
-			{
-			case KBURN_USB_ISP_EMMC:
-				strncpy(item.altName, "mmc", 32);
-				break;
-			case KBURN_USB_ISP_NOR:
-				strncpy(item.altName, "sf", 32);
-				break;
-			default:
-				break;
-			}
+			strncpy(item.altName, "image", 32);
 			imageList.append(item);
 
 			memset(&item, 0, sizeof(struct BurnImageItem));
 
-			switch (isp_target)
-			{
-			case KBURN_USB_ISP_EMMC:
-				_fd.setFileName(QString(":/u-boot-emmc.bin"));
-				break;
-			case KBURN_USB_ISP_NOR:
-				_fd.setFileName(QString(":/u-boot-norflash.bin"));
-				break;
-			default:
-				break;
-			}
-
+			_fd.setFileName(QString(":/u-boot.bin"));
 			item.address = 0;
 			item.size = _fd.size();
 			item.fileName = _fd.fileName();
@@ -270,6 +248,8 @@ bool BurningControlWindow::checkSysImage() {
 				filepathVector.append(filePathString);
 
 				qDebug() << __func__ << __LINE__ << row << address << addressString << altNameString << filePathString;
+
+				/* TODO: check if file range overlapped? */
 
 				memset(&item, 0, sizeof(struct BurnImageItem));
 

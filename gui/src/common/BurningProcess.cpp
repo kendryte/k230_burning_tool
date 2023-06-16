@@ -48,7 +48,6 @@ void BurningProcess::_run() {
 	QFile imageFile;
 	qint64 total_size = 0, burned_size = 0;
 	bool founLoader = false;
-	struct BurnImageItem loader;
 
 	Q_ASSERT(_isStarted);
 
@@ -58,20 +57,20 @@ void BurningProcess::_run() {
 	throwIfCancel();
 
 	foreach(struct BurnImageItem item, imageList) {
+		qDebug() << "address" << item.address << "file size" << item.size << "altname" << item.altName << "filename" << item.fileName;
+
 		if(item.altName == QString("loader")) {
 			founLoader = true;
-			loader = item;
-
 			continue;
 		}
 		total_size += item.size;
 	}
 
 	if(false == founLoader) {
-		throw(KBurnException(::tr("无法打开Loader")));
+		throw(KBurnException(::tr("无法找到Loader")));
 	}
 
-	qint64 chunkSize = prepare(&loader);
+	qint64 chunkSize = prepare(imageList);
 	buffer = new QByteArray(chunkSize, 0);
 	setStage(::tr("下载中"), total_size);
 
@@ -79,11 +78,11 @@ void BurningProcess::_run() {
 	timer.start();
 
 	foreach(struct BurnImageItem item, imageList) {
-		qDebug() << "address" << item.address << "file size" << item.size << "altname" << item.altName << "filename" << item.fileName;
-
 		if(item.altName == QString("loader")) {
 			continue;
 		}
+		
+		qDebug() << "address" << item.address << "file size" << item.size << "altname" << item.altName << "filename" << item.fileName;
 
 		imageFile.setFileName(item.fileName);
 
@@ -99,29 +98,19 @@ void BurningProcess::_run() {
 		while (!imageStream->atEnd()) {
 			imageStream->readRawData(buffer->data(), buffer->size());
 
-			int tries = 5; // TODO: config
-			while (tries-- > 0) {
-				if (step(address, *buffer)) {
-					break;
-				}
-
-				// TODO: notify when tries>1
-
-				if (tries == 1) {
-					throw KBurnException(tr("设备写入失败，地址: 0x") + QString::number(address, 16));
-				}
+			if (step(address, *buffer)) {
+				address += chunkSize;
+				setProgress(address);
+			} else {
+				throw KBurnException(tr("设备写入失败，地址: 0x") + QString::number(address, 16));
 			}
-
-			address += chunkSize;
-			setProgress(address);
 		}
-		end(address);
-
 		imageFile.close();
 
 		delete imageStream;
 		imageStream = nullptr;
 	}
+	end(address);
 
 	qDebug() << "耗时" << timer.elapsed() << "ms";
 

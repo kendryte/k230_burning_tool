@@ -165,6 +165,7 @@ kburn_err_t K230BurnISP_read_data(kburnDeviceNode *node, unsigned char *data, in
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#define K230_SRAM_CFG_ADDR          (0x80250000)
 #define K230_SRAM_APP_ADDR          (0x80300000)
 #define K230_SRAM_PAGE_SIZE         (1024)
 
@@ -209,7 +210,7 @@ bool K230BurnISP_WriteMemory(kburnDeviceNode *node, const uint8_t *data, const s
 			chunk_size = K230_SRAM_PAGE_SIZE;
 		}
 
-		// debug_print(KBURN_LOG_TRACE, "[mem write]: page=%u [0x%X], size=%u", page, chunk_addr, chunk_size);
+		// debug_print(KBURN_LOG_TRACE, "[mem write]: page=%u [0x%X], size=%u, offset=%u", page, chunk_addr, chunk_size, offset);
 
 		memcpy(chunk_data, data + offset, chunk_size);
 
@@ -224,7 +225,7 @@ bool K230BurnISP_WriteMemory(kburnDeviceNode *node, const uint8_t *data, const s
         // }
 
         if(KBurnNoErr != K230BurnISP_write_data(node, chunk_data, chunk_size)) {
-            debug_print(KBURN_LOG_ERROR, COLOR_FMT("set write data lenght failed"), RED);
+            debug_print(KBURN_LOG_ERROR, COLOR_FMT("write data failed"), RED);
             return false;
         }
 
@@ -289,6 +290,31 @@ bool K230BurnISP_RunProgram(kburnDeviceNode *node, const void *programBuffer, si
     }
 
     node->destroy_in_progress = true;
+
+    return true;
+}
+
+bool K230BurnISP_WriteBurnImageConfig(kburnDeviceNode *node, const void *cfgData, size_t cfgSize, on_write_progress page_callback, void *ctx) {
+	debug_trace_function("node[0x%p]", (void *)node);
+
+	if (!K230BurnISP_Greeting(node)) {
+        debug_print(KBURN_LOG_ERROR, COLOR_FMT("greeting failed"), RED);
+
+		return false;
+	}
+
+	do_sleep(10);
+	if (!K230BurnISP_WriteMemory(node, (const uint8_t *)cfgData, cfgSize, K230_SRAM_CFG_ADDR, page_callback, ctx)) {
+        debug_print(KBURN_LOG_ERROR, COLOR_FMT("Write data to sram failed"), RED);
+
+		return false;
+	}
+
+	do_sleep(20);
+	if (!K230BurnISP_Greeting(node)) {
+		debug_print(KBURN_LOG_ERROR, COLOR_FMT("	re-greeting failed..."), RED);
+		return false;
+	}
 
     return true;
 }
