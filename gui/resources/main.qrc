@@ -15,5 +15,6 @@
         <file>rotate-right-solid.svg</file>
         <file>sliders-solid.svg</file>
         <file>u-boot.bin</file>
+        <file>exit.svg</file>
     </qresource>
 </RCC>

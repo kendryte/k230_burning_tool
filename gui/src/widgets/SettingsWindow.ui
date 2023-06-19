@@ -270,6 +270,29 @@
       </widget>
      </item>
      <item>
+      <widget class="QPushButton" name="btnDownload">
+       <property name="minimumSize">
+        <size>
+         <width>120</width>
+         <height>24</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>退出</string>
+       </property>
+       <property name="icon">
+        <iconset resource="../../resources/main.qrc">
+         <normaloff>:/exit.svg</normaloff>:/exit.svg</iconset>
+       </property>
+       <property name="iconSize">
+        <size>
+         <width>16</width>
+         <height>16</height>
+        </size>
+       </property>
+      </widget>
+     </item>
+     <item>
       <widget class="QPushButton" name="btnResetDefaults">
        <property name="text">
         <string>恢复默认设置</string>
@@ -343,6 +366,22 @@
     <hint type="destinationlabel">
      <x>621</x>
      <y>506</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>btnDownload</sender>
+   <signal>clicked()</signal>
+   <receiver>SettingsWindow</receiver>
+   <slot>acceptSave()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>195</x>
+     <y>164</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>378</x>
+     <y>202</y>
     </hint>
    </hints>
   </connection>

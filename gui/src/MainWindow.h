@@ -21,6 +21,7 @@ class MainWindow : public QMainWindow {
 	KBMonCTX context;
 	bool closing = false;
 	bool shown = false;
+  bool logShown;
 
 	QSettings settings;
 	class UpdateChecker *updateChecker;

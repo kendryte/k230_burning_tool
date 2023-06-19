@@ -37,11 +37,28 @@ MainWindow::MainWindow(QWidget *parent)
 	ui->mainSplitter->setCollapsible(0, false);
 
 	/* setting */
+	logShown = false;
 	qDebug() << "settings location: " << settings.fileName();
+
 	if (settings.contains(SETTING_SPLIT_STATE)) {
 		ui->mainSplitter->restoreState(settings.value(SETTING_SPLIT_STATE).toByteArray());
+
+		QList<int> sizes = ui->mainSplitter->sizes();
+		int logWidgetIndex = ui->mainSplitter->indexOf(ui->textLog);
+
+		if(0x00 != sizes[logWidgetIndex]) {
+			logShown = true;
+		}
 	} else {
 		ui->mainSplitter->setSizes(QList<int>() << 100 << 0);
+	}
+
+	if(logShown) {
+		ui->action->setText(tr("关闭日志窗口"));
+		ui->action->setToolTip(tr("关闭日志窗口"));
+	} else {
+		ui->action->setText(tr("展开日志窗口"));
+		ui->action->setToolTip(tr("展开日志窗口"));
 	}
 
 	connect(ui->mainSplitter, &QSplitter::splitterMoved, this, &MainWindow::onResized);
@@ -146,5 +163,24 @@ void MainWindow::startNewBurnJob(BurningRequest *partialRequest) {
 }
 
 void MainWindow::on_action_triggered() {
-	ui->mainSplitter->setSizes(QList<int>() << 0 << 100);
+	QList<int> sizes = ui->mainSplitter->sizes();
+	int logWidgetIndex = ui->mainSplitter->indexOf(ui->textLog);
+
+	if(logShown) {
+		logShown = false;
+
+		sizes[logWidgetIndex] = 0;
+		ui->mainSplitter->setSizes(sizes);
+
+		ui->action->setText(tr("展开日志窗口"));
+		ui->action->setToolTip(tr("展开日志窗口"));
+	} else {
+		logShown = true;
+
+		sizes[logWidgetIndex] = 300;
+		ui->mainSplitter->setSizes(sizes);
+
+		ui->action->setText(tr("关闭日志窗口"));
+		ui->action->setToolTip(tr("关闭日志窗口"));
+	}
 }
