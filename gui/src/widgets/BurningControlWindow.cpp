@@ -145,8 +145,11 @@ bool BurningControlWindow::checkSysImage() {
 			ui->txtImageInfo->setText(info);
 			ui->txtImageInfo->setStyleSheet("");
 
+			qint64 fSize = _fd.size();
+			fSize = (fSize + 4096 - 1) & (-4096);
+
 			item.address = 0;
-			item.size = _fd.size();
+			item.size = fSize;
 			item.fileName = _fd.fileName();
 			strncpy(item.altName, "image", 32);
 			imageList.append(item);
@@ -251,15 +254,18 @@ bool BurningControlWindow::checkSysImage() {
 				}
 				filepathVector.append(filePathString);
 
-				qDebug() << __func__ << __LINE__ << row << address << addressString << altNameString << filePathString;
-
 				memset(&item, 0, sizeof(struct BurnImageItem));
 
+				qint64 fSize = _fd.size();
+				fSize = (fSize + 4096 - 1) & (-4096);
+
 				item.address = address;
-				item.size = _fd.size();
+				item.size = fSize;
 				item.fileName = filePathString;
 				strncpy(item.altName, qPrintable(altNameString), 32);
 				imageList.append(item);
+
+				qDebug() << __func__ << __LINE__ << row << address << _fd.size() << addressString << fSize << altNameString << filePathString;
 			}
 		}
 
