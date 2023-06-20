@@ -9,6 +9,7 @@
 #include <QMessageBox>
 #include <QTimer>
 #include <QAction>
+#include <QtAlgorithms>
 
 #ifdef _MSC_VER
 #pragma execution_character_set("utf-8")
@@ -167,7 +168,6 @@ bool BurningControlWindow::checkSysImage() {
 			return false;
 		}
 	} else if(TABWIDGET_PARTITION_BURN_INDEX == ui->tabWidget->currentIndex()) {
-		/* TODO: Check Partition burn files */
 		/**
 		 * 1. 遍历所有的item，将地址，altname，文件名放到对应的QVector，并要判断是否为空
 		 * 2. 检查QVector
@@ -207,6 +207,10 @@ bool BurningControlWindow::checkSysImage() {
 					 * check address
 					 */
 					addressString = tableModel->index(row, TABLEVIEW_ADDRESS_COL).data().toString();
+					if(addressString.isEmpty()) {
+						QMessageBox::critical(Q_NULLPTR, QString(), tr("Row %1 Convert address \"%2\" failed").arg(row).arg(addressString));
+						return false;
+					}
 					if((addressString.startsWith(QString("0x"))) || (addressString.startsWith(QString("0X")))) {
 						address = addressString.toUInt(&selected, 16);
 					} else {
@@ -249,8 +253,6 @@ bool BurningControlWindow::checkSysImage() {
 
 				qDebug() << __func__ << __LINE__ << row << address << addressString << altNameString << filePathString;
 
-				/* TODO: check if file range overlapped? */
-
 				memset(&item, 0, sizeof(struct BurnImageItem));
 
 				item.address = address;
@@ -258,6 +260,24 @@ bool BurningControlWindow::checkSysImage() {
 				item.fileName = filePathString;
 				strncpy(item.altName, qPrintable(altNameString), 32);
 				imageList.append(item);
+			}
+		}
+
+		QList<struct BurnImageItem>	sortList(imageList);
+		std::sort(sortList.begin(), sortList.end());
+		int listSize = sortList.size();
+		for(int i = 0; i < (listSize - 1); i++) {
+			struct BurnImageItem a, b;
+			a = sortList[i];
+			b = sortList[i + 1];
+
+			if(0x00 == strncmp(a.altName, "loader", sizeof(a.altName)) || 0x00 == strncmp(b.altName, "loader", sizeof(a.altName))) {
+				continue;
+			}
+
+			if((a.address + a.size) > (b.address)) {
+				QMessageBox::critical(Q_NULLPTR, QString(), tr("文件 %1 大小过大").arg(a.fileName));
+				return false;
 			}
 		}
 

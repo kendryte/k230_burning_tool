@@ -89,7 +89,6 @@ qint64 K230BurningProcess::prepare(QList<struct BurnImageItem> &imageList) {
 		throw KBurnException(tr("设备上电超时"));
 	}
 
-	/* TODO: 写入dfu配置 */
 	setStage(::tr("写入USB 配置"), cfgByteArray.size());
 
 	if(!K230BurnISP_WriteBurnImageConfig(node, cfgByteArray.data(), cfgByteArray.size(), K230BurningProcess::serial_isp_progress, this)) {

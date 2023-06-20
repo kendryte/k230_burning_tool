@@ -52,7 +52,7 @@ void BurningProcess::_run() {
 	Q_ASSERT(_isStarted);
 
 	QThread::currentThread()->setObjectName("burn:" + getTitle());
-	kburn_stor_address_t address = 0; // TODO: config base
+	kburn_stor_address_t address = 0;
 
 	throwIfCancel();
 
