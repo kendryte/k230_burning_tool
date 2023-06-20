@@ -358,13 +358,13 @@ void BurningControlWindow::initTableView(void)
 
     QAction *addItem = tableMenu->addAction(tr("增加一行"));
     QAction *delItem = tableMenu->addAction(tr("删除本行"));
-    QAction *importConfig = tableMenu->addAction(tr("导入配置"));
-    QAction *exportConfig = tableMenu->addAction(tr("导出配置"));
+    // QAction *importConfig = tableMenu->addAction(tr("导入配置"));
+    // QAction *exportConfig = tableMenu->addAction(tr("导出配置"));
 
     connect(addItem, &QAction::triggered, this, &BurningControlWindow::tableviewMenuAddItemSlot);
     connect(delItem, &QAction::triggered, this, &BurningControlWindow::tableviewMenuDelItemSlot);
-    connect(importConfig, &QAction::triggered, this, &BurningControlWindow::tableviewMenuImportConfigmSlot);
-    connect(exportConfig, &QAction::triggered, this, &BurningControlWindow::tableviewMenuExportConfigmSlot);
+    // connect(importConfig, &QAction::triggered, this, &BurningControlWindow::tableviewMenuImportConfigmSlot);
+    // connect(exportConfig, &QAction::triggered, this, &BurningControlWindow::tableviewMenuExportConfigmSlot);
 
 	connect(ui->tableView, &QTableView::customContextMenuRequested, this, [this, tableMenu] (const QPoint &pos) {
 		menuPoint = pos;
@@ -496,7 +496,7 @@ void BurningControlWindow::tabviewBtnOpenClickedSlot(const QModelIndex &index)
 
 void BurningControlWindow::tableviewMenuAddItemSlot(bool checked)
 {
-	int row = tableModel->rowCount();
+	int row = ui->tableView->rowAt(menuPoint.y());
 	tableModel->insertRows(row, 1);
 	tableModel->setItem(row, TABLEVIEW_ADDRESS_COL, new QStandardItem(QString("0x00000000")));
 }

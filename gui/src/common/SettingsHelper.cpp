@@ -5,7 +5,7 @@
 #include <QMap>
 #include <QSpinBox>
 
-QList<ISettingsBase *> settingsRegistry;
+// QList<ISettingsBase *> settingsRegistry;
 
 void SettingsBool::connectAction(QAction *action, bool autoCommit) {
 	auto v = getValue();
