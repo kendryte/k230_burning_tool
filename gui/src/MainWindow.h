@@ -44,6 +44,7 @@ class MainWindow : public QMainWindow {
     void onResized();
 
     void on_action_triggered();
+    void splitterMovedSlot(int pos, int index);
 
   private:
     void closeEvent(QCloseEvent *ev);

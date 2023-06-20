@@ -35,6 +35,7 @@ MainWindow::MainWindow(QWidget *parent)
 
 	ui->mainSplitter->setStretchFactor(1, 0);
 	ui->mainSplitter->setCollapsible(0, false);
+	connect(ui->mainSplitter, &QSplitter::splitterMoved, this, &MainWindow::splitterMovedSlot);
 
 	/* setting */
 	logShown = false;
@@ -182,5 +183,23 @@ void MainWindow::on_action_triggered() {
 
 		ui->action->setText(tr("关闭日志窗口"));
 		ui->action->setToolTip(tr("关闭日志窗口"));
+	}
+}
+
+void MainWindow::splitterMovedSlot(int pos, int index)
+{
+	QList<int> sizes = ui->mainSplitter->sizes();
+	int logWidgetIndex = ui->mainSplitter->indexOf(ui->textLog);
+
+	if(0x00 != sizes[logWidgetIndex]) {
+		logShown = true;
+
+		ui->action->setText(tr("关闭日志窗口"));
+		ui->action->setToolTip(tr("关闭日志窗口"));
+	} else {
+		logShown = false;
+
+		ui->action->setText(tr("展开日志窗口"));
+		ui->action->setToolTip(tr("展开日志窗口"));
 	}
 }
