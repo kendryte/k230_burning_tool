@@ -58,26 +58,9 @@ protected:
                      const QStyleOptionViewItem &option, const QModelIndex &index);
 };
 
-/*
- * ComboBox
- */
-class ComboDelegate : public QItemDelegate
-{
-    Q_OBJECT
-public:
-    ComboDelegate(QObject *parent = 0);
-
-    void setItems(QStringList items);
-
-    QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const;
-    void setEditorData(QWidget *editor, const QModelIndex &index) const;
-    void setModelData(QWidget *editor, QAbstractItemModel *model, const QModelIndex &index) const;
-    void updateEditorGeometry(QWidget *editor, const QStyleOptionViewItem &option, const QModelIndex &index) const;
-
-private:
-    QStringList m_sItemList;
-};
-
+/**
+ * PushButtonDelegate
+*/
 class PushButtonDelegate : public QStyledItemDelegate
 {
     Q_OBJECT
@@ -99,6 +82,26 @@ signals:
 
 private:
     QString m_btnName;
+};
+
+/*
+ * ComboBox
+ */
+class ComboDelegate : public QItemDelegate
+{
+    Q_OBJECT
+public:
+    ComboDelegate(QObject *parent = 0);
+
+    void setItems(QStringList items);
+
+    QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const;
+    void setEditorData(QWidget *editor, const QModelIndex &index) const;
+    void setModelData(QWidget *editor, QAbstractItemModel *model, const QModelIndex &index) const;
+    void updateEditorGeometry(QWidget *editor, const QStyleOptionViewItem &option, const QModelIndex &index) const;
+
+private:
+    QStringList m_sItemList;
 };
 
 #endif // TABLE_MODEL_H

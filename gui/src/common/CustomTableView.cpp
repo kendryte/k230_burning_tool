@@ -64,18 +64,16 @@ void TableHeaderView::paintSection(QPainter *painter, const QRect &rect, int log
         else
             option.state |= m_bChecked ? QStyle::State_On : QStyle::State_Off;
 
-        if (testAttribute(Qt::WA_Hover) && underMouse())
-        {
-            if (m_bMoving)
-                option.state |= QStyle::State_MouseOver;
-            else
-                option.state &= ~QStyle::State_MouseOver;
-        }
+        int x, y, w, h, ow;
+        ow = rect.width();
+        rect.getRect(&x, &y, &w, &h);
+        option.rect = QRect(x + ow / 2, y, w / 2, h);
+
+        option.iconSize = QSize(20, 20);
 
         QCheckBox checkBox;
-        option.iconSize = QSize(20, 20);
-        option.rect = rect;
-        style()->drawPrimitive(QStyle::PE_IndicatorCheckBox, &option, painter, &checkBox);
+        checkBox.style()->drawControl(QStyle::CE_CheckBox, &option, painter, &checkBox);
+        // checkBox.style()->drawPrimitive(QStyle::PE_IndicatorCheckBox, &option, painter, &checkBox);
     }
 }
 
@@ -152,28 +150,28 @@ void CheckBoxDelegate::paint(QPainter *painter, const QStyleOptionViewItem &opti
     QStyleOptionViewItem viewOption(option);
 
     initStyleOption(&viewOption, index);
+
     if (option.state.testFlag(QStyle::State_HasFocus))
         viewOption.state = viewOption.state ^ QStyle::State_HasFocus;
 
     QStyledItemDelegate::paint(painter, viewOption, index);
 
-    if (index.column() == CHECK_BOX_COLUMN)
-    {
-        bool data = index.model()->data(index, Qt::UserRole).toBool();
+    bool data = index.model()->data(index, Qt::UserRole).toBool();
 
-        QStyleOptionButton checkBoxStyle;
-        checkBoxStyle.state = data ? QStyle::State_On : QStyle::State_Off;
-        checkBoxStyle.state |= QStyle::State_Enabled;
-        checkBoxStyle.iconSize = QSize(20, 20);
-        checkBoxStyle.rect = option.rect;
+    QStyleOptionButton checkBoxStyle;
+    checkBoxStyle.state = data ? QStyle::State_On : QStyle::State_Off;
+    checkBoxStyle.state |= QStyle::State_Enabled;
+    checkBoxStyle.iconSize = QSize(20, 20);
 
-        QCheckBox checkBox;
-        checkBoxStyle.iconSize = QSize(20, 20);
-        checkBoxStyle.rect = option.rect;
-        QApplication::style()->drawPrimitive(QStyle::PE_IndicatorCheckBox, &checkBoxStyle, painter, &checkBox);
+    int x, y, w, h, ow;
+    ow = option.rect.width();
+    option.rect.getRect(&x, &y, &w, &h);
+    checkBoxStyle.rect = QRect(x + ow / 2, y, w / 2, h);
 
-        checkBox.setEnabled(false);
-    }
+    QCheckBox checkBox;
+    checkBox.style()->drawControl(QStyle::CE_CheckBox, &checkBoxStyle, painter, &checkBox);
+
+    checkBox.setEnabled(false);
 }
 
 bool CheckBoxDelegate::editorEvent(QEvent *event, QAbstractItemModel *model, const QStyleOptionViewItem &option, const QModelIndex &index)
@@ -191,48 +189,6 @@ bool CheckBoxDelegate::editorEvent(QEvent *event, QAbstractItemModel *model, con
     }
 
     return QStyledItemDelegate::editorEvent(event, model, option, index);
-}
-
-/****************************************************
- * ComboDelegate
- ****************************************************/
-ComboDelegate::ComboDelegate(QObject *parent) : QItemDelegate(parent)
-{
-}
-
-void ComboDelegate::setItems(QStringList items)
-{
-    m_sItemList = items;
-}
-
-QWidget *ComboDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem & /*option*/, const QModelIndex & /*index*/) const
-{
-    QComboBox *editor = new QComboBox(parent);
-    editor->setEditable(true);
-    editor->addItems(m_sItemList);
-    editor->installEventFilter(const_cast<ComboDelegate *>(this));
-    return editor;
-}
-
-void ComboDelegate::setEditorData(QWidget *editor, const QModelIndex &index) const
-{
-    QString str = index.model()->data(index).toString();
-
-    QComboBox *box = static_cast<QComboBox *>(editor);
-    int i = box->findText(str);
-    box->setCurrentIndex(i);
-}
-
-void ComboDelegate::setModelData(QWidget *editor, QAbstractItemModel *model, const QModelIndex &index) const
-{
-    QComboBox *box = static_cast<QComboBox *>(editor);
-    QString str = box->currentText();
-    model->setData(index, str);
-}
-
-void ComboDelegate::updateEditorGeometry(QWidget *editor, const QStyleOptionViewItem &option, const QModelIndex & /*index*/) const
-{
-    editor->setGeometry(option.rect);
 }
 
 /****************************************************
@@ -282,4 +238,46 @@ bool PushButtonDelegate::editorEvent(QEvent *event, QAbstractItemModel *model, c
     }
 
     return bRepaint;
+}
+
+/****************************************************
+ * ComboDelegate
+ ****************************************************/
+ComboDelegate::ComboDelegate(QObject *parent) : QItemDelegate(parent)
+{
+}
+
+void ComboDelegate::setItems(QStringList items)
+{
+    m_sItemList = items;
+}
+
+QWidget *ComboDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem & /*option*/, const QModelIndex & /*index*/) const
+{
+    QComboBox *editor = new QComboBox(parent);
+    editor->setEditable(true);
+    editor->addItems(m_sItemList);
+    editor->installEventFilter(const_cast<ComboDelegate *>(this));
+    return editor;
+}
+
+void ComboDelegate::setEditorData(QWidget *editor, const QModelIndex &index) const
+{
+    QString str = index.model()->data(index).toString();
+
+    QComboBox *box = static_cast<QComboBox *>(editor);
+    int i = box->findText(str);
+    box->setCurrentIndex(i);
+}
+
+void ComboDelegate::setModelData(QWidget *editor, QAbstractItemModel *model, const QModelIndex &index) const
+{
+    QComboBox *box = static_cast<QComboBox *>(editor);
+    QString str = box->currentText();
+    model->setData(index, str);
+}
+
+void ComboDelegate::updateEditorGeometry(QWidget *editor, const QStyleOptionViewItem &option, const QModelIndex & /*index*/) const
+{
+    editor->setGeometry(option.rect);
 }

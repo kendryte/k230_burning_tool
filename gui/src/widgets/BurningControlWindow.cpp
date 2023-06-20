@@ -272,30 +272,8 @@ bool BurningControlWindow::checkSysImage() {
 		}
 
 		if(false == altnameVector.contains(QString("loader"))) {
-#if 0			
-			memset(&item, 0, sizeof(struct BurnImageItem));
-
-			switch (isp_target)
-			{
-			case KBURN_USB_ISP_EMMC:
-				_fd.setFileName(QString(":/u-boot-emmc.bin"));
-				break;
-			case KBURN_USB_ISP_NOR:
-				_fd.setFileName(QString(":/u-boot-norflash.bin"));
-				break;
-			default:
-				break;
-			}
-
-			item.address = 0;
-			item.size = _fd.size();
-			item.fileName = _fd.fileName();
-			strncpy(item.altName, "loader", 32);
-			imageList.append(item);
-#else
 			QMessageBox::critical(Q_NULLPTR, QString(), tr("未配置Loader"));
 			return false;
-#endif
 		}
 
 		return true;
@@ -347,13 +325,14 @@ void BurningControlWindow::initTableView(void)
     tableModel = new QStandardItemModel(ui->tableView);
 	tableHeader = new TableHeaderView(Qt::Horizontal, ui->tableView);
 
-    connect(tableModel, &QStandardItemModel::itemChanged, this, &BurningControlWindow::tableviewItemChangedSlot);
-    connect(tableHeader, &TableHeaderView::stateChanged, this, &BurningControlWindow::tableviewHeaderStateChangedSlot);
-
+    ui->tableView->setModel(tableModel);
 	ui->tableView->setHorizontalHeader(tableHeader);
 	ui->tableView->setCornerButtonEnabled(false);
     ui->tableView->setSelectionBehavior(QAbstractItemView::SelectRows);
 	ui->tableView->setContextMenuPolicy(Qt::CustomContextMenu);
+
+    connect(tableModel, &QStandardItemModel::itemChanged, this, &BurningControlWindow::tableviewItemChangedSlot);
+    connect(tableHeader, &TableHeaderView::stateChanged, this, &BurningControlWindow::tableviewHeaderStateChangedSlot);
 
 	QMenu *tableMenu = new QMenu(ui->tableView);
 
@@ -372,7 +351,7 @@ void BurningControlWindow::initTableView(void)
 		tableMenu->exec(mapToGlobal(pos));
 	});
 
-	// tableModel->setHorizontalHeaderItem(1, new QStandardItem(tr("目标介质")));
+	tableModel->setHorizontalHeaderItem(TABLEVIEW_SELECT_COL, new QStandardItem());
 	tableModel->setHorizontalHeaderItem(TABLEVIEW_ADDRESS_COL, new QStandardItem(tr("目标地址")));
 	tableModel->setHorizontalHeaderItem(TABLEVIEW_ALTNAME_COL, new QStandardItem(tr("目标名称")));
 	tableModel->setHorizontalHeaderItem(TABLEVIEW_FILE_PATH_COL, new QStandardItem(tr("文件路径")));
@@ -414,7 +393,6 @@ void BurningControlWindow::initTableView(void)
 	/**
 	 * 文件路径
 	 */
-    ui->tableView->setModel(tableModel);
 	ui->tableView->horizontalHeader()->setSectionResizeMode(TABLEVIEW_FILE_PATH_COL, QHeaderView::Stretch);
 
 	/**
@@ -480,7 +458,12 @@ void BurningControlWindow::tableviewItemChangedSlot(QStandardItem *item)
 
 void BurningControlWindow::tabviewBtnOpenClickedSlot(const QModelIndex &index)
 {
-	auto str = QFileDialog::getOpenFileName(this, tr("选择文件"), ui->inputSysImage->text(), tr(""), nullptr, QFileDialog::ReadOnly);
+#if defined(Q_OS_LINUX)
+	QString str = QFileDialog::getOpenFileName(this, tr("选择文件"), ui->inputSysImage->text(), tr(""), nullptr, QFileDialog::ReadOnly | QFileDialog::DontUseNativeDialog);
+#else
+	QString str = QFileDialog::getOpenFileName(this, tr("选择文件"), ui->inputSysImage->text(), tr(""), nullptr, QFileDialog::ReadOnly);
+#endif
+
 	if (str.isEmpty()) {
 		return;
 	}
