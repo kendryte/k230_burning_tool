@@ -6,10 +6,17 @@
 
 #include <QDir>
 #include <QFileDialog>
+#include <QFileInfo>
 #include <QMessageBox>
 #include <QTimer>
 #include <QAction>
 #include <QtAlgorithms>
+
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
+#include <QJsonValue>
+#include <QJsonParseError>
 
 #ifdef _MSC_VER
 #pragma execution_character_set("utf-8")
@@ -364,13 +371,13 @@ void BurningControlWindow::initTableView(void)
 
     QAction *addItem = tableMenu->addAction(tr("增加一行"));
     QAction *delItem = tableMenu->addAction(tr("删除本行"));
-    // QAction *importConfig = tableMenu->addAction(tr("导入配置"));
-    // QAction *exportConfig = tableMenu->addAction(tr("导出配置"));
+    QAction *importConfig = tableMenu->addAction(tr("导入配置"));
+    QAction *exportConfig = tableMenu->addAction(tr("导出配置"));
 
     connect(addItem, &QAction::triggered, this, &BurningControlWindow::tableviewMenuAddItemSlot);
     connect(delItem, &QAction::triggered, this, &BurningControlWindow::tableviewMenuDelItemSlot);
-    // connect(importConfig, &QAction::triggered, this, &BurningControlWindow::tableviewMenuImportConfigmSlot);
-    // connect(exportConfig, &QAction::triggered, this, &BurningControlWindow::tableviewMenuExportConfigmSlot);
+    connect(importConfig, &QAction::triggered, this, &BurningControlWindow::tableviewMenuImportConfigmSlot);
+    connect(exportConfig, &QAction::triggered, this, &BurningControlWindow::tableviewMenuExportConfigmSlot);
 
 	connect(ui->tableView, &QTableView::customContextMenuRequested, this, [this, tableMenu] (const QPoint &pos) {
 		menuPoint = pos;
@@ -484,10 +491,17 @@ void BurningControlWindow::tableviewItemChangedSlot(QStandardItem *item)
 
 void BurningControlWindow::tabviewBtnOpenClickedSlot(const QModelIndex &index)
 {
+	int row = index.row() - 1;
+	if(row < 0) {
+		row = 0;
+	}
+
+	QString filePath = tableModel->index(row, TABLEVIEW_FILE_PATH_COL).data().toString();
+
 #if defined(Q_OS_LINUX)
-	QString str = QFileDialog::getOpenFileName(this, tr("选择文件"), ui->inputSysImage->text(), tr(""), nullptr, QFileDialog::ReadOnly | QFileDialog::DontUseNativeDialog);
+	QString str = QFileDialog::getOpenFileName(this, tr("选择文件"), filePath, tr(""), nullptr, QFileDialog::ReadOnly | QFileDialog::DontUseNativeDialog);
 #else
-	QString str = QFileDialog::getOpenFileName(this, tr("选择文件"), ui->inputSysImage->text(), tr(""), nullptr, QFileDialog::ReadOnly);
+	QString str = QFileDialog::getOpenFileName(this, tr("选择文件"), filePath, tr(""), nullptr, QFileDialog::ReadOnly);
 #endif
 
 	if (str.isEmpty()) {
@@ -513,27 +527,182 @@ void BurningControlWindow::tableviewMenuDelItemSlot(bool checked)
 	tableModel->removeRows(row, 1);
 }
 
+/**
+{
+	"base": "/home/user/xxx",
+	"version": 1.0,
+	"files": [{
+		"addr": 1024,
+		"alt": "uboot",
+		"file": "1.bin"
+	}, {
+		"addr": 1024,
+		"alt": "uboot",
+		"file": "1.bin"
+	}, {
+		"addr": 1024,
+		"alt": "uboot",
+		"file": "1.bin"
+	}]
+}
+*/
+
 void BurningControlWindow::tableviewMenuImportConfigmSlot(bool checked)
 {
-	qDebug() << __func__ << __LINE__ << menuPoint << ui->tableView->rowAt(menuPoint.y());
+	QString address, altName, filePath;
+
+	QJsonArray RootJsonArr;
+	QJsonObject RootJsonObj;
+	QJsonDocument RootJsonDoc;
+	QJsonParseError jsonErr;
+
+#if defined(Q_OS_LINUX)
+	QString openFileName = QFileDialog::getOpenFileName(this, tr("选择文件"), filePath, tr(""), nullptr, QFileDialog::ReadOnly | QFileDialog::DontUseNativeDialog);
+#else
+	QString openFileName = QFileDialog::getOpenFileName(this, tr("选择文件"), filePath, tr(""), nullptr, QFileDialog::ReadOnly);
+#endif
+	if (openFileName.isEmpty()) {
+		return;
+	}
+
+	QFile openFile(openFileName);
+	QFileInfo openFileInfo(openFileName);
+	QString basePath = openFileInfo.absolutePath();
+
+	if(false == openFile.open(QIODeviceBase::ReadOnly)) {
+		QMessageBox::critical(Q_NULLPTR, QString(), tr("打开文件失败"));
+		return;
+	}
+
+	QByteArray content = openFile.readAll();
+	openFile.close();
+
+	RootJsonDoc = QJsonDocument::fromJson(content, &jsonErr);
+	if(jsonErr.error != QJsonParseError::NoError) {
+		QMessageBox::critical(Q_NULLPTR, QString(), tr("解析文件失败"));
+		return;
+	}
+
+	if(false == RootJsonDoc.isObject()) {
+		QMessageBox::critical(Q_NULLPTR, QString(), tr("解析文件失败"));
+		return;
+	}
+	RootJsonObj = RootJsonDoc.object();
+
+	int rowCount = 0, version = RootJsonObj.value(QString("version")).toInt(-1);
+	if(version == -1) {
+		QMessageBox::critical(Q_NULLPTR, QString(), tr("解析文件失败"));
+		return;
+	}
+
+	switch(version) {
+		case 1:
+			RootJsonArr = RootJsonObj.value(QString("files")).toArray();
+			if(RootJsonArr.count() > 0) {
+				tableModel->removeRows(0, tableModel->rowCount());
+
+				QJsonArray::const_iterator iter = RootJsonArr.begin();
+				for(;iter != RootJsonArr.end(); iter++) {
+					QJsonObject temp;
+					QJsonValue  item = *iter;
+					if(false == item.isObject()) {
+						QMessageBox::critical(Q_NULLPTR, QString(), tr("解析文件失败"));
+						return;
+					}
+					temp = item.toObject();
+
+					address = temp.value(QString("addr")).toString();
+					altName = temp.value(QString("alt")).toString();
+					filePath = basePath + "/" + temp.value(QString("path")).toString();
+
+					qDebug() << __func__ << __LINE__  << address << altName << filePath;
+
+					tableModel->insertRows(rowCount, 1);
+
+					QModelIndex index = tableModel->index(rowCount, 0, QModelIndex());
+            		tableModel->setData(index, true, Qt::UserRole);
+
+					tableModel->setItem(rowCount, TABLEVIEW_ADDRESS_COL, new QStandardItem(address));
+					tableModel->setItem(rowCount, TABLEVIEW_ADDRESS_COL, new QStandardItem(address));
+					tableModel->setItem(rowCount, TABLEVIEW_ALTNAME_COL, new QStandardItem(altName));
+					tableModel->setItem(rowCount, TABLEVIEW_FILE_PATH_COL, new QStandardItem(filePath));
+					rowCount ++;
+				} 
+			}
+			break;
+		default:
+			break;
+	}
 }
 
 void BurningControlWindow::tableviewMenuExportConfigmSlot(bool checked)
 {
 	bool selected = false;
-	QString  address, altName, filePath;
-	
-	for(int row = 0; row < tableModel->rowCount(); row++) {
-		bool selected = tableModel->index(row, 0).data(Qt::UserRole).toBool();
+	QString address, altName, filePath, basePath;
 
-		if(selected) {
-			address = tableModel->index(row, TABLEVIEW_ADDRESS_COL).data().toString();
-			altName = tableModel->index(row, TABLEVIEW_ALTNAME_COL).data().toString();
-			filePath = tableModel->index(row, TABLEVIEW_FILE_PATH_COL).data().toString();
+	QJsonArray RootJsonArr;
+	QJsonObject RootJsonObj;
+	QJsonDocument RootJsonDoc;
 
-			qDebug() << __func__ << __LINE__ << row << "Selected" << address << altName << filePath;
-		} else {
-			qDebug() << __func__ << __LINE__ << row << "Not Seleted";
+	if(true == checkSysImage()) {
+		for(int row = 0; row < tableModel->rowCount(); row++) {
+			bool selected = tableModel->index(row, 0).data(Qt::UserRole).toBool();
+
+			if(selected) {
+				address = tableModel->index(row, TABLEVIEW_ADDRESS_COL).data().toString();
+				altName = tableModel->index(row, TABLEVIEW_ALTNAME_COL).data().toString();
+				filePath = tableModel->index(row, TABLEVIEW_FILE_PATH_COL).data().toString();
+
+				qDebug() << __func__ << __LINE__ << row << "Selected" << address << altName << filePath;
+
+				QFileInfo tempFileInfo(filePath);
+				QString tempFilePath = tempFileInfo.absolutePath();
+				if(basePath.isNull()) {
+					basePath = tempFilePath;
+				} else {
+					if(basePath != tempFilePath) {
+						QMessageBox::critical(Q_NULLPTR, QString(), tr("文件不在同一目录下"));
+						return;
+					}
+				}
+
+				QJsonObject tempObj;
+				tempObj.insert("addr", 	QJsonValue(address));
+				tempObj.insert("alt", 	QJsonValue(altName));
+				tempObj.insert("path", 	QJsonValue(tempFileInfo.fileName()));
+
+				RootJsonArr.push_back(QJsonValue(tempObj));
+			} else {
+				qDebug() << __func__ << __LINE__ << row << "Not Seleted";
+			}
 		}
+
+		RootJsonObj.insert(QString("files"), 	QJsonValue(RootJsonArr));
+		RootJsonObj.insert(QString("version"), 	QJsonValue(1.0));
+
+		RootJsonDoc.setObject(RootJsonObj);
+
+		QByteArray content = RootJsonDoc.toJson(QJsonDocument::Compact);
+		qDebug() << __func__ << __LINE__ << content;
+
+#if defined(Q_OS_LINUX)
+		QString saveFileName = QFileDialog::getSaveFileName(this, tr("保存文件"), QDir::homePath(), tr("Json(*.json)"), nullptr, QFileDialog::DontUseNativeDialog);
+#else
+		QString saveFileName = QFileDialog::getSaveFileName(this, tr("保存文件"), QDir::homePath(), tr("Json(*.json)"), nullptr);
+#endif
+		if (saveFileName.isEmpty()) {
+			return;
+		}
+
+		QFile saveFile(saveFileName);
+		if(false == saveFile.open(QIODeviceBase::WriteOnly)) {
+			QMessageBox::critical(Q_NULLPTR, QString(), tr("打开文件失败"));
+			return;
+		}
+
+		saveFile.write(content);
+		saveFile.close();
+	} else {
+		QMessageBox::critical(Q_NULLPTR, QString(), tr("导出失败"));
 	}
 }
