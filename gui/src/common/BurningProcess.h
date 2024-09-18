@@ -34,11 +34,12 @@ class BurningProcess : public QObject, public QRunnable {
 	void setStage(const QString &title, int bytesToWrite = 0);
 	void setProgress(int writtenBytes);
 
-	virtual qint64 prepare(QList<struct BurnImageItem>	&imageList) = 0;
+	virtual int prepare(QList<struct BurnImageItem>	&imageList, quint64 *total_size, quint64 *chunk_size) = 0;
+	virtual bool begin(kburn_stor_address_t address, kburn_stor_block_t size) = 0;
 	virtual bool step(kburn_stor_address_t address, const QByteArray &chunk) = 0;
-	virtual void cleanup(bool success){};
 	virtual bool end(kburn_stor_address_t address) = 0;
-	virtual qint64 setalt(const QString &alt) = 0;
+	virtual void cleanup(bool success){};
+	virtual QString errormsg() = 0;
 
   public:
     // const qint64 imageSize;
@@ -73,7 +74,7 @@ class BurningProcess : public QObject, public QRunnable {
 	void progressChanged(int writtenBytes);
 
 	void cancelRequested();
-	void completed();
+	void completed(const QString &speed);
 	void failed(const KBurnException &reason);
 	void updateTitle();
 };

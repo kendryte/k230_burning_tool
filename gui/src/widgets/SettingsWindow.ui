@@ -51,7 +51,7 @@
      <item>
       <widget class="QPushButton" name="btnResetDefaults">
        <property name="text">
-        <string>恢复默认设置</string>
+        <string>Restore Default</string>
        </property>
        <property name="icon">
         <iconset resource="../../resources/main.qrc">
@@ -86,7 +86,7 @@
         </font>
        </property>
        <property name="text">
-        <string>保存</string>
+        <string>Save</string>
        </property>
        <property name="icon">
         <iconset resource="../../resources/main.qrc">
@@ -112,7 +112,7 @@
         </size>
        </property>
        <property name="text">
-        <string>取消</string>
+        <string>Cancel</string>
        </property>
        <property name="icon">
         <iconset resource="../../resources/main.qrc">
@@ -143,7 +143,7 @@
       </size>
      </property>
      <property name="title">
-      <string>程序选项</string>
+      <string>Options</string>
      </property>
      <layout class="QGridLayout" name="gridLayout">
       <item row="0" column="4">
@@ -164,7 +164,7 @@
         <item>
          <widget class="QCheckBox" name="inputAutoConfirm">
           <property name="text">
-           <string>成功完成后自动确认</string>
+           <string>Automatic confirmation upon successful completion</string>
           </property>
          </widget>
         </item>
@@ -191,12 +191,12 @@
           </property>
           <property name="minimumSize">
            <size>
-            <width>20</width>
+            <width>40</width>
             <height>0</height>
            </size>
           </property>
           <property name="text">
-           <string>秒</string>
+           <string>Sec</string>
           </property>
          </widget>
         </item>
@@ -208,7 +208,7 @@
          <bool>false</bool>
         </property>
         <property name="text">
-         <string>禁止联网（无更新提示）</string>
+         <string>No Internet connection (no update prompt)</string>
         </property>
        </widget>
       </item>
@@ -217,7 +217,7 @@
         <item>
          <widget class="QCheckBox" name="inputAutoConfirmManualJob">
           <property name="text">
-           <string>自动确认手动添加的任务</string>
+           <string>Automatically confirm manually added tasks</string>
           </property>
          </widget>
         </item>
@@ -244,12 +244,12 @@
           </property>
           <property name="minimumSize">
            <size>
-            <width>20</width>
+            <width>40</width>
             <height>0</height>
            </size>
           </property>
           <property name="text">
-           <string>秒</string>
+           <string>Sec</string>
           </property>
          </widget>
         </item>
@@ -260,7 +260,7 @@
         <item>
          <widget class="QCheckBox" name="inputAutoConfirmEvenError">
           <property name="text">
-           <string>失败后也自动确认（无错误提示）</string>
+           <string>Automatic confirmation even after failure (no error prompt)</string>
           </property>
          </widget>
         </item>
@@ -287,12 +287,12 @@
           </property>
           <property name="minimumSize">
            <size>
-            <width>20</width>
+            <width>40</width>
             <height>0</height>
            </size>
           </property>
           <property name="text">
-           <string>秒</string>
+           <string>Sec</string>
           </property>
          </widget>
         </item>
@@ -309,7 +309,7 @@
            </size>
           </property>
           <property name="text">
-           <string>线程数量上限</string>
+           <string>Max Concurrent Downloads Count</string>
           </property>
          </widget>
         </item>

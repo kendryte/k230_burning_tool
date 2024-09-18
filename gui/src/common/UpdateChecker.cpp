@@ -23,12 +23,12 @@ void UpdateChecker::run() {
 	try {
 		_run();
 	} catch (QException e) {
-		emit giveTip(::tr("更新出错"));
+		emit giveTip(::tr("Update Failed"));
 	}
 }
 
 void UpdateChecker::_run() {
-	emit giveTip(::tr("正在检查更新"));
+	emit giveTip(::tr("Checking Update..."));
 
 	QNetworkAccessManager mgr;
 	QNetworkRequest request{QUrl("https://api.github.com/repos/kendryte/BurningTool/releases/latest")};
@@ -41,8 +41,8 @@ void UpdateChecker::_run() {
 	eventLoop.exec();
 
 	if (reply->error() != QNetworkReply::NoError) {
-		BurnLibrary::instance()->onDebugLog(false, ::tr("无法检查更新: ") + reply->errorString());
-		emit giveTip(::tr("无法检查更新: ") + QString::number(reply->error()));
+		BurnLibrary::instance()->onDebugLog(false, ::tr("Can't Checking Update: ") + reply->errorString());
+		emit giveTip(::tr("Can't Checking Update: ") + QString::number(reply->error()));
 		return;
 	}
 
@@ -52,8 +52,8 @@ void UpdateChecker::_run() {
 	BurnLibrary::instance()->localLog(QStringLiteral("my     version is: ") + QString::fromLatin1(VERSION_HASH));
 
 	if (sha != VERSION_HASH) {
-		emit giveTip(::tr("←发现更新"));
+		emit giveTip(::tr("New Version"));
 	} else {
-		emit giveTip(::tr("没有更新"));
+		emit giveTip(::tr("Latest"));
 	}
 }

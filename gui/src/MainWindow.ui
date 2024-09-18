@@ -7,15 +7,18 @@
     <x>0</x>
     <y>0</y>
     <width>757</width>
-    <height>402</height>
+    <height>422</height>
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Kendryte buring tool</string>
+   <string>K230BurningTool</string>
   </property>
   <property name="windowIcon">
    <iconset resource="../resources/main.qrc">
     <normaloff>:/icon.png</normaloff>:/icon.png</iconset>
+  </property>
+  <property name="locale">
+   <locale language="English" country="UnitedStates"/>
   </property>
   <widget class="QWidget" name="mainView">
    <layout class="QVBoxLayout" name="verticalLayout">
@@ -74,8 +77,8 @@
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>143</width>
-             <height>69</height>
+             <width>167</width>
+             <height>83</height>
             </rect>
            </property>
            <layout class="QVBoxLayout" name="burnJobListView">
@@ -137,12 +140,12 @@
      <x>0</x>
      <y>0</y>
      <width>757</width>
-     <height>22</height>
+     <height>25</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuF_ile">
     <property name="title">
-     <string>文件(&amp;F)</string>
+     <string>Option(&amp;O)</string>
     </property>
     <addaction name="btnToggleLogTrace"/>
     <addaction name="btnDumpBuffer"/>
@@ -153,7 +156,7 @@
    </widget>
    <widget class="QMenu" name="menu_A_bout">
     <property name="title">
-     <string>关于(&amp;A)</string>
+     <string>About(&amp;A)</string>
     </property>
     <addaction name="btnOpenRelease"/>
     <addaction name="btnOpenWebsite"/>
@@ -163,7 +166,7 @@
      <bool>false</bool>
     </property>
     <property name="title">
-     <string>检查更新</string>
+     <string>Check Update</string>
     </property>
    </widget>
    <addaction name="menuF_ile"/>
@@ -176,7 +179,7 @@
      <normaloff>:/github-brands.svg</normaloff>:/github-brands.svg</iconset>
    </property>
    <property name="text">
-    <string>打开主页</string>
+    <string>Open Release Page</string>
    </property>
    <property name="iconVisibleInMenu">
     <bool>false</bool>
@@ -188,10 +191,13 @@
      <normaloff>:/power-off-solid.svg</normaloff>:/power-off-solid.svg</iconset>
    </property>
    <property name="text">
-    <string>退出(&amp;Q)</string>
+    <string>Quit(&amp;Q)</string>
    </property>
    <property name="toolTip">
-    <string>退出</string>
+    <string>Quit</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Q</string>
    </property>
    <property name="menuRole">
     <enum>QAction::QuitRole</enum>
@@ -203,10 +209,10 @@
      <normaloff>:/hand-holding-medical-solid.svg</normaloff>:/hand-holding-medical-solid.svg</iconset>
    </property>
    <property name="text">
-    <string>保存日志(&amp;S)</string>
+    <string>Save Logs(&amp;S)</string>
    </property>
    <property name="toolTip">
-    <string>保存日志</string>
+    <string>Save Logs</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+S</string>
@@ -220,7 +226,7 @@
     <bool>true</bool>
    </property>
    <property name="text">
-    <string>更详细显示日志</string>
+    <string>More Detailed Logs</string>
    </property>
   </action>
   <action name="btnDumpBuffer">
@@ -228,17 +234,17 @@
     <bool>true</bool>
    </property>
    <property name="text">
-    <string>调试数据传输详情</string>
+    <string>Debug USB Communication</string>
    </property>
   </action>
   <action name="btnOpenRelease">
    <property name="text">
-    <string>下载最新版本</string>
+    <string>Download latest</string>
    </property>
   </action>
   <action name="action">
    <property name="text">
-    <string>展开日志窗口</string>
+    <string>More Detailed Logs</string>
    </property>
   </action>
  </widget>

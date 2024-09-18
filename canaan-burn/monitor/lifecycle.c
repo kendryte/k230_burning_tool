@@ -12,8 +12,6 @@
 #include "private/monitor/descriptor.h"
 #include "private/monitor/usb_types.h"
 
-#include "dfu.h"
-
 /****************************************************
 Function: get_endpoint
 Description: 获取usb设备的端点。in和out
@@ -89,20 +87,6 @@ DECALRE_DISPOSE(destroy_usb_port, kburnUsbDeviceNode) {
 	free(context->deviceInfo.descriptor);
 
 	context->init = false;
-
-	if(context->dfu) {
-		struct dfu_if *pdfu;
-		struct dfu_if *prev = NULL;
-
-		for (pdfu = context->dfu; pdfu != NULL; pdfu = pdfu->next) {
-			free(prev);
-			free(pdfu->alt_name);
-			free(pdfu->serial_name);
-			prev = pdfu;
-		}
-		free(prev);
-		context->dfu = NULL;
-	}
 
 	device_instance_collect(get_node(context));
 }

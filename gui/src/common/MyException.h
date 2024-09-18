@@ -7,7 +7,7 @@
 
 class KBurnException : public QException {
   public:
-	KBurnException() : QException(), errorCode(KBurnNoErr), errorMessage(::tr("没有发生错误")) {}
+	KBurnException() : QException(), errorCode(KBurnNoErr), errorMessage(::tr("No Error")) {}
 
 	KBurnException(const KBurnException &other) : QException(), errorCode(other.errorCode), errorMessage(other.errorMessage + "") {}
 

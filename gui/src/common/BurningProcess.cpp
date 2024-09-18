@@ -19,7 +19,7 @@ BurningProcess::BurningProcess(KBMonCTX scope, const BurningRequest *request)
 	this->setAutoDelete(false);
 
 	// if (!imageFile.open(QIODeviceBase::ReadOnly)) {
-	// 	setResult(KBurnException(::tr("无法打开系统镜像文件") + " (" + request->systemImageFile + ")"));
+	// 	setResult(KBurnException(::tr("Can't Open Image File") + " (" + request->systemImageFile + ")"));
 	// 	return;
 	// }
 }
@@ -46,33 +46,21 @@ void BurningProcess::schedule() {
 
 void BurningProcess::_run() {
 	QFile imageFile;
-	qint64 total_size = 0, burned_size = 0;
+
 	bool founLoader = false;
+	quint64 total_size = 0, burned_size = 0, chunk_size = 8192;
+	kburn_stor_address_t address = 0;
 
 	Q_ASSERT(_isStarted);
 
 	QThread::currentThread()->setObjectName("burn:" + getTitle());
-	kburn_stor_address_t address = 0;
 
 	throwIfCancel();
 
-	foreach(struct BurnImageItem item, imageList) {
-		qDebug() << "address" << item.address << "file size" << item.size << "altname" << item.altName << "filename" << item.fileName;
+	prepare(imageList, &total_size, &chunk_size);
+	buffer = new QByteArray(chunk_size, 0);
 
-		if(item.altName == QString("loader")) {
-			founLoader = true;
-			continue;
-		}
-		total_size += item.size;
-	}
-
-	if(false == founLoader) {
-		throw(KBurnException(::tr("无法找到Loader")));
-	}
-
-	qint64 chunkSize = prepare(imageList);
-	buffer = new QByteArray(chunkSize, 0);
-	setStage(::tr("下载中"), total_size);
+	setStage(::tr("Downloading..."), total_size);
 
 	QElapsedTimer timer;
 	timer.start();
@@ -81,41 +69,54 @@ void BurningProcess::_run() {
 		if(item.altName == QString("loader")) {
 			continue;
 		}
-		
+
 		qDebug() << "address" << item.address << "file size" << item.size << "altname" << item.altName << "filename" << item.fileName;
 
-		imageFile.setFileName(item.fileName);
-
-		if (!imageFile.open(QIODeviceBase::ReadOnly)) {
-			throw(KBurnException(::tr("无法打开镜像文件") + " (" + item.fileName + ")"));
+		address = item.address;
+		if(false == begin(item.address, item.size)) {
+			throw(KBurnException(::tr("Write File to Device failed") + " (" + item.fileName + ")"));
 		}
 
-		chunkSize = setalt(item.altName);
-		buffer->resize(chunkSize);
-
+		imageFile.setFileName(item.fileName);
+		if (!imageFile.open(QIODeviceBase::ReadOnly)) {
+			throw(KBurnException(::tr("Can't Open Image File") + " (" + item.fileName + ")"));
+		}
 		imageStream = new QDataStream(&imageFile);
 
 		while (!imageStream->atEnd()) {
-			imageStream->readRawData(buffer->data(), buffer->size());
+			int bytesRead = imageStream->readRawData(buffer->data(), buffer->size());
 
 			if (step(address, *buffer)) {
-				address += chunkSize;
-				setProgress(address);
+				address += bytesRead;
+
+				burned_size += bytesRead;
+				setProgress(burned_size);
 			} else {
-				throw KBurnException(tr("设备写入失败，地址: 0x") + QString::number(address, 16));
+				throw KBurnException(tr("Write File to Device failed") + tr(" at 0x") + QString::number(address, 16) + tr(", Message: ") + errormsg());
 			}
 		}
 		imageFile.close();
 
 		delete imageStream;
 		imageStream = nullptr;
+
+        end(address);
 	}
-	end(address);
 
-	qDebug() << "耗时" << timer.elapsed() << "ms";
+	qint64 elapsedTime = timer.elapsed();
+	double speed = 0.0f;
+ 	if (elapsedTime > 0) {
+        speed = (total_size / 1024.0) / (elapsedTime / 1000.0);
 
-	setStage(::tr("完成"), 100);
-	emit completed();
+        qDebug() << "Total bytes write:" << total_size;
+        qDebug() << "Elapsed time (ms):" << elapsedTime;
+        qDebug() << "Speed (KB/s):" << speed;
+    }
+	QString speedStr = QString::number(speed, 'f', 2); // Format to 2 decimal places
+
+	setStage(::tr("Download complete, Speed: ") + speedStr + ::tr("KB/s"), 100);
+
+	emit completed(speedStr);
 }
 
 void BurningProcess::run() Q_DECL_NOTHROW {
@@ -127,7 +128,7 @@ void BurningProcess::run() Q_DECL_NOTHROW {
 		emit failed(_result);
 		cleanup(false);
 	} catch (...) {
-		setResult(KBurnException("未知错误"));
+		setResult(KBurnException("Unknown Error"));
 		emit failed(_result);
 		cleanup(false);
 	}
@@ -157,7 +158,7 @@ void BurningProcess::cancel(const KBurnException reason) {
 }
 
 void BurningProcess::cancel() {
-	cancel(KBurnException(KBurnCommonError::KBurnUserCancel, ::tr("用户取消操作")));
+	cancel(KBurnException(KBurnCommonError::KBurnUserCancel, ::tr("User Canceled")));
 }
 
 void BurningProcess::throwIfCancel() {
@@ -165,6 +166,6 @@ void BurningProcess::throwIfCancel() {
 		throw _result;
 	}
 	if (_isCanceled) {
-		throw KBurnException(tr("用户主动取消"));
+		throw KBurnException(tr("User Canceled"));
 	}
 }

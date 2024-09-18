@@ -94,7 +94,7 @@ static void _pump_libusb_event(struct passing_data *recv) {
 		debug_print(KBURN_LOG_INFO, "libusb event: ARRIVED");
 
 		if (get_device_by_usb_port_path(monitor, defInfo.idVendor, defInfo.idProduct, defInfo.path) != NULL) {
-			debug_print(KBURN_LOG_DEBUG, "port already open. (this may be issue)");
+			debug_print(KBURN_LOG_WARN, "port already open. (this may be issue)");
 			return;
 		}
 

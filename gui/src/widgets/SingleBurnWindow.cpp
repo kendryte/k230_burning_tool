@@ -83,8 +83,8 @@ void SingleBurnWindow::setStartState() {
 	ui->btnTerminate->show();
 }
 
-void SingleBurnWindow::setCompleteState() {
-	ui->textStatus->success(tr("完成！"));
+void SingleBurnWindow::setCompleteState(const QString &speed) {
+	ui->textStatus->success(tr("Downloading Completed, Speed: ") + speed + tr("KB/s"));
 
 	ui->progressBar->hide();
 	ui->textStatus->show();
@@ -97,7 +97,7 @@ void SingleBurnWindow::setCompleteState() {
 
 void SingleBurnWindow::setErrorState(const KBurnException &reason) {
 	auto e = kburnSplitErrorCode(reason.errorCode);
-	ui->textStatus->failed(tr("错误: ") + QString::number(e.kind >> 32) + " - (" + QString::number(e.code, 16) + "), " + reason.errorMessage);
+	ui->textStatus->failed(tr("Error: ") + QString::number(e.kind >> 32) + " - (" + QString::number(e.code, 16) + "), " + reason.errorMessage);
 
 	ui->progressBar->hide();
 	ui->textStatus->show();
@@ -113,7 +113,7 @@ void SingleBurnWindow::setCancellingState() {
 		QObject::disconnect(conn);
 	}
 	ui->btnTerminate->setDisabled(true);
-	setProgressText(tr("正在取消"));
+	setProgressText(tr("Canceling"));
 	setProgressInfinit();
 }
 
@@ -192,7 +192,7 @@ void SingleBurnWindow::autoDismiss(bool success) {
 	tmr->setInterval(1000);
 	int *i = new int(timeout);
 	auto cb = [=] {
-		ui->btnDismiss->setText(tr("确认") + " (" + QString::number(*i) + ")");
+		ui->btnDismiss->setText(tr("Confirm") + " (" + QString::number(*i) + ")");
 		if (*i == 0) {
 			tmr->stop();
 			deleteLater();

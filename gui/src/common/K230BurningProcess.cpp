@@ -2,12 +2,9 @@
 #include "AppGlobalSetting.h"
 #include "main.h"
 #include "MyException.h"
-#include <public/canaan-burn.h>
 
 #include <QFileInfo>
 #include <QCryptographicHash>
-
-#define CHUNK_SIZE 1024 * 1024
 
 K230BurningProcess::K230BurningProcess(KBMonCTX scope, const K230BurningRequest *request)
 	: BurningProcess(scope, request), usbPath(request->usbPath), inputs(2) {
@@ -27,108 +24,133 @@ void K230BurningProcess::serial_isp_progress(void *self, const kburnDeviceNode *
 	_this->setProgress(current);
 }
 
-qint64 K230BurningProcess::prepare(QList<struct BurnImageItem> &imageList) {
-	bool founLoader = false;
-	qint64 chunkSize = 4096; // default
+int K230BurningProcess::prepare(QList<struct BurnImageItem> &imageList, quint64 *total_size, quint64 *chunk_size) {
+	bool foundLoader = false;
+	int max_offset = 0, curr_offset = 0;
 	struct BurnImageItem loader;
 
 	foreach(struct BurnImageItem item, imageList) {
 		if(item.altName == QString("loader")) {
-			founLoader = true;
+			foundLoader = true;
 			loader = item;
+			continue;
+		}
+
+		*total_size += item.size;
+		curr_offset = item.address + item.size;
+		if(curr_offset > max_offset) {
+			max_offset = curr_offset;
 		}
 	}
 
-	if(false == founLoader) {
-		throw(KBurnException(::tr("无法找到Loader")));
+	if(false == foundLoader) {
+		throw(KBurnException(::tr("Can't find Loader")));
 	}
 
 	QFile loaderFile(loader.fileName);
 	if (!loaderFile.open(QIODeviceBase::ReadOnly)) {
-		throw(KBurnException(::tr("无法打开镜像文件") + " (" + loader.fileName + ")"));
+		throw(KBurnException(::tr("Can't Open Image File") + " (" + loader.fileName + ")"));
 	}
 	QByteArray loaderFileContent = loaderFile.readAll();
 	loaderFile.close();
 
-	int itemCount = imageList.size() - 1;
-	if(0 >= itemCount) {
-		throw(KBurnException(::tr("文件数量不足")));
-	}
-
-	QByteArray cfgByteArray(itemCount * sizeof(struct BurnImageConfigItem) + sizeof(struct BurnImageConfig), 0);
-	struct BurnImageConfig *cfg = (struct BurnImageConfig *)cfgByteArray.data();
-
-	int cfgIndex = 0;
-
-	foreach(struct BurnImageItem item, imageList) {
-		if(item.altName == QString("loader")) {
-			continue;
-		}
-		cfg->cfgs[cfgIndex].size = item.size;
-		cfg->cfgs[cfgIndex].address = item.address;
-		strncpy(cfg->cfgs[cfgIndex].altName, qPrintable(item.altName), 32);
-
-		cfgIndex++;
-	}
-
-	if(itemCount != cfgIndex) {
-		qDebug() << __func__ << __LINE__ << itemCount << cfgIndex;
-		throw(KBurnException(::tr("未知异常")));
-	}
-
-	cfg->cfgMagic = 0x3033324B;
-	cfg->cfgTarget = (kburnUsbIspCommandTaget)GlobalSetting::flashTarget.getValue();
-	cfg->cfgCount = itemCount;
-	cfg->cfgCrc32 = crc32(0, (const unsigned char *)(cfgByteArray.data() + sizeof(struct BurnImageConfig)), cfgByteArray.size() - sizeof(struct BurnImageConfig));
-
-	qDebug() << __func__ << __LINE__ << cfgByteArray.toHex();
-
-	setStage(::tr("等待设备上电"));
+	setStage(::tr("Waiting Stage1 Device"));
 	node = reinterpret_cast<kburnDeviceNode *>(inputs.pick(0, 30));
 	if (node == NULL) {
-		throw KBurnException(tr("设备上电超时"));
+		throw KBurnException(tr("Timeout for Waiting Device Plug in"));
 	}
 
-	setStage(::tr("写入USB 配置"), cfgByteArray.size());
-
-	if(!K230BurnISP_WriteBurnImageConfig(node, cfgByteArray.data(), cfgByteArray.size(), K230BurningProcess::serial_isp_progress, this)) {
-		throw KBurnException(tr("写入USB 配置失败"));
-	}
-
-	setStage(::tr("写入USB LOADER"), loaderFileContent.size());
+	setStage(::tr("Wrinte USB LOADER"), loaderFileContent.size());
 
 	if(!K230BurnISP_RunProgram(node, loaderFileContent.data(), loaderFileContent.size(), K230BurningProcess::serial_isp_progress, this)) {
-		throw KBurnException(tr("写入USB LOADER失败"));
+		throw KBurnException(tr("Wrinte USB LOADER Failed"));
 	}
 
-	setStage(::tr("等待USB ISP启动"));
+	setStage(::tr("Waiting Stage2 Device"));
 
-	node = reinterpret_cast<kburnDeviceNode *>(inputs.pick(1, 10));
+	node = reinterpret_cast<kburnDeviceNode *>(inputs.pick(1, 5));
 	if (node == NULL) {
-		throw KBurnException(tr("ISP启动超时"));
+		throw KBurnException(tr("Loader Boot Failed"));
 	}
+
+	setStage(::tr("Init Device"));
+
+	kburnUsbIspCommandTaget isp_target = (kburnUsbIspCommandTaget)GlobalSetting::flashTarget.getValue();
+
+	if(NULL == (kburn = kburn_create(node))) {
+		throw KBurnException(tr("Device Memory error"));
+	}
+
+	if (false == kburn_probe(kburn, isp_target, chunk_size)) {
+		throw KBurnException(tr("Device Can't find Medium as Configured"));
+	}
+
+	quint64 capacity = kburn_get_capacity(kburn);
+
+	if(0x00 == capacity) {
+		throw KBurnException(tr("Device Can't find Medium as Configured"));
+	}
+
+	if(max_offset > capacity) {
+		throw KBurnException(tr("Image Bigger than Device Medium Capacity, %1 > %2").arg(max_offset).arg(capacity));
+	}
+
+	qDebug() << QString("Medium %1 capacity %2").arg(isp_target).arg(capacity);
+
+	setStage(::tr("Start Downloading..."));
 
 	usb_ok = true;
 	write_seq = 0;
 
-	return chunkSize;
+	return 0;
 }
 
-qint64 K230BurningProcess::setalt(const QString &alt)
+bool K230BurningProcess::begin(kburn_stor_address_t address, kburn_stor_block_t size)
 {
-	currAltName = alt;
+#if 0
+	if(KBURN_USB_ISP_SPI_NOR == kburn_get_medium_type(kburn)) {
+		quint64 _addr = address, _size = size;
+		if(false == kburn_parse_erase_config(kburn, &_addr, &_size)) {
+			return false;
+		}
 
-	if(false == K230Burn_Check_Alt(node, qPrintable(currAltName))) {
-		throw KBurnException(tr("未知异常"));
+		QString str_range = QString("0x%1 - 0x%2").arg(QString::number(_addr, 16)).arg(QString::number(_size, 16));
+
+		setStage(::tr("Erase, ") + str_range, _size);
+
+		if(false == kburn_erase(kburn, _addr, _size, 20)) {
+			return false;
+		}
+	}
+#else
+	quint64 _addr = address, erase_size;
+
+	if(0x00 == (erase_size = kburn_get_erase_size(kburn))) {
+		throw KBurnException(tr("Unknown Error"));
 	}
 
-	chunk_size = K230Burn_Get_Chunk_Size(node, qPrintable(currAltName));
-
-	if(0 == chunk_size) {
-		throw KBurnException(tr("获取信息失败"));
+	if(0x00 != (_addr % erase_size)) {
+		throw KBurnException(tr("Image Start Offset %1 Should Align to %2 Bytes").arg(address).arg(erase_size));
 	}
+#endif
 
-	return chunk_size;
+	return kburn_write_start(kburn, address, size);
+}
+
+bool K230BurningProcess::step(kburn_stor_address_t address, const QByteArray &chunk)
+{
+	return kburn_write_chunk(kburn, (void *)chunk.constData(), chunk.size());
+}
+
+bool K230BurningProcess::end(kburn_stor_address_t address) {
+	return kbun_write_end(kburn);
+}
+
+QString K230BurningProcess::errormsg()
+{
+	char *msg = kburn_get_error_msg(kburn);
+
+	return QString(msg);
 }
 
 #include "AppGlobalSetting.h"
@@ -151,18 +173,6 @@ void K230BurningProcess::cleanup(bool success) {
 	// 	color = color << 16;
 	// }
 	// kburnUsbIspLedControl(node, GlobalSetting::usbLedPin.getValue(), kburnConvertColor(color));
-}
-
-bool K230BurningProcess::step(kburn_stor_address_t address, const QByteArray &chunk) {
-	// size_t block = address / chunk_size;
-
-	return 0 < K230Burn_Write_Chunk(node, qPrintable(currAltName), write_seq++, (void *)chunk.constData(), chunk.size());
-}
-
-bool K230BurningProcess::end(kburn_stor_address_t address) {
-	// size_t block = address / chunk_size;
-
-	return 0x00 == K230Burn_Write_Chunk(node, qPrintable(currAltName), write_seq++, NULL, 0);
 }
 
 bool K230BurningProcess::pollingDevice(kburnDeviceNode *node, BurnLibrary::DeviceEvent event) {
@@ -190,7 +200,7 @@ bool K230BurningProcess::pollingDevice(kburnDeviceNode *node, BurnLibrary::Devic
 	} else if (event == BurnLibrary::DeviceEvent::UbootISPConfirmed) {
 		inputs.set(1, node);
 	} else if (event == BurnLibrary::DeviceEvent::UbootISPDisconnected) {
-		this->cancel(KBurnException(::tr("设备断开")));
+		this->cancel(KBurnException(::tr("Device Disconnected")));
 	}
 
 	emit deviceStateNotify();

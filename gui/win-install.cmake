@@ -17,24 +17,56 @@ function(parse_cmake_cache CACHE_FILE)
 	endforeach()
 endfunction()
 
+function(get_lib_path LIB_NAME LIB_VAR)
+    # Find the library
+
+    
+    if(NOT TEMP_VAR)
+        message(FATAL_ERROR "Cannot find ${LIB_NAME} in ${MINGW_PATH}/bin")
+    endif()
+
+    # Set the output variable
+    set(${LIB_VAR} ${TEMP_VAR} PARENT_SCOPE)
+endfunction()
+
 parse_cmake_cache("${CMAKE_CACHEFILE_DIR}/CMakeCache.txt")
 
 get_filename_component(DIST_DIR "." ABSOLUTE)
-message("RUN ${QT_BIN_DIR}/windeployqt.exe K230BurningTool.exe IN ${DIST_DIR}/bin")
+message(VERBOSE "RUN windeployqt.exe ${EXECUTABLE_NAME} IN ${DIST_DIR}/bin")
 
 execute_process(
-	COMMAND "${QT_BIN_DIR}/windeployqt.exe" K230BurningTool.exe
+	COMMAND "windeployqt.exe" "${EXECUTABLE_NAME}.exe"
 	WORKING_DIRECTORY "${DIST_DIR}/bin"
 	COMMAND_ECHO STDOUT
 	COMMAND_ERROR_IS_FATAL ANY
 )
 
-# TODO: dynamic?
-find_program(MAKE_ABSOLUTE "${CMAKE_MAKE_PROGRAM}" REQUIRED)
-get_filename_component(MINGW_PATH "${MAKE_ABSOLUTE}" DIRECTORY)
-file(INSTALL "${MINGW_PATH}/libwinpthread-1.dll" DESTINATION "${DIST_DIR}/bin")
-file(INSTALL "${MINGW_PATH}/libgcc_s_seh-1.dll" DESTINATION "${DIST_DIR}/bin")
-file(INSTALL "${MINGW_PATH}/libstdc++-6.dll" DESTINATION "${DIST_DIR}/bin")
+# Extract the path of the C++ compiler
+get_filename_component(COMPILER_PATH ${CMAKE_CXX_COMPILER} DIRECTORY)
+# Assume MinGW root directory is the parent directory of the compiler's directory
+get_filename_component(MINGW_PATH ${COMPILER_PATH} DIRECTORY)
+message(STATUS "MINGW_PATH ${MINGW_PATH}")
+
+find_file(LIBWINPTHREAD NAMES "libwinpthread-1.dll" PATHS
+	"${MINGW_PATH}/bin"
+	PATH_SUFFIXES bin
+	NO_DEFAULT_PATH
+)
+file(INSTALL ${LIBWINPTHREAD} DESTINATION "${DIST_DIR}/bin")
+
+find_file(LIB_GCC_SEH NAMES "libgcc_s_seh-1.dll" PATHS
+	"${MINGW_PATH}/bin"
+	PATH_SUFFIXES bin
+	NO_DEFAULT_PATH
+)
+file(INSTALL ${LIB_GCC_SEH} DESTINATION "${DIST_DIR}/bin")
+
+find_file(LIBSTDCPP6 NAMES "libstdc++-6.dll" PATHS
+	"${MINGW_PATH}/bin"
+	PATH_SUFFIXES bin
+	NO_DEFAULT_PATH
+)
+file(INSTALL ${LIBSTDCPP6} DESTINATION "${DIST_DIR}/bin")
 
 set(SYSTEM32_PATH "$ENV{SystemRoot}/system32")
 
@@ -45,3 +77,6 @@ endif()
 foreach(i vcruntime140d.dll ucrtbased.dll)
 	file(INSTALL "${SYSTEM32_PATH}/${i}" DESTINATION "${DIST_DIR}/bin")
 endforeach()
+
+file(REMOVE_RECURSE "${DIST_DIR}/include")
+file(REMOVE_RECURSE "${DIST_DIR}/lib")

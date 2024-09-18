@@ -40,13 +40,30 @@ BurningControlWindow::BurningControlWindow(QWidget *parent)
 
 	initTableView();
 
-	readSettings();
+    readSettings();
+
+#if IS_AVALON_NANO3
+    ui->tabWidget->setTabVisible(TABWIDGET_PARTITION_BURN_INDEX, false);
+	ui->tabWidget->setCurrentIndex(TABWIDGET_IMAGE_BURN_INDEX);
+
+	ui->inputTarget->hide();
+	ui->label_15->hide();
+	ui->buttonStartAuto->hide();
+	ui->btnOpenSettings->hide();
+#else
+	ui->label_tips->hide();
+#endif
+
+	// auto select loader
+	QModelIndex index = tableModel->index(0, 0, QModelIndex());
+	tableModel->setData(index, true, Qt::UserRole);
+
 	GlobalSetting::flashTarget.connectCombobox(ui->inputTarget, true);
 
 	auto instance = BurnLibrary::instance();
 	connect(instance, &BurnLibrary::onBeforDeviceOpen, this, &BurningControlWindow::handleOpenDevice);
 	connect(instance, &BurnLibrary::jobListChanged, this, &BurningControlWindow::handleSettingsWindowButtonState);
-	connect(this, &BurningControlWindow::updateBurnLibAutoBurnFlag, instance, &BurnLibrary::setAutoBurnFlag);
+    connect(this, &BurningControlWindow::updateBurnLibAutoBurnFlag, instance, &BurnLibrary::setAutoBurnFlag);
 }
 
 BurningControlWindow::~BurningControlWindow() {
@@ -68,7 +85,7 @@ void BurningControlWindow::handleOpenDevice(QString path) {
 
 void BurningControlWindow::on_buttonStartAuto_clicked(bool checked) {
 	if((true == checked) && (false == checkSysImage())) {
-		QMessageBox::critical(Q_NULLPTR, QString(), tr("解析固件失败！！！"));
+		QMessageBox::critical(Q_NULLPTR, QString(), tr("Parse Download Configure Failed."));
 
 		QTimer::singleShot(0, ui->buttonStartAuto, &AnimatedButton::click);
 		return;
@@ -84,7 +101,7 @@ void BurningControlWindow::on_buttonStartAuto_clicked(bool checked) {
 
 void BurningControlWindow::on_btnStartBurn_clicked() {
 	if(false == checkSysImage()) {
-		QMessageBox::critical(Q_NULLPTR, QString(), tr("解析固件失败！！！"));
+		QMessageBox::critical(Q_NULLPTR, QString(), tr("Parse Download Configure Failed."));
 		return;
 	}
 
@@ -102,7 +119,7 @@ void BurningControlWindow::on_btnStartBurn_clicked() {
 
 void BurningControlWindow::on_btnSelectImage_clicked()
 {
-	auto str = QFileDialog::getOpenFileName(this, tr("打开系统镜像"), ui->inputSysImage->text(), tr(""), nullptr, QFileDialog::ReadOnly);
+	auto str = QFileDialog::getOpenFileName(this, tr("Open Image File"), ui->inputSysImage->text(), tr("Image(*.img);;All Files(*.*)"), nullptr, QFileDialog::ReadOnly);
 	if (str.isEmpty()) {
 		return;
 	}
@@ -135,7 +152,7 @@ bool BurningControlWindow::checkSysImage() {
 
 	/* default loader */
 	kburnUsbIspCommandTaget isp_target = (kburnUsbIspCommandTaget)GlobalSetting::flashTarget.getValue();
-	
+
 	qDebug() << __func__ << __LINE__ << isp_target;
 
 	if(TABWIDGET_IMAGE_BURN_INDEX == ui->tabWidget->currentIndex()) {
@@ -144,7 +161,7 @@ bool BurningControlWindow::checkSysImage() {
 		_fd.setFileName(fPath);
 
 		if (_fd.exists()) {
-			QString info = tr("文件大小： ");
+			QString info = tr("File Size: ");
 
 			QLocale locale = this->locale();
 			info += locale.formattedDataSize(_fd.size());
@@ -153,7 +170,9 @@ bool BurningControlWindow::checkSysImage() {
 			ui->txtImageInfo->setStyleSheet("");
 
 			qint64 fSize = _fd.size();
-			fSize = (fSize + 4096 - 1) & (-4096);
+			if(fSize > 4096) {
+				fSize = (fSize + 4096 - 1) & (-4096);
+			}
 
 			item.address = 0;
 			item.size = fSize;
@@ -163,16 +182,21 @@ bool BurningControlWindow::checkSysImage() {
 
 			memset(&item, 0, sizeof(struct BurnImageItem));
 
-			_fd.setFileName(QString(":/u-boot.bin"));
+			_fd.setFileName(QString(":/loader.bin"));
 			item.address = 0;
 			item.size = _fd.size();
 			item.fileName = _fd.fileName();
 			strncpy(item.altName, "loader", 32);
 			imageList.append(item);
 
+#if IS_AVALON_NANO3
+			int taget_nand_index = ui->inputTarget->findText(QString("SPI NAND"));
+			ui->inputTarget->setCurrentIndex(taget_nand_index);
+#endif
+
 			return true;
 		} else {
-			ui->txtImageInfo->setText(tr("未找到文件"));
+			ui->txtImageInfo->setText(tr("Can't Find File"));
 			ui->txtImageInfo->setStyleSheet("QLabel { color : red; }");
 
 			return false;
@@ -205,10 +229,10 @@ bool BurningControlWindow::checkSysImage() {
 					QMessageBox::critical(Q_NULLPTR, QString(), tr("Row %1 altName \"%2\" is Empty").arg(row).arg(altNameString));
 					return false;
 				}
-				if(altnameVector.contains(altNameString)) {
-					QMessageBox::critical(Q_NULLPTR, QString(), tr("Row %1 altName \"%2\" is Repeated").arg(row).arg(altNameString));
-					return false;
-				}
+				// if(altnameVector.contains(altNameString)) {
+				// 	QMessageBox::critical(Q_NULLPTR, QString(), tr("Row %1 altName \"%2\" is Repeated").arg(row).arg(altNameString));
+				// 	return false;
+				// }
 				altnameVector.append(altNameString);
 
 				address = -1;
@@ -264,7 +288,9 @@ bool BurningControlWindow::checkSysImage() {
 				memset(&item, 0, sizeof(struct BurnImageItem));
 
 				qint64 fSize = _fd.size();
-				fSize = (fSize + 4096 - 1) & (-4096);
+				if(fSize > 4096) {
+					fSize = (fSize + 4096 - 1) & (-4096);
+				}
 
 				item.address = address;
 				item.size = fSize;
@@ -289,23 +315,24 @@ bool BurningControlWindow::checkSysImage() {
 			}
 
 			if((a.address + a.size) > (b.address)) {
-				QMessageBox::critical(Q_NULLPTR, QString(), tr("文件 %1 大小过大").arg(a.fileName));
+				QMessageBox::critical(Q_NULLPTR, QString(), tr("File %1 Too Large").arg(a.fileName));
 				return false;
 			}
 		}
 
-		if(0x00 == itemCount) {
-			QMessageBox::critical(Q_NULLPTR, QString(), tr("请选择固件"));
+		if(false == altnameVector.contains(QString("loader"))) {
+			QMessageBox::critical(Q_NULLPTR, QString(), tr("Please Select a 'loader'"));
+			return false;
+		}
+
+		/* just loader */
+		if(0x01 >= itemCount) {
+			QMessageBox::critical(Q_NULLPTR, QString(), tr("Please Select at least one Image File"));
 			return false;
 		}
 
 		if(((itemCount - 1) != addressVector.size()) || (itemCount != altnameVector.size()) || (itemCount != filepathVector.size())) {
-			QMessageBox::critical(Q_NULLPTR, QString(), tr("未知错误"));
-			return false;
-		}
-
-		if(false == altnameVector.contains(QString("loader"))) {
-			QMessageBox::critical(Q_NULLPTR, QString(), tr("未配置Loader"));
+			QMessageBox::critical(Q_NULLPTR, QString(), tr("Unknown Error"));
 			return false;
 		}
 
@@ -317,34 +344,34 @@ bool BurningControlWindow::checkSysImage() {
 
 void BurningControlWindow::readSettings(void)
 {
-	QDir appDir(QCoreApplication::applicationDirPath());
+//    QDir appDir(QCoreApplication::applicationDirPath());
 
-	if (settings.contains(SETTING_SYSTEM_IMAGE_PATH)) {
-		QString saved = settings.value(SETTING_SYSTEM_IMAGE_PATH).toString();
-		if (QDir(saved).isRelative()) {
-			saved = QDir::cleanPath(appDir.absoluteFilePath(saved));
-		}
-		ui->inputSysImage->setText(saved);
-		ui->tabWidget->setCurrentIndex(TABWIDGET_IMAGE_BURN_INDEX);
-		checkSysImage();
-	}
+//    if (settings.contains(SETTING_SYSTEM_IMAGE_PATH)) {
+//        QString saved = settings.value(SETTING_SYSTEM_IMAGE_PATH).toString();
+//        if (QDir(saved).isRelative()) {
+//            saved = QDir::cleanPath(appDir.absoluteFilePath(saved));
+//        }
+//        ui->inputSysImage->setText(saved);
+//        ui->tabWidget->setCurrentIndex(TABWIDGET_IMAGE_BURN_INDEX);
+//        checkSysImage();
+//    }
 }
 
 void BurningControlWindow::saveSettings(void)
 {
-	QString fPath = ui->inputSysImage->text();
+//    QString fPath = ui->inputSysImage->text();
 
-	if (!fPath.isEmpty()) {
-		QDir d(QCoreApplication::applicationDirPath());
-		QString relPath = d.relativeFilePath(fPath);
+//    if (!fPath.isEmpty()) {
+//        QDir d(QCoreApplication::applicationDirPath());
+//        QString relPath = d.relativeFilePath(fPath);
 
-		if (d.isRelativePath(relPath)) {
-			settings.setValue(SETTING_SYSTEM_IMAGE_PATH, relPath);
-		} else {
-			settings.setValue(SETTING_SYSTEM_IMAGE_PATH, fPath);
-		}
-	}
-	ISettingsBase::commitAllSettings();
+//        if (d.isRelativePath(relPath)) {
+//            settings.setValue(SETTING_SYSTEM_IMAGE_PATH, relPath);
+//        } else {
+//            settings.setValue(SETTING_SYSTEM_IMAGE_PATH, fPath);
+//        }
+//    }
+//    ISettingsBase::commitAllSettings();
 }
 
 /**
@@ -369,10 +396,10 @@ void BurningControlWindow::initTableView(void)
 
 	QMenu *tableMenu = new QMenu(ui->tableView);
 
-    QAction *addItem = tableMenu->addAction(tr("增加一行"));
-    QAction *delItem = tableMenu->addAction(tr("删除本行"));
-    QAction *importConfig = tableMenu->addAction(tr("导入配置"));
-    QAction *exportConfig = tableMenu->addAction(tr("导出配置"));
+    QAction *addItem = tableMenu->addAction(tr("Add one Line"));
+    QAction *delItem = tableMenu->addAction(tr("Del current Line"));
+    QAction *importConfig = tableMenu->addAction(tr("Export Configure"));
+    QAction *exportConfig = tableMenu->addAction(tr("Import Configure"));
 
     connect(addItem, &QAction::triggered, this, &BurningControlWindow::tableviewMenuAddItemSlot);
     connect(delItem, &QAction::triggered, this, &BurningControlWindow::tableviewMenuDelItemSlot);
@@ -385,10 +412,10 @@ void BurningControlWindow::initTableView(void)
 	});
 
 	tableModel->setHorizontalHeaderItem(TABLEVIEW_SELECT_COL, new QStandardItem());
-	tableModel->setHorizontalHeaderItem(TABLEVIEW_ADDRESS_COL, new QStandardItem(tr("目标地址")));
-	tableModel->setHorizontalHeaderItem(TABLEVIEW_ALTNAME_COL, new QStandardItem(tr("目标名称")));
-	tableModel->setHorizontalHeaderItem(TABLEVIEW_FILE_PATH_COL, new QStandardItem(tr("文件路径")));
-	tableModel->setHorizontalHeaderItem(TABLEVIEW_BTN_OPEN_COL, new QStandardItem(tr("打开文件")));
+	tableModel->setHorizontalHeaderItem(TABLEVIEW_ADDRESS_COL, new QStandardItem(tr("Target Address")));
+	tableModel->setHorizontalHeaderItem(TABLEVIEW_ALTNAME_COL, new QStandardItem(tr("Target Type")));
+	tableModel->setHorizontalHeaderItem(TABLEVIEW_FILE_PATH_COL, new QStandardItem(tr("File Path")));
+	tableModel->setHorizontalHeaderItem(TABLEVIEW_BTN_OPEN_COL, new QStandardItem(tr("Open")));
 
 	/**
 	 * 选中
@@ -409,24 +436,28 @@ void BurningControlWindow::initTableView(void)
 	/**
 	 * 目标地址
 	 */
-	for(int i = 0;i < 10;i++) {
+	for(int i = 0; i < 10; i++) {
 		tableModel->setItem(i, TABLEVIEW_ADDRESS_COL, new QStandardItem(QString("0x00000000")));
 	}
 
 	/**
 	 * 目标名称
 	 */
-	QStringList targetAltName;
-	targetAltName << "loader" << "uboot" << "rtt" << "kernel" << "rootfs";
+    QStringList targetAltName;
+    targetAltName << "loader" << "spl" << "uboot" << "rtt" << "kernel" << "rootfs" << "image";
 
 	ComboDelegate *pComboAltName = new ComboDelegate(this);
 	pComboAltName->setItems(targetAltName);
     ui->tableView->setItemDelegateForColumn(TABLEVIEW_ALTNAME_COL, pComboAltName);
-
+	tableModel->setItem(0, TABLEVIEW_ALTNAME_COL, new QStandardItem(QString("loader")));
+	for(int i = 1; i < 10;i++) {
+		tableModel->setItem(i, TABLEVIEW_ALTNAME_COL, new QStandardItem(QString("image")));
+	}
 	/**
 	 * 文件路径
 	 */
 	ui->tableView->horizontalHeader()->setSectionResizeMode(TABLEVIEW_FILE_PATH_COL, QHeaderView::Stretch);
+	tableModel->setItem(0, TABLEVIEW_FILE_PATH_COL, new QStandardItem(QString(":/loader.bin")));
 
 	/**
 	 * Open
@@ -491,7 +522,7 @@ void BurningControlWindow::tableviewItemChangedSlot(QStandardItem *item)
 
 void BurningControlWindow::tabviewBtnOpenClickedSlot(const QModelIndex &index)
 {
-	int row = index.row() - 1;
+	int row = index.row();
 	if(row < 0) {
 		row = 0;
 	}
@@ -499,18 +530,21 @@ void BurningControlWindow::tabviewBtnOpenClickedSlot(const QModelIndex &index)
 	QString filePath = tableModel->index(row, TABLEVIEW_FILE_PATH_COL).data().toString();
 
 #if defined(Q_OS_LINUX)
-	QString str = QFileDialog::getOpenFileName(this, tr("选择文件"), filePath, tr(""), nullptr, QFileDialog::ReadOnly | QFileDialog::DontUseNativeDialog);
+	QString str = QFileDialog::getOpenFileName(this, tr("Select File"), filePath, tr(""), nullptr, QFileDialog::ReadOnly | QFileDialog::DontUseNativeDialog);
 #else
-	QString str = QFileDialog::getOpenFileName(this, tr("选择文件"), filePath, tr(""), nullptr, QFileDialog::ReadOnly);
+	QString str = QFileDialog::getOpenFileName(this, tr("Select File"), filePath, tr(""), nullptr, QFileDialog::ReadOnly);
 #endif
 
 	if (str.isEmpty()) {
 		return;
 	}
 
-	QModelIndex fnameIndex = tableModel->index(index.row(), TABLEVIEW_FILE_PATH_COL, QModelIndex());
+	QModelIndex selIndex = tableModel->index(index.row(), 0, QModelIndex());
+	tableModel->setData(selIndex, true, Qt::UserRole);
 
+	QModelIndex fnameIndex = tableModel->index(index.row(), TABLEVIEW_FILE_PATH_COL, QModelIndex());
 	tableModel->setData(fnameIndex, str);
+
 	emit tableModel->dataChanged(fnameIndex, fnameIndex);
 }
 
@@ -557,9 +591,9 @@ void BurningControlWindow::tableviewMenuImportConfigmSlot(bool checked)
 	QJsonParseError jsonErr;
 
 #if defined(Q_OS_LINUX)
-	QString openFileName = QFileDialog::getOpenFileName(this, tr("选择文件"), filePath, tr(""), nullptr, QFileDialog::ReadOnly | QFileDialog::DontUseNativeDialog);
+	QString openFileName = QFileDialog::getOpenFileName(this, tr("Select File"), filePath, tr(""), nullptr, QFileDialog::ReadOnly | QFileDialog::DontUseNativeDialog);
 #else
-	QString openFileName = QFileDialog::getOpenFileName(this, tr("选择文件"), filePath, tr(""), nullptr, QFileDialog::ReadOnly);
+	QString openFileName = QFileDialog::getOpenFileName(this, tr("Select File"), filePath, tr(""), nullptr, QFileDialog::ReadOnly);
 #endif
 	if (openFileName.isEmpty()) {
 		return;
@@ -570,7 +604,7 @@ void BurningControlWindow::tableviewMenuImportConfigmSlot(bool checked)
 	QString basePath = openFileInfo.absolutePath();
 
 	if(false == openFile.open(QIODeviceBase::ReadOnly)) {
-		QMessageBox::critical(Q_NULLPTR, QString(), tr("打开文件失败"));
+		QMessageBox::critical(Q_NULLPTR, QString(), tr("Open Configure Failed"));
 		return;
 	}
 
@@ -579,19 +613,19 @@ void BurningControlWindow::tableviewMenuImportConfigmSlot(bool checked)
 
 	RootJsonDoc = QJsonDocument::fromJson(content, &jsonErr);
 	if(jsonErr.error != QJsonParseError::NoError) {
-		QMessageBox::critical(Q_NULLPTR, QString(), tr("解析文件失败"));
+		QMessageBox::critical(Q_NULLPTR, QString(), tr("Parse Configure Failed"));
 		return;
 	}
 
 	if(false == RootJsonDoc.isObject()) {
-		QMessageBox::critical(Q_NULLPTR, QString(), tr("解析文件失败"));
+		QMessageBox::critical(Q_NULLPTR, QString(), tr("Parse Configure Failed"));
 		return;
 	}
 	RootJsonObj = RootJsonDoc.object();
 
 	int rowCount = 0, version = RootJsonObj.value(QString("version")).toInt(-1);
 	if(version == -1) {
-		QMessageBox::critical(Q_NULLPTR, QString(), tr("解析文件失败"));
+		QMessageBox::critical(Q_NULLPTR, QString(), tr("Parse Configure Failed"));
 		return;
 	}
 
@@ -606,7 +640,7 @@ void BurningControlWindow::tableviewMenuImportConfigmSlot(bool checked)
 					QJsonObject temp;
 					QJsonValue  item = *iter;
 					if(false == item.isObject()) {
-						QMessageBox::critical(Q_NULLPTR, QString(), tr("解析文件失败"));
+						QMessageBox::critical(Q_NULLPTR, QString(), tr("Parse Configure Failed"));
 						return;
 					}
 					temp = item.toObject();
@@ -661,7 +695,7 @@ void BurningControlWindow::tableviewMenuExportConfigmSlot(bool checked)
 					basePath = tempFilePath;
 				} else {
 					if(basePath != tempFilePath) {
-						QMessageBox::critical(Q_NULLPTR, QString(), tr("文件不在同一目录下"));
+						QMessageBox::critical(Q_NULLPTR, QString(), tr("Files not in Same Folder"));
 						return;
 					}
 				}
@@ -686,9 +720,9 @@ void BurningControlWindow::tableviewMenuExportConfigmSlot(bool checked)
 		qDebug() << __func__ << __LINE__ << content;
 
 #if defined(Q_OS_LINUX)
-		QString saveFileName = QFileDialog::getSaveFileName(this, tr("保存文件"), QDir::homePath(), tr("Json(*.json)"), nullptr, QFileDialog::DontUseNativeDialog);
+		QString saveFileName = QFileDialog::getSaveFileName(this, tr("Save Configure"), QDir::homePath(), tr("Json(*.json)"), nullptr, QFileDialog::DontUseNativeDialog);
 #else
-		QString saveFileName = QFileDialog::getSaveFileName(this, tr("保存文件"), QDir::homePath(), tr("Json(*.json)"), nullptr);
+		QString saveFileName = QFileDialog::getSaveFileName(this, tr("Save Configure"), QDir::homePath(), tr("Json(*.json)"), nullptr);
 #endif
 		if (saveFileName.isEmpty()) {
 			return;
@@ -696,13 +730,13 @@ void BurningControlWindow::tableviewMenuExportConfigmSlot(bool checked)
 
 		QFile saveFile(saveFileName);
 		if(false == saveFile.open(QIODeviceBase::WriteOnly)) {
-			QMessageBox::critical(Q_NULLPTR, QString(), tr("打开文件失败"));
+			QMessageBox::critical(Q_NULLPTR, QString(), tr("Save Configure Failed"));
 			return;
 		}
 
 		saveFile.write(content);
 		saveFile.close();
 	} else {
-		QMessageBox::critical(Q_NULLPTR, QString(), tr("导出失败"));
+		QMessageBox::critical(Q_NULLPTR, QString(), tr("Export Configure Failed"));
 	}
 }

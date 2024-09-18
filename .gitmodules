@@ -1,9 +1,6 @@
-[submodule "vcpkg"]
-	path = vcpkg
-	url = https://github.com/microsoft/vcpkg.git
 [submodule "canaan-burn/3rdparty/sanitizers-cmake"]
 	path = canaan-burn/3rdparty/sanitizers-cmake
 	url = https://github.com/arsenm/sanitizers-cmake.git
-[submodule "canaan-burn/3rdparty/dfu"]
-	path = canaan-burn/3rdparty/dfu
-	url = git@g.a-bug.org:xiaenling/dfu-util.git
+[submodule "canaan-burn/3rdparty/libusb-cmake"]
+	path = canaan-burn/3rdparty/libusb-cmake
+	url = https://github.com/kendryte747/libusb-cmake.git

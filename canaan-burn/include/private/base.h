@@ -28,6 +28,10 @@
 #define STRINGIZE(x) STRINGIZE2(x)
 #define STRINGIZE2(x) #x
 
+#define __round_mask(x, y) ((__typeof__(x))((y)-1))
+#define round_up(x, y) ((((x)-1) | __round_mask(x, y))+1)
+#define round_down(x, y) ((x) & ~__round_mask(x, y))
+
 #define __VaridicMacro_Helper1(A0, A1, FN, ...) FN
 #define __VaridicMacro_Helper2(A0, A1, A2, FN, ...) FN
 #define __VaridicMacro_Helper3(A0, A1, A2, A3, FN, ...) FN

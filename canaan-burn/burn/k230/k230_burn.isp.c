@@ -99,30 +99,18 @@ static kburn_err_t K230BurnISP_boot_from_addr(kburnDeviceNode *node, uint32_t ad
 
 static kburn_err_t K230BurnISP_write_data(kburnDeviceNode *node, unsigned char *data, int length)
 {
-    int r = -1, size = 0, retry = 0;
+    int rc = -1, size = 0;
 
-    do {
-        retry ++;
+    rc = libusb_bulk_transfer(/* dev_handle       */ node->usb->handle,
+                              /* endpoint         */ KENDRYTE_OUT_ENDPOINT,
+                              /* bulk data        */ data,
+                              /* bulk data length */ length,
+                              /* transferred      */ &size,
+                              /* timeout          */ USB_TIMEOUT);
 
-        r = libusb_bulk_transfer(/* dev_handle       */ node->usb->handle,
-                                 /* endpoint         */ KENDRYTE_OUT_ENDPOINT,
-                                 /* bulk data        */ data,
-                                 /* bulk data length */ length,
-                                 /* transferred      */ &size,
-                                 /* timeout          */ USB_TIMEOUT);
-
-        if (r == LIBUSB_ERROR_PIPE) {
-            libusb_clear_halt(node->usb->handle, KENDRYTE_OUT_ENDPOINT);
-        }
-    } while ((r == LIBUSB_ERROR_PIPE) && (retry < RETRY_MAX));
-
-    if (r != LIBUSB_SUCCESS) {
-        debug_print(KBURN_LOG_ERROR, "Error - can't send bulk data to kendryte CPU: %s", libusb_strerror((enum libusb_error)r));
-        return KBrunUsbCommError;
-    }
-
-    if (size != length) {
-        debug_print(KBURN_LOG_ERROR, "Error - write data length not equal %d != %d", size, length);
+    if ((rc != LIBUSB_SUCCESS) || (size != length)) {
+        debug_print(KBURN_LOG_ERROR, "Error - can't write bulk data, error %s, length %d, transfered %d", \
+            libusb_strerror((enum libusb_error)rc), length, size);
         return KBrunUsbCommError;
     }
 
@@ -131,30 +119,18 @@ static kburn_err_t K230BurnISP_write_data(kburnDeviceNode *node, unsigned char *
 
 kburn_err_t K230BurnISP_read_data(kburnDeviceNode *node, unsigned char *data, int length)
 {
-    int r = -1, size = 0, retry = 0;
+    int rc = -1, size = 0;
 
-    do {
-        retry ++;
+    rc = libusb_bulk_transfer(/* dev_handle       */ node->usb->handle,
+                              /* endpoint         */ KENDRYTE_IN_ENDPOINT,
+                              /* bulk data        */ data,
+                              /* bulk data length */ length,
+                              /* transferred      */ &size,
+                              /* timeout          */ USB_TIMEOUT);
 
-        r = libusb_bulk_transfer(/* dev_handle       */ node->usb->handle,
-                                 /* endpoint         */ KENDRYTE_IN_ENDPOINT,
-                                 /* bulk data        */ data,
-                                 /* bulk data length */ length,
-                                 /* transferred      */ &size,
-                                 /* timeout          */ USB_TIMEOUT);
-
-        if (r == LIBUSB_ERROR_PIPE) {
-            libusb_clear_halt(node->usb->handle, KENDRYTE_IN_ENDPOINT);
-        }
-    } while ((r == LIBUSB_ERROR_PIPE) && (retry < RETRY_MAX));
-
-    if (r != LIBUSB_SUCCESS) {
-        debug_print(KBURN_LOG_ERROR, "Error - can't read bulk data to kendryte CPU: %s", libusb_strerror((enum libusb_error)r));
-        return KBrunUsbCommError;
-    }
-
-    if (size != length) {
-        debug_print(KBURN_LOG_ERROR, "Error - read data length not equal %d != %d", size, length);
+    if ((rc != LIBUSB_SUCCESS) || (size != length)) {
+        debug_print(KBURN_LOG_ERROR, "Error - can't recv bulk data, error %s, length %d, transfered %d", \
+            libusb_strerror((enum libusb_error)rc), length, size);
         return KBrunUsbCommError;
     }
 
@@ -166,7 +142,7 @@ kburn_err_t K230BurnISP_read_data(kburnDeviceNode *node, unsigned char *data, in
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #define K230_SRAM_CFG_ADDR          (0x80250000)
-#define K230_SRAM_APP_ADDR          (0x80300000)
+#define K230_SRAM_APP_ADDR          (0x80360000)
 #define K230_SRAM_PAGE_SIZE         (1024)
 
 bool K230BurnISP_Greeting(kburnDeviceNode *node) {
@@ -290,31 +266,6 @@ bool K230BurnISP_RunProgram(kburnDeviceNode *node, const void *programBuffer, si
     }
 
     node->destroy_in_progress = true;
-
-    return true;
-}
-
-bool K230BurnISP_WriteBurnImageConfig(kburnDeviceNode *node, const void *cfgData, size_t cfgSize, on_write_progress page_callback, void *ctx) {
-	debug_trace_function("node[0x%p]", (void *)node);
-
-	if (!K230BurnISP_Greeting(node)) {
-        debug_print(KBURN_LOG_ERROR, COLOR_FMT("greeting failed"), RED);
-
-		return false;
-	}
-
-	do_sleep(10);
-	if (!K230BurnISP_WriteMemory(node, (const uint8_t *)cfgData, cfgSize, K230_SRAM_CFG_ADDR, page_callback, ctx)) {
-        debug_print(KBURN_LOG_ERROR, COLOR_FMT("Write data to sram failed"), RED);
-
-		return false;
-	}
-
-	do_sleep(20);
-	if (!K230BurnISP_Greeting(node)) {
-		debug_print(KBURN_LOG_ERROR, COLOR_FMT("	re-greeting failed..."), RED);
-		return false;
-	}
 
     return true;
 }

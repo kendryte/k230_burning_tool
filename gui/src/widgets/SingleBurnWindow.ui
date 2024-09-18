@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>522</width>
+    <width>538</width>
     <height>47</height>
    </rect>
   </property>
@@ -106,7 +106,7 @@
       <item>
        <widget class="QPushButton" name="btnRetry">
         <property name="text">
-         <string>重试</string>
+         <string>Retry</string>
         </property>
         <property name="icon">
          <iconset resource="../../resources/main.qrc">
@@ -120,7 +120,7 @@
       <item>
        <widget class="QPushButton" name="btnDismiss">
         <property name="text">
-         <string>确认</string>
+         <string>Confirm</string>
         </property>
         <property name="icon">
          <iconset resource="../../resources/main.qrc">
@@ -134,7 +134,7 @@
       <item>
        <widget class="QPushButton" name="btnTerminate">
         <property name="text">
-         <string>中断</string>
+         <string>Cancel</string>
         </property>
         <property name="icon">
          <iconset resource="../../resources/main.qrc">

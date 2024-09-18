@@ -33,7 +33,7 @@ class SingleBurnWindow : public QWidget {
 
   private slots:
 	void updateTitle();
-	void setCompleteState();
+	void setCompleteState(const QString &speed);
 	void setErrorState(const class KBurnException &reason);
 	void setCancellingState();
 

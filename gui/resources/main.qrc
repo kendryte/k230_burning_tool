@@ -14,7 +14,8 @@
         <file>trash-solid.svg</file>
         <file>rotate-right-solid.svg</file>
         <file>sliders-solid.svg</file>
-        <file>u-boot.bin</file>
         <file>exit.svg</file>
+        <file>loader_nano3_new_1.0.bin</file>
+        <file>loader.bin</file>
     </qresource>
 </RCC>

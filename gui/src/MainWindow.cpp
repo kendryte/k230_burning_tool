@@ -31,7 +31,11 @@ MainWindow::MainWindow(QWidget *parent)
 	ui->setupUi(this);
 
 	QString getTitleVersion(void);
-	setWindowTitle(windowTitle() + getTitleVersion());
+#if IS_AVALON_NANO3
+	setWindowTitle(QString("KendryteBurningTool-AvalonNano3") + getTitleVersion());
+#else
+	setWindowTitle(QString("K230BurningTool") + getTitleVersion());
+#endif
 
 	ui->mainSplitter->setStretchFactor(1, 0);
 	ui->mainSplitter->setCollapsible(0, false);
@@ -55,11 +59,11 @@ MainWindow::MainWindow(QWidget *parent)
 	}
 
 	if(logShown) {
-		ui->action->setText(tr("关闭日志窗口"));
-		ui->action->setToolTip(tr("关闭日志窗口"));
+		ui->action->setText(tr("Close logging window"));
+		ui->action->setToolTip(tr("Close logging window"));
 	} else {
-		ui->action->setText(tr("展开日志窗口"));
-		ui->action->setToolTip(tr("展开日志窗口"));
+		ui->action->setText(tr("Expand logging window"));
+		ui->action->setToolTip(tr("Expand logging window"));
 	}
 
 	connect(ui->mainSplitter, &QSplitter::splitterMoved, this, &MainWindow::onResized);
@@ -90,12 +94,14 @@ MainWindow::MainWindow(QWidget *parent)
 
 	BurnLibrary::instance()->start();
 
-	if (GlobalSetting::disableUpdate.getValue()) {
+	// temporary disable update check, 2024年8月2日17:01:47
+
+	// if (GlobalSetting::disableUpdate.getValue()) {
 		ui->btnUpdate->hide();
 		updateChecker = nullptr;
-	} else {
-		updateChecker = new UpdateChecker(ui->btnUpdate);
-	}
+	// } else {
+	// 	updateChecker = new UpdateChecker(ui->btnUpdate);
+	// }
 }
 
 void MainWindow::onResized() {
@@ -131,8 +137,8 @@ void MainWindow::on_btnSaveLog_triggered() {
 	QString selFilter("Log File (*.html)");
 	QDateTime datetime = QDateTime::currentDateTime();
 	QString str = QFileDialog::getSaveFileName(
-		this, tr("日志保存路径"), QDir::currentPath() + "/help-" + datetime.toString("yyyyMMdd-hhmmss") + ".html",
-		tr("日志文件 (*.html);;All files (*.*)"), &selFilter);
+		this, tr("Log File Save Path"), QDir::currentPath() + "/help-" + datetime.toString("yyyyMMdd-hhmmss") + ".html",
+		tr("Log File (*.html);;All files (*.*)"), &selFilter);
 	if (str.isEmpty()) {
 		return;
 	}
@@ -173,16 +179,16 @@ void MainWindow::on_action_triggered() {
 		sizes[logWidgetIndex] = 0;
 		ui->mainSplitter->setSizes(sizes);
 
-		ui->action->setText(tr("展开日志窗口"));
-		ui->action->setToolTip(tr("展开日志窗口"));
+		ui->action->setText(tr("Expand logging window"));
+		ui->action->setToolTip(tr("Expand logging window"));
 	} else {
 		logShown = true;
 
 		sizes[logWidgetIndex] = 300;
 		ui->mainSplitter->setSizes(sizes);
 
-		ui->action->setText(tr("关闭日志窗口"));
-		ui->action->setToolTip(tr("关闭日志窗口"));
+		ui->action->setText(tr("Close logging window"));
+		ui->action->setToolTip(tr("Close logging window"));
 	}
 }
 
@@ -194,12 +200,12 @@ void MainWindow::splitterMovedSlot(int pos, int index)
 	if(0x00 != sizes[logWidgetIndex]) {
 		logShown = true;
 
-		ui->action->setText(tr("关闭日志窗口"));
-		ui->action->setToolTip(tr("关闭日志窗口"));
+		ui->action->setText(tr("Close logging window"));
+		ui->action->setToolTip(tr("Close logging window"));
 	} else {
 		logShown = false;
 
-		ui->action->setText(tr("展开日志窗口"));
-		ui->action->setToolTip(tr("展开日志窗口"));
+		ui->action->setText(tr("Expand logging window"));
+		ui->action->setToolTip(tr("Expand logging window"));
 	}
 }

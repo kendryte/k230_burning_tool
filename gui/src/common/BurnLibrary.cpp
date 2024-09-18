@@ -65,8 +65,8 @@ void BurnLibrary::deleteInstance() {
 void BurnLibrary::fatalAlert(kburn_err_t err) {
 	auto e = kburnSplitErrorCode(err);
 	QMessageBox msg(
-		QMessageBox::Icon::Critical, ::tr("错误"),
-		::tr("无法初始化读写功能:") + '\n' + ::tr("错误类型： ") + QString::number(e.kind) + ", " + ::tr("错误代码： ") + QString::number(e.code),
+		QMessageBox::Icon::Critical, ::tr("Error"),
+		::tr("System Error:") + '\n' + ::tr("Type: ") + QString::number(e.kind) + ", " + ::tr("Code: ") + QString::number(e.code),
 		QMessageBox::StandardButton::Close, parent);
 	msg.exec();
 	abort();

@@ -96,8 +96,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 		return DefWindowProc(hwnd, msg, wParam, lParam);
 	}
 
-	if (wParam != DBT_DEVNODES_CHANGED)
-		return 0;
+	// if (wParam != DBT_DEVNODES_CHANGED) {
+	// 	return 0;
+	// }
 
 	// debug_trace_function("DBT_DEVNODES_CHANGED");
 
