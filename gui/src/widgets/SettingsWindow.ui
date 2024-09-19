@@ -164,7 +164,7 @@
         <item>
          <widget class="QCheckBox" name="inputAutoConfirm">
           <property name="text">
-           <string>Automatic confirmation upon successful completion</string>
+           <string>Automatic confirm upon successful completion</string>
           </property>
          </widget>
         </item>

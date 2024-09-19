@@ -23,7 +23,7 @@ void UpdateChecker::run() {
 	try {
 		_run();
 	} catch (QException e) {
-		emit giveTip(::tr("Update Failed"));
+		emit giveTip(::tr("Check Update Failed"));
 	}
 }
 

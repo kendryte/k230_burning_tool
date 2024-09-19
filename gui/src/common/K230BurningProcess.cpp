@@ -60,10 +60,10 @@ int K230BurningProcess::prepare(QList<struct BurnImageItem> &imageList, quint64 
 		throw KBurnException(tr("Timeout for Waiting Device Plug in"));
 	}
 
-	setStage(::tr("Wrinte USB LOADER"), loaderFileContent.size());
+	setStage(::tr("Write USB LOADER"), loaderFileContent.size());
 
 	if(!K230BurnISP_RunProgram(node, loaderFileContent.data(), loaderFileContent.size(), K230BurningProcess::serial_isp_progress, this)) {
-		throw KBurnException(tr("Wrinte USB LOADER Failed"));
+		throw KBurnException(tr("Write USB LOADER Failed"));
 	}
 
 	setStage(::tr("Waiting Stage2 Device"));

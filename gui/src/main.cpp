@@ -14,12 +14,16 @@ static MainWindow *w;
 int main(int argc, char *argv[]) {
 	a = new QApplication(argc, argv);
 
-	if(QLocale::Chinese != QLocale::system().language()) {
-		const QString baseName = "K230_qt_en";
+#if IS_AVALON_NANO3
+	// Avalon Nano3 not load translate
+#else
+	if(QLocale::Chinese == QLocale::system().language()) {
+		const QString baseName = "K230_qt_zh_CN";
 		if (translator.load(":/i18n/" + baseName)) {
 			a->installTranslator(&translator);
 		}
 	}
+#endif
 
 	w = new MainWindow;
 

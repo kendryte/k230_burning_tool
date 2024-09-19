@@ -53,7 +53,7 @@ endif()
 
 qt_add_executable(K230BurningTool MANUAL_FINALIZATION "${PROJECT_SOURCES}" "${WIN32_RESOURCES}" "${PROJECT_RESOURCES}")
 
-set(TS_FILES resources/translations/K230_qt_en.ts)
+set(TS_FILES resources/translations/K230_qt_zh_CN.ts)
 qt_add_translations(K230BurningTool TS_FILES ${TS_FILES})
 
 target_include_directories(K230BurningTool PRIVATE "${CMAKE_CURRENT_LIST_DIR}/src")
