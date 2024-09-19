@@ -78,6 +78,8 @@ add_library(canaan_burn SHARED)
 set_property(TARGET canaan_burn PROPERTY C_STANDARD 23)
 set_property(TARGET canaan_burn PROPERTY LINKER_LANGUAGE C)
 
+set_target_properties(canaan_burn PROPERTIES OUTPUT_NAME kburn)
+
 target_compile_definitions(canaan_burn PRIVATE "PROJECT_ROOT=\"${PROJECT_ROOT}\"" KBURN_ASSERT_SIZE BURN_LIB_COMPILING)
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
 	target_compile_definitions(canaan_burn PRIVATE "IS_DEBUG=0")

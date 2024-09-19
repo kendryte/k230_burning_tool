@@ -81,7 +81,7 @@ int K230BurningProcess::prepare(QList<struct BurnImageItem> &imageList, quint64 
 		throw KBurnException(tr("Device Memory error"));
 	}
 
-	if (false == kburn_probe(kburn, isp_target, chunk_size)) {
+	if (false == kburn_probe(kburn, isp_target, (uint64_t*)chunk_size)) {
 		throw KBurnException(tr("Device Can't find Medium as Configured"));
 	}
 

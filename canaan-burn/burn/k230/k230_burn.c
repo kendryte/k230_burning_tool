@@ -4,6 +4,8 @@
 #include "private/lib/debug/print.h"
 #include "private/monitor/usb_types.h"
 
+#include <inttypes.h>
+
 #define RETRY_MAX                   (5)
 #define USB_TIMEOUT                 (2000)
 #define CMD_FLAG_DEV_TO_HOST        (0x8000)
@@ -340,7 +342,7 @@ bool kburn_probe(kburn_t *kburn, kburnUsbIspCommandTaget target, uint64_t *chunk
 
     if(chunk_size) {
         *chunk_size = result[0];
-        debug_print(KBURN_LOG_INFO, "kburn probe, chunksize %lld\n", *chunk_size);
+        debug_print(KBURN_LOG_INFO, "kburn probe, chunksize %" PRId64 "\n", *chunk_size);
     }
 
     return true;
@@ -357,13 +359,13 @@ uint64_t kburn_get_capacity(kburn_t *kburn)
     }
 
     if(info_size != sizeof(info)) {
-        debug_print(KBURN_LOG_ERROR, "kburn get medium info error result size. %d != %lld", info_size, sizeof(info));
+        debug_print(KBURN_LOG_ERROR, "kburn get medium info error result size. %d != %" PRId64 "\n", info_size, sizeof(info));
         return 0;
     }
 
     memcpy(&kburn->medium_info, &info, sizeof(info));
 
-    debug_print(KBURN_LOG_INFO, "medium info, capacty %lld, blk_sz %lld, erase_size %lld, write protect %d", \
+    debug_print(KBURN_LOG_INFO, "medium info, capacty %" PRId64 ", blk_sz %" PRId64 ", erase_size %" PRId64 ", write protect %d", \
         info.capacity, info.blk_size, info.erase_size, info.wp);
 
     return info.capacity;
@@ -377,7 +379,7 @@ bool kburn_erase(struct kburn_t *kburn, uint64_t offset, uint64_t size, int max_
 
     uint64_t cfg[2] = {offset, size};
 
-    debug_print(KBURN_LOG_INFO, "kburn erase medium, offset %lld, size %lld", offset, size);
+    debug_print(KBURN_LOG_INFO, "kburn erase medium, offset %" PRId64 ", size %" PRId64 "\n", offset, size);
 
     if((offset + size) > kburn->medium_info.capacity) {
         debug_print(KBURN_LOG_ERROR, "kburn erase medium exceed");

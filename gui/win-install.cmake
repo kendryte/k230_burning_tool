@@ -74,7 +74,7 @@ if(NOT EXISTS "${SYSTEM32_PATH}/notepad.exe")
 	message(FATAL_ERROR "invalid windows install: system32 \"${SYSTEM32_PATH}\" not valid")
 endif()
 
-foreach(i vcruntime140d.dll ucrtbased.dll)
+foreach(i vcruntime140.dll ucrtbase.dll)
 	file(INSTALL "${SYSTEM32_PATH}/${i}" DESTINATION "${DIST_DIR}/bin")
 endforeach()
 

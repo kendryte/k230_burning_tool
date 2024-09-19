@@ -1,0 +1,99 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+      - feat/**
+
+jobs:
+  build-for-windows:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.repository }}-${{ github.workflow }}
+      cancel-in-progress: true
+    steps:
+    - name: Login to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        token: ${{ secrets.GIT_TOKEN }}
+
+    - name: Get Git revision and set as environment variable
+      id: get_revision
+      run: |
+        revision=$(git describe --long --tag --dirty --always)
+        echo "REVISION=$revision" >> $GITHUB_ENV
+
+    - name: Pull Docker image
+      run: |
+        docker pull stateoftheartio/qt6:6.7-mingw-aqt
+
+    - name: Build for Windows
+      run: |
+        rm -rf ${{ github.workspace }}/build && mkdir -p ${{ github.workspace }}/build
+        docker run --name qt6 -v "${PWD}:/home/user/project:ro" stateoftheartio/qt6:6.7-mingw-aqt /bin/bash -c 'export CI=1; qt-cmake ./project -G Ninja -B ./build; cmake --build ./build; cmake --install ./build; ls -alh ./build'
+        docker cp qt6:/home/user/build/dist ${{ github.workspace }}/build
+        docker rm qt6
+        ls -alh build
+
+    - name: Compress artifacts
+      run: |
+        cd ${{ github.workspace }}/build/dist
+        zip -r K230BurningTool-Windows-${{ env.REVISION }}.zip *
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: "K230BurningTool-Windows-${{ env.REVISION }}"
+        path: ${{ github.workspace }}/build/dist/K230BurningTool-Windows-${{ env.REVISION }}.zip
+        if-no-files-found: error
+        compression-level: 0
+
+    - name: Build AvalonNano3 for Windows 
+      run: |
+        rm -rf ${{ github.workspace }}/build && mkdir -p ${{ github.workspace }}/build
+        docker run --name qt6 -v "${PWD}:/home/user/project:ro" stateoftheartio/qt6:6.7-mingw-aqt /bin/bash -c 'export CI=1; qt-cmake ./project -G Ninja -B ./build -DBUILD_FOR_AVALON_NANO3=1; cmake --build ./build; cmake --install ./build; ls -alh ./build'
+        docker cp qt6:/home/user/build/dist ${{ github.workspace }}/build
+        docker rm qt6
+        ls -alh build
+
+    - name: Compress AvalonNano3 artifacts
+      run: |
+        cd ${{ github.workspace }}/build/dist
+        zip -r K230BurningTool-AvalonNano3-Windows-${{ env.REVISION }}.zip *
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: "K230BurningTool-AvalonNano3-Windows-${{ env.REVISION }}"
+        path: ${{ github.workspace }}/build/dist/K230BurningTool-AvalonNano3-Windows-${{ env.REVISION }}.zip
+        if-no-files-found: error
+        compression-level: 0
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [build-for-windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GIT_TOKEN }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: ./release
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: ./release/**.zip

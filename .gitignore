@@ -1,4 +1,5 @@
-build*
+build/*
 *.txt.user
 .vscode
 CMakeLists.txt.*
+*.zip
