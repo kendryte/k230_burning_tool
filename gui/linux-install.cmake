@@ -34,14 +34,14 @@ set(_APPRUN "${_SRC_DIR}/AppRun")
 
 file(INSTALL ${_ICON} DESTINATION "${DIST_DIR}/share/icons/hicolor/256x256")
 file(INSTALL ${_DESKTOP} DESTINATION "${DIST_DIR}/share/applications")
-file(INSTALL ${_APPRUN} DESTINATION "${DIST_DIR}/../" PERMISSIONS GROUP_EXECUTE)
+file(INSTALL ${_APPRUN} DESTINATION "${DIST_DIR}/../" PERMISSIONS OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 
 # deploy.
 find_program(LINUXDEPLOY "linuxdeployqt" REQUIRED)
 message("RUN ${LINUXDEPLOY} K230BurningTool IN ${DIST_DIR}/bin")
 
 execute_process(
-	COMMAND ${LINUXDEPLOY} "${DIST_DIR}/share/applications/K230BurningTool.desktop" -qmake="${QT_BIN_DIR}/qmake" -appimage
+	COMMAND ${LINUXDEPLOY} "${DIST_DIR}/share/applications/K230BurningTool.desktop" -qmake="${QT_QMAKE_PATH}" -appimage
 	WORKING_DIRECTORY "${CMAKE_CACHEFILE_DIR}"
 	COMMAND_ECHO STDOUT
 	COMMAND_ERROR_IS_FATAL ANY

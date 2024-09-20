@@ -48,6 +48,8 @@ find_package(
 # Print the Qt installation directory
 get_target_property(QtCore_location Qt6::Core IMPORTED_LOCATION)
 get_filename_component(Qt_INSTALL_DIR ${QtCore_location} DIRECTORY)
+get_target_property(QT_QMAKE_PATH Qt6::qmake LOCATION)
+
 message(STATUS "Qt installation directory: ${Qt_INSTALL_DIR}")
 
 file(GLOB_RECURSE PROJECT_SOURCES "src/*.cpp" "src/*.h" "src/*.ui")
@@ -67,7 +69,7 @@ target_include_directories(K230BurningTool PRIVATE "${CMAKE_CURRENT_LIST_DIR}/sr
 
 target_link_libraries(K230BurningTool PRIVATE Qt6::Widgets Qt6::Network Qt6::Svg)
 
-if(TARGET_AVALON_NANO3)
+if(WIN32 AND TARGET_AVALON_NANO3)
 	set_target_properties(K230BurningTool PROPERTIES OUTPUT_NAME KendryteBurningTool-AvalonNano3)
 else()
 	set_target_properties(K230BurningTool PROPERTIES OUTPUT_NAME K230BurningTool)
@@ -128,7 +130,7 @@ if(WIN32)
 	install(CODE "
 		execute_process(
 			COMMAND \"${CMAKE_COMMAND}\"
-			\"-DQT_BIN_DIR=${QT_BIN_DIR}\"
+			\"-DQT_QMAKE_PATH=${QT_QMAKE_PATH}\"
 			\"-DCMAKE_CACHEFILE_DIR=${CMAKE_BINARY_DIR}\"
 			\"-DEXECUTABLE_NAME=${EXECUTABLE_NAME}\"
 			-P \"${CMAKE_CURRENT_LIST_DIR}/win-install.cmake\"
@@ -149,6 +151,7 @@ elseif(LINUX)
 	install(CODE "
 	execute_process(
 		COMMAND \"${CMAKE_COMMAND}\"
+		\"-DQT_QMAKE_PATH=${QT_QMAKE_PATH}\"
 		\"-DCMAKE_CACHEFILE_DIR=${CMAKE_BINARY_DIR}\"
 		\"-DSSL_LIBS=${SSL_LIBS}\"
 		\"-DEXECUTABLE_NAME=${EXECUTABLE_NAME}\"
