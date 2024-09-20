@@ -77,8 +77,8 @@
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>167</width>
-             <height>83</height>
+             <width>145</width>
+             <height>68</height>
             </rect>
            </property>
            <layout class="QVBoxLayout" name="burnJobListView">
@@ -140,7 +140,7 @@
      <x>0</x>
      <y>0</y>
      <width>757</width>
-     <height>25</height>
+     <height>21</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuF_ile">
@@ -158,7 +158,6 @@
     <property name="title">
      <string>About(&amp;A)</string>
     </property>
-    <addaction name="btnOpenRelease"/>
     <addaction name="btnOpenWebsite"/>
    </widget>
    <widget class="UpdateButton" name="btnUpdate">
@@ -179,7 +178,7 @@
      <normaloff>:/github-brands.svg</normaloff>:/github-brands.svg</iconset>
    </property>
    <property name="text">
-    <string>Open Release Page</string>
+    <string>Download Update</string>
    </property>
    <property name="iconVisibleInMenu">
     <bool>false</bool>
@@ -235,11 +234,6 @@
    </property>
    <property name="text">
     <string>Debug USB Communication</string>
-   </property>
-  </action>
-  <action name="btnOpenRelease">
-   <property name="text">
-    <string>Download latest</string>
    </property>
   </action>
   <action name="action">

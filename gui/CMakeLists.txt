@@ -17,9 +17,16 @@ else()
 	set(IS_CI FALSE)
 endif()
 
+# Get the Git commit hash and store it in the variable GITHUB_VERSION
+execute_process(
+    COMMAND git rev-parse HEAD
+    OUTPUT_VARIABLE GITHUB_VERSION
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
 set(MY_VERSION $DATE)
 string(TIMESTAMP MY_VERSION_STRING "%Y-%m-%d %H:%M")
-set(GITHUB_VERSION "$ENV{GITHUB_SHA}")
+# set(GITHUB_VERSION "$ENV{GITHUB_SHA}")
 configure_file("${CMAKE_CURRENT_LIST_DIR}/src/config.h.in" "${CMAKE_CURRENT_BINARY_DIR}/autogen/config.h")
 
 if(BUILD_FOR_AVALON_NANO3)

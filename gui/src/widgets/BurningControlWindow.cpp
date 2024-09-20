@@ -444,7 +444,7 @@ void BurningControlWindow::initTableView(void)
 	 * 目标名称
 	 */
     QStringList targetAltName;
-    targetAltName << "loader" << "spl" << "uboot" << "rtt" << "kernel" << "rootfs" << "image";
+    targetAltName << "loader" << "image";
 
 	ComboDelegate *pComboAltName = new ComboDelegate(this);
 	pComboAltName->setItems(targetAltName);

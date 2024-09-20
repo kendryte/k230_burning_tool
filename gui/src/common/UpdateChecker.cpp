@@ -13,6 +13,10 @@
 #include <QThreadPool>
 #include <QTimer>
 
+#define CURRENT_VERSION_MAJOR		2
+#define CURRENT_VERSION_MINOR		0
+#define CURRENT_VERSION_PATCH		0
+
 UpdateChecker::UpdateChecker(UpdateButton *button) : button(button) {
 	setAutoDelete(false);
 	connect(this, &UpdateChecker::giveTip, button, &UpdateButton::changeTitle);
@@ -31,8 +35,7 @@ void UpdateChecker::_run() {
 	emit giveTip(::tr("Checking Update..."));
 
 	QNetworkAccessManager mgr;
-	QNetworkRequest request{QUrl("https://api.github.com/repos/kendryte/BurningTool/releases/latest")};
-	request.setHeader(QNetworkRequest::UserAgentHeader, "kendryte/BurningTool " VERSION_STRING);
+	QNetworkRequest request{QUrl("https://kendryte-download.canaan-creative.com/k230/downloads/burn_tool/k230_burningtool_lastest.txt")};
 
 	QNetworkReply *reply = mgr.get(request);
 
@@ -47,11 +50,20 @@ void UpdateChecker::_run() {
 	}
 
 	QJsonDocument jsonResponse = QJsonDocument::fromJson(reply->readAll());
-	QString sha = jsonResponse.object().value("target_commitish").toString();
-	BurnLibrary::instance()->localLog(QStringLiteral("newest version is: ") + sha);
-	BurnLibrary::instance()->localLog(QStringLiteral("my     version is: ") + QString::fromLatin1(VERSION_HASH));
 
-	if (sha != VERSION_HASH) {
+	int new_ver = jsonResponse.object().value("version").toInt();
+	QString new_hash = jsonResponse.object().value("hash").toString().toLower();
+
+	int now_ver = CURRENT_VERSION_MAJOR * 1000 + CURRENT_VERSION_MINOR * 100 + CURRENT_VERSION_PATCH;
+	QString now_hash = QString::fromLatin1(VERSION_HASH).toLower();
+
+	BurnLibrary::instance()->localLog(QStringLiteral("newest version is: %1").arg(new_ver));
+	BurnLibrary::instance()->localLog(QStringLiteral("my     version is: %1").arg(now_ver));
+
+	BurnLibrary::instance()->localLog(QStringLiteral("newest hash is: ") + new_hash);
+	BurnLibrary::instance()->localLog(QStringLiteral("my     hash is: ") + now_hash);
+
+	if(new_ver > now_ver) {
 		emit giveTip(::tr("New Version"));
 	} else {
 		emit giveTip(::tr("Latest"));

@@ -39,7 +39,7 @@ class MainWindow : public QMainWindow {
   private slots:
     void on_btnOpenWebsite_triggered();
     void on_btnSaveLog_triggered();
-    void on_btnOpenRelease_triggered();
+    // void on_btnOpenRelease_triggered();
     void startNewBurnJob(class BurningRequest *partialRequest);
     void onResized();
 

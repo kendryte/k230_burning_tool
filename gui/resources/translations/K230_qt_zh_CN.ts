@@ -14,7 +14,7 @@
         <translation>错误</translation>
     </message>
     <message>
-        <location filename="../../src/common/UpdateChecker.cpp" line="26"/>
+        <location filename="../../src/common/UpdateChecker.cpp" line="24"/>
         <source>Check Update Failed</source>
         <translation>检查更新失败</translation>
     </message>
@@ -73,7 +73,7 @@
         <translation>初始化设备</translation>
     </message>
     <message>
-        <location filename="../../src/common/UpdateChecker.cpp" line="57"/>
+        <location filename="../../src/common/UpdateChecker.cpp" line="53"/>
         <source>Latest</source>
         <translation>最新版</translation>
     </message>
@@ -83,7 +83,7 @@
         <translation>类型： </translation>
     </message>
     <message>
-        <location filename="../../src/common/UpdateChecker.cpp" line="31"/>
+        <location filename="../../src/common/UpdateChecker.cpp" line="29"/>
         <source>Checking Update...</source>
         <translation>检查更新中...</translation>
     </message>
@@ -118,7 +118,7 @@
         <translation>擦除， </translation>
     </message>
     <message>
-        <location filename="../../src/common/UpdateChecker.cpp" line="55"/>
+        <location filename="../../src/common/UpdateChecker.cpp" line="51"/>
         <source>New Version</source>
         <translation>新版本</translation>
     </message>
@@ -138,8 +138,8 @@
         <translation>本地构建</translation>
     </message>
     <message>
-        <location filename="../../src/common/UpdateChecker.cpp" line="44"/>
-        <location filename="../../src/common/UpdateChecker.cpp" line="45"/>
+        <location filename="../../src/common/UpdateChecker.cpp" line="41"/>
+        <location filename="../../src/common/UpdateChecker.cpp" line="42"/>
         <source>Can&apos;t Checking Update: </source>
         <translation>无法检查更新： </translation>
     </message>
@@ -550,7 +550,7 @@
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="../../src/MainWindow.ui" line="197"/>
+        <location filename="../../src/MainWindow.ui" line="196"/>
         <source>Quit</source>
         <translation>退出</translation>
     </message>
@@ -560,43 +560,48 @@
         <translation>选项(&amp;O)</translation>
     </message>
     <message>
-        <location filename="../../src/MainWindow.ui" line="169"/>
+        <location filename="../../src/MainWindow.ui" line="168"/>
         <source>Check Update</source>
         <translation>检查更新</translation>
     </message>
     <message>
         <location filename="../../src/MainWindow.cpp" line="62"/>
         <location filename="../../src/MainWindow.cpp" line="63"/>
-        <location filename="../../src/MainWindow.cpp" line="190"/>
-        <location filename="../../src/MainWindow.cpp" line="191"/>
-        <location filename="../../src/MainWindow.cpp" line="203"/>
-        <location filename="../../src/MainWindow.cpp" line="204"/>
+        <location filename="../../src/MainWindow.cpp" line="188"/>
+        <location filename="../../src/MainWindow.cpp" line="189"/>
+        <location filename="../../src/MainWindow.cpp" line="201"/>
+        <location filename="../../src/MainWindow.cpp" line="202"/>
         <source>Close logging window</source>
         <translation>关闭日志窗口</translation>
     </message>
     <message>
         <location filename="../../src/MainWindow.cpp" line="65"/>
         <location filename="../../src/MainWindow.cpp" line="66"/>
-        <location filename="../../src/MainWindow.cpp" line="182"/>
-        <location filename="../../src/MainWindow.cpp" line="183"/>
-        <location filename="../../src/MainWindow.cpp" line="208"/>
-        <location filename="../../src/MainWindow.cpp" line="209"/>
+        <location filename="../../src/MainWindow.cpp" line="180"/>
+        <location filename="../../src/MainWindow.cpp" line="181"/>
+        <location filename="../../src/MainWindow.cpp" line="206"/>
+        <location filename="../../src/MainWindow.cpp" line="207"/>
         <source>Expand logging window</source>
         <translation>展开日志窗口</translation>
     </message>
     <message>
-        <location filename="../../src/MainWindow.ui" line="200"/>
+        <location filename="../../src/MainWindow.ui" line="181"/>
+        <source>Download Update</source>
+        <translation>下载更新</translation>
+    </message>
+    <message>
+        <location filename="../../src/MainWindow.ui" line="199"/>
         <source>Ctrl+Q</source>
         <translation>Ctrl+Q</translation>
     </message>
     <message>
-        <location filename="../../src/MainWindow.ui" line="218"/>
+        <location filename="../../src/MainWindow.ui" line="217"/>
         <source>Ctrl+S</source>
         <translation>Ctrl+S</translation>
     </message>
     <message>
-        <location filename="../../src/MainWindow.ui" line="229"/>
-        <location filename="../../src/MainWindow.ui" line="247"/>
+        <location filename="../../src/MainWindow.ui" line="228"/>
+        <location filename="../../src/MainWindow.ui" line="241"/>
         <source>More Detailed Logs</source>
         <translation>更详细显示日志</translation>
     </message>
@@ -606,14 +611,13 @@
         <translation>关于(&amp;A)</translation>
     </message>
     <message>
-        <location filename="../../src/MainWindow.cpp" line="140"/>
+        <location filename="../../src/MainWindow.cpp" line="138"/>
         <source>Log File Save Path</source>
         <translation>日志保存路径</translation>
     </message>
     <message>
-        <location filename="../../src/MainWindow.ui" line="242"/>
         <source>Download latest</source>
-        <translation>下载最新版本</translation>
+        <translation type="vanished">下载最新版本</translation>
     </message>
     <message>
         <location filename="../../src/MainWindow.ui" line="14"/>
@@ -621,32 +625,31 @@
         <translation>K230BurningTool</translation>
     </message>
     <message>
-        <location filename="../../src/MainWindow.cpp" line="141"/>
+        <location filename="../../src/MainWindow.cpp" line="139"/>
         <source>Log File (*.html);;All files (*.*)</source>
         <translation>日志文件 (*.html);;All files (*.*)</translation>
     </message>
     <message>
-        <location filename="../../src/MainWindow.ui" line="194"/>
+        <location filename="../../src/MainWindow.ui" line="193"/>
         <source>Quit(&amp;Q)</source>
         <translation>退出(&amp;Q)</translation>
     </message>
     <message>
-        <location filename="../../src/MainWindow.ui" line="212"/>
+        <location filename="../../src/MainWindow.ui" line="211"/>
         <source>Save Logs(&amp;S)</source>
         <translation>保存日志(&amp;S)</translation>
     </message>
     <message>
-        <location filename="../../src/MainWindow.ui" line="215"/>
+        <location filename="../../src/MainWindow.ui" line="214"/>
         <source>Save Logs</source>
         <translation>保存日志</translation>
     </message>
     <message>
-        <location filename="../../src/MainWindow.ui" line="182"/>
         <source>Open Release Page</source>
-        <translation>打开发布页面</translation>
+        <translation type="vanished">打开发布页面</translation>
     </message>
     <message>
-        <location filename="../../src/MainWindow.ui" line="237"/>
+        <location filename="../../src/MainWindow.ui" line="236"/>
         <source>Debug USB Communication</source>
         <translation>调试数据传输</translation>
     </message>

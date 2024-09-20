@@ -94,14 +94,12 @@ MainWindow::MainWindow(QWidget *parent)
 
 	BurnLibrary::instance()->start();
 
-	// temporary disable update check, 2024年8月2日17:01:47
-
-	// if (GlobalSetting::disableUpdate.getValue()) {
+	if (GlobalSetting::disableUpdate.getValue()) {
 		ui->btnUpdate->hide();
 		updateChecker = nullptr;
-	// } else {
-	// 	updateChecker = new UpdateChecker(ui->btnUpdate);
-	// }
+	} else {
+		updateChecker = new UpdateChecker(ui->btnUpdate);
+	}
 }
 
 void MainWindow::onResized() {
@@ -130,7 +128,7 @@ void MainWindow::closeEvent(QCloseEvent *ev) {
 }
 
 void MainWindow::on_btnOpenWebsite_triggered() {
-	QDesktopServices::openUrl(QUrl("https://github.com/kendryte/BurningTool"));
+	QDesktopServices::openUrl(QUrl("https://kendryte-download.canaan-creative.com/k230/downloads/burn_tool"));
 }
 
 void MainWindow::on_btnSaveLog_triggered() {
@@ -146,9 +144,9 @@ void MainWindow::on_btnSaveLog_triggered() {
 	ui->textLog->copyLogFileTo(str);
 }
 
-void MainWindow::on_btnOpenRelease_triggered() {
-	QDesktopServices::openUrl(QUrl("https://github.com/kendryte/BurningTool/releases/tag/latest"));
-}
+// void MainWindow::on_btnOpenRelease_triggered() {
+// 	QDesktopServices::openUrl(QUrl("https://github.com/kendryte/BurningTool/releases/tag/latest"));
+// }
 
 void MainWindow::startNewBurnJob(BurningRequest *partialRequest) {
 	// partialRequest->systemImageFile = ui->burnControlWindow->getFile();
