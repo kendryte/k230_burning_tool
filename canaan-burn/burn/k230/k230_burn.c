@@ -359,7 +359,7 @@ uint64_t kburn_get_capacity(kburn_t *kburn)
     }
 
     if(info_size != sizeof(info)) {
-        debug_print(KBURN_LOG_ERROR, "kburn get medium info error result size. %d != %" PRId64 "\n", info_size, sizeof(info));
+        debug_print(KBURN_LOG_ERROR, "kburn get medium info error result size. %d != " FMT_SIZET "\n", info_size, sizeof(info));
         return 0;
     }
 

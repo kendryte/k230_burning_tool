@@ -6,6 +6,9 @@
 #include <QSettings>
 #include <QTranslator>
 
+#include <QPalette>
+#include <QStyleFactory>
+
 #define SETTING_WINDOW_SIZE "window-size"
 
 static QApplication *a;
@@ -24,6 +27,23 @@ int main(int argc, char *argv[]) {
 		}
 	}
 #endif
+
+	// Force light theme
+    QPalette lightPalette;
+    lightPalette.setColor(QPalette::Window, Qt::white);
+    lightPalette.setColor(QPalette::WindowText, Qt::black);
+    lightPalette.setColor(QPalette::Base, Qt::white);
+    lightPalette.setColor(QPalette::AlternateBase, Qt::lightGray);
+    lightPalette.setColor(QPalette::ToolTipBase, Qt::white);
+    lightPalette.setColor(QPalette::ToolTipText, Qt::black);
+    lightPalette.setColor(QPalette::Text, Qt::black);
+    lightPalette.setColor(QPalette::Button, Qt::lightGray);
+    lightPalette.setColor(QPalette::ButtonText, Qt::black);
+    lightPalette.setColor(QPalette::BrightText, Qt::red);
+    lightPalette.setColor(QPalette::Link, QColor(42, 130, 218));
+
+    a->setPalette(lightPalette);
+    a->setStyle(QStyleFactory::create("Fusion"));
 
 	w = new MainWindow;
 

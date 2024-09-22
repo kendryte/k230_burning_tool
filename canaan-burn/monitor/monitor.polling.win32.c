@@ -23,10 +23,10 @@ typedef struct polling_context {
 } polling_context;
 
 static inline bool match_device(int vid, int pid, const kburnUsbDeviceInfoSlice *devInfo) {
-	if (vid != KBURN_VIDPID_FILTER_ANY && vid != devInfo->idVendor) {
+	if ((uint16_t)vid != (uint16_t)KBURN_VIDPID_FILTER_ANY && vid != devInfo->idVendor) {
 		return false;
 	}
-	if (pid != KBURN_VIDPID_FILTER_ANY && pid != devInfo->idProduct) {
+	if ((uint16_t)pid != (uint16_t)KBURN_VIDPID_FILTER_ANY && pid != devInfo->idProduct) {
 		return false;
 	}
 	return true;

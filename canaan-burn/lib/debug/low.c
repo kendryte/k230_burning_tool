@@ -36,6 +36,51 @@ void debug_puts(const char *message) {
 	debug_output_move(m_snprintf(debug_output, debug_buffer_remain, "%s", message));
 }
 
+#ifdef APPLE
+
+pthread_rwlock_t rwlock;
+
+__attribute__((constructor)) void lock_constructor() {
+	m_assert(pthread_rwlock_init(&rwlock, NULL) == 0, "lock destroy fail");
+}
+
+__attribute__((destructor)) void lock_destructor() {
+	m_assert(pthread_rwlock_destroy(&rwlock) == 0, "lock destroy fail");
+}
+
+void _kb__debug_enter() {
+	pthread_rwlock_wrlock(&rwlock);
+	debug_output = debug_buffer;
+	debug_buffer_remain = DEBUG_BUFFER_SIZE;
+	debug_buffer[0] = '\0';
+
+	time_t rawtime;
+	struct tm * timeinfo;
+	char buffer [80];
+	char currentTime[128];
+
+	struct timeval curTime;
+	gettimeofday(&curTime, NULL);
+	int milli = curTime.tv_usec / 1000;
+
+	time(&rawtime);
+	timeinfo = localtime(&rawtime);
+	strftime(buffer, 80, "%Y-%m-%d %H:%M:%S", timeinfo);
+
+	sprintf(currentTime, "%s:%d ", buffer, milli);
+
+	debug_puts(currentTime);
+}
+
+void _kb__debug_leave(kburnLogType type) {
+	assert(debug_output - debug_buffer <= DEBUG_BUFFER_SIZE);
+	assert(debug_output[0] == '\0');
+	debug_callback_call(type, debug_buffer);
+	pthread_rwlock_unlock(&rwlock);
+}
+
+#else
+
 pthread_spinlock_t lock = 0;
 
 __attribute__((constructor)) void lock_constructor() {
@@ -76,3 +121,4 @@ void _kb__debug_leave(kburnLogType type) {
 	debug_callback_call(type, debug_buffer);
 	pthread_spin_unlock(&lock);
 }
+#endif

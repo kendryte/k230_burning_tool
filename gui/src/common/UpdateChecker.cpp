@@ -13,10 +13,6 @@
 #include <QThreadPool>
 #include <QTimer>
 
-#define CURRENT_VERSION_MAJOR		2
-#define CURRENT_VERSION_MINOR		0
-#define CURRENT_VERSION_PATCH		0
-
 UpdateChecker::UpdateChecker(UpdateButton *button) : button(button) {
 	setAutoDelete(false);
 	connect(this, &UpdateChecker::giveTip, button, &UpdateButton::changeTitle);

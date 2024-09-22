@@ -182,7 +182,11 @@ bool BurningControlWindow::checkSysImage() {
 
 			memset(&item, 0, sizeof(struct BurnImageItem));
 
+#if IS_AVALON_NANO3
+			_fd.setFileName(QString(":/loader_nano3_new_1.0.bin"));
+#else
 			_fd.setFileName(QString(":/loader.bin"));
+#endif
 			item.address = 0;
 			item.size = _fd.size();
 			item.fileName = _fd.fileName();

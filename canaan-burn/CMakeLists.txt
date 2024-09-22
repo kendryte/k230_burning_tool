@@ -109,6 +109,11 @@ if(DEFINED ENV{CI})
 	endif()
 endif()
 
+if(APPLE)
+	target_compile_options(canaan_burn PRIVATE -Wno-gnu-zero-variadic-macro-arguments)
+	target_compile_definitions(canaan_burn PRIVATE APPLE)
+endif()
+
 # ############################  USB  #######################################
 target_include_directories(canaan_burn PUBLIC ${LIBUSB_GEN_INCLUDES})
 target_link_libraries(canaan_burn PRIVATE usb-1.0)

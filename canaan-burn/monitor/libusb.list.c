@@ -14,10 +14,10 @@
 #include "private/monitor/usb_types.h"
 
 static inline bool match_device(int vid, int pid, const struct libusb_device_descriptor *desc) {
-	if (vid != KBURN_VIDPID_FILTER_ANY && vid != desc->idVendor) {
+	if ((uint16_t)vid != (uint16_t)KBURN_VIDPID_FILTER_ANY && vid != desc->idVendor) {
 		return false;
 	}
-	if (pid != KBURN_VIDPID_FILTER_ANY && pid != desc->idProduct) {
+	if ((uint16_t)pid != (uint16_t)KBURN_VIDPID_FILTER_ANY && pid != desc->idProduct) {
 		return false;
 	}
 	return true;
