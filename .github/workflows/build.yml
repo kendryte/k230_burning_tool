@@ -145,7 +145,7 @@ jobs:
 
     - uses: actions/upload-artifact@v4
       with:
-        name: "K230BurningTool--AvalonNano3Linux-x86_64-${{ env.REVISION }}"
+        name: "K230BurningTool-AvalonNano3-Linux-x86_64-${{ env.REVISION }}"
         path: ${{ github.workspace }}/build/K230BurningTool-AvalonNano3-Linux-x86_64-${{ env.REVISION }}.AppImage
         if-no-files-found: error
         compression-level: 0
@@ -198,7 +198,7 @@ jobs:
         qt-cmake .. -G Ninja
         ninja --verbose
         ninja install
-        mv ${{ github.workspace }}/build/gui/K230BurningTool.dmg ${{ github.workspace }}/build/gui/K230BurningTool-${{ env.REVISION }}.dmg
+        mv ${{ github.workspace }}/build/gui/K230BurningTool.dmg ${{ github.workspace }}/build/gui/K230BurningTool-macOS-${{ env.REVISION }}-unsigned.dmg
 
     - uses: actions/upload-artifact@v4
       with:
@@ -216,7 +216,7 @@ jobs:
         qt-cmake .. -G Ninja -DBUILD_FOR_AVALON_NANO3=1
         ninja --verbose
         ninja install
-        mv ${{ github.workspace }}/build/gui/K230BurningTool.dmg ${{ github.workspace }}/build/gui/K230BurningTool-AvalonNano3-${{ env.REVISION }}.dmg
+        mv ${{ github.workspace }}/build/gui/K230BurningTool.dmg ${{ github.workspace }}/build/gui/K230BurningTool-AvalonNano3-macOS-${{ env.REVISION }}-unsigned.dmg
 
     - uses: actions/upload-artifact@v4
       with:

@@ -14,7 +14,7 @@
         <translation>错误</translation>
     </message>
     <message>
-        <location filename="../../src/common/UpdateChecker.cpp" line="24"/>
+        <location filename="../../src/common/UpdateChecker.cpp" line="26"/>
         <source>Check Update Failed</source>
         <translation>检查更新失败</translation>
     </message>
@@ -24,10 +24,15 @@
         <translation>没有错误</translation>
     </message>
     <message>
-        <location filename="../../src/common/BurningProcess.cpp" line="82"/>
+        <location filename="../../src/common/BurningProcess.cpp" line="79"/>
         <location filename="../../src/common/K230BurningProcess.cpp" line="52"/>
         <source>Can&apos;t Open Image File</source>
         <translation>无法打开镜像文件</translation>
+    </message>
+    <message>
+        <location filename="../../src/common/BurningProcess.cpp" line="85"/>
+        <source>Start Write File to Device failed</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Timeout for Waiting Device Plug in</source>
@@ -68,12 +73,12 @@
         <translation>代码： </translation>
     </message>
     <message>
-        <location filename="../../src/common/K230BurningProcess.cpp" line="76"/>
+        <location filename="../../src/common/K230BurningProcess.cpp" line="95"/>
         <source>Init Device</source>
         <translation>初始化设备</translation>
     </message>
     <message>
-        <location filename="../../src/common/UpdateChecker.cpp" line="53"/>
+        <location filename="../../src/common/UpdateChecker.cpp" line="65"/>
         <source>Latest</source>
         <translation>最新版</translation>
     </message>
@@ -83,17 +88,17 @@
         <translation>类型： </translation>
     </message>
     <message>
-        <location filename="../../src/common/UpdateChecker.cpp" line="29"/>
+        <location filename="../../src/common/UpdateChecker.cpp" line="31"/>
         <source>Checking Update...</source>
         <translation>检查更新中...</translation>
     </message>
     <message>
-        <location filename="../../src/common/K230BurningProcess.cpp" line="100"/>
+        <location filename="../../src/common/K230BurningProcess.cpp" line="121"/>
         <source>Start Downloading...</source>
         <translation>开始下载...</translation>
     </message>
     <message>
-        <location filename="../../src/common/BurningProcess.cpp" line="117"/>
+        <location filename="../../src/common/BurningProcess.cpp" line="119"/>
         <source>Download complete, Speed: </source>
         <translation>下载完成，速度： </translation>
     </message>
@@ -103,7 +108,7 @@
         <translation>发布版</translation>
     </message>
     <message>
-        <location filename="../../src/common/K230BurningProcess.cpp" line="203"/>
+        <location filename="../../src/common/K230BurningProcess.cpp" line="233"/>
         <source>Device Disconnected</source>
         <translation>设备断开连接</translation>
     </message>
@@ -113,12 +118,12 @@
         <translation>下载中...</translation>
     </message>
     <message>
-        <location filename="../../src/common/K230BurningProcess.cpp" line="119"/>
+        <location filename="../../src/common/K230BurningProcess.cpp" line="140"/>
         <source>Erase, </source>
         <translation>擦除， </translation>
     </message>
     <message>
-        <location filename="../../src/common/UpdateChecker.cpp" line="51"/>
+        <location filename="../../src/common/UpdateChecker.cpp" line="63"/>
         <source>New Version</source>
         <translation>新版本</translation>
     </message>
@@ -128,7 +133,7 @@
         <translation>版本</translation>
     </message>
     <message>
-        <location filename="../../src/common/BurningProcess.cpp" line="161"/>
+        <location filename="../../src/common/BurningProcess.cpp" line="170"/>
         <source>User Canceled</source>
         <translation>用户主动取消</translation>
     </message>
@@ -138,13 +143,13 @@
         <translation>本地构建</translation>
     </message>
     <message>
-        <location filename="../../src/common/UpdateChecker.cpp" line="41"/>
-        <location filename="../../src/common/UpdateChecker.cpp" line="42"/>
+        <location filename="../../src/common/UpdateChecker.cpp" line="43"/>
+        <location filename="../../src/common/UpdateChecker.cpp" line="44"/>
         <source>Can&apos;t Checking Update: </source>
         <translation>无法检查更新： </translation>
     </message>
     <message>
-        <location filename="../../src/common/K230BurningProcess.cpp" line="69"/>
+        <location filename="../../src/common/K230BurningProcess.cpp" line="81"/>
         <source>Waiting Stage2 Device</source>
         <translation>等待Loader设备超时</translation>
     </message>
@@ -154,12 +159,11 @@
         <translation>等待BOOTROM设备插入超时</translation>
     </message>
     <message>
-        <location filename="../../src/common/BurningProcess.cpp" line="77"/>
         <source>Write File to Device failed</source>
-        <translation>写入文件到设备失败</translation>
+        <translation type="vanished">写入文件到设备失败</translation>
     </message>
     <message>
-        <location filename="../../src/common/K230BurningProcess.cpp" line="63"/>
+        <location filename="../../src/common/K230BurningProcess.cpp" line="72"/>
         <source>Write USB LOADER</source>
         <translation>写入Loader失败</translation>
     </message>
@@ -192,7 +196,7 @@
     <name>BurningControlWindow</name>
     <message>
         <location filename="../../src/widgets/BurningControlWindow.ui" line="78"/>
-        <location filename="../../src/widgets/BurningControlWindow.cpp" line="465"/>
+        <location filename="../../src/widgets/BurningControlWindow.cpp" line="469"/>
         <source>...</source>
         <translation>...</translation>
     </message>
@@ -208,12 +212,12 @@
     </message>
     <message>
         <location filename="../../src/widgets/BurningControlWindow.ui" line="65"/>
-        <location filename="../../src/widgets/BurningControlWindow.cpp" line="418"/>
+        <location filename="../../src/widgets/BurningControlWindow.cpp" line="422"/>
         <source>Open</source>
         <translation>打开</translation>
     </message>
     <message>
-        <location filename="../../src/widgets/BurningControlWindow.cpp" line="399"/>
+        <location filename="../../src/widgets/BurningControlWindow.cpp" line="403"/>
         <source>Add one Line</source>
         <translation>添加一行</translation>
     </message>
@@ -228,20 +232,19 @@
         <translation>开始</translation>
     </message>
     <message>
-        <location filename="../../src/widgets/BurningControlWindow.cpp" line="122"/>
         <source>Image(*.img);;All Files(*.*)</source>
-        <translation>镜像文件(*.img);;所有文件(*.*)</translation>
+        <translation type="vanished">镜像文件(*.img);;所有文件(*.*)</translation>
     </message>
     <message>
-        <location filename="../../src/widgets/BurningControlWindow.cpp" line="740"/>
+        <location filename="../../src/widgets/BurningControlWindow.cpp" line="744"/>
         <source>Export Configure Failed</source>
         <translation>导出配置失败</translation>
     </message>
     <message>
-        <location filename="../../src/widgets/BurningControlWindow.cpp" line="616"/>
-        <location filename="../../src/widgets/BurningControlWindow.cpp" line="621"/>
-        <location filename="../../src/widgets/BurningControlWindow.cpp" line="628"/>
-        <location filename="../../src/widgets/BurningControlWindow.cpp" line="643"/>
+        <location filename="../../src/widgets/BurningControlWindow.cpp" line="620"/>
+        <location filename="../../src/widgets/BurningControlWindow.cpp" line="625"/>
+        <location filename="../../src/widgets/BurningControlWindow.cpp" line="632"/>
+        <location filename="../../src/widgets/BurningControlWindow.cpp" line="647"/>
         <source>Parse Configure Failed</source>
         <translation>解析配置文件失败</translation>
     </message>
@@ -251,48 +254,53 @@
         <translation>打开镜像文件</translation>
     </message>
     <message>
-        <location filename="../../src/widgets/BurningControlWindow.cpp" line="402"/>
+        <location filename="../../src/widgets/BurningControlWindow.cpp" line="406"/>
         <source>Import Configure</source>
         <translation>导入配置</translation>
     </message>
     <message>
-        <location filename="../../src/widgets/BurningControlWindow.cpp" line="401"/>
+        <location filename="../../src/widgets/BurningControlWindow.cpp" line="405"/>
         <source>Export Configure</source>
         <translation>导出配置</translation>
     </message>
     <message>
-        <location filename="../../src/widgets/BurningControlWindow.cpp" line="417"/>
+        <location filename="../../src/widgets/BurningControlWindow.cpp" line="421"/>
         <source>File Path</source>
         <translation>文件路径</translation>
     </message>
     <message>
-        <location filename="../../src/widgets/BurningControlWindow.cpp" line="245"/>
-        <location filename="../../src/widgets/BurningControlWindow.cpp" line="255"/>
+        <location filename="../../src/widgets/BurningControlWindow.cpp" line="249"/>
+        <location filename="../../src/widgets/BurningControlWindow.cpp" line="259"/>
         <source>Row %1 Convert address &quot;%2&quot; failed</source>
         <translation>Row %1 Convert address &quot;%2&quot; failed</translation>
     </message>
     <message>
-        <location filename="../../src/widgets/BurningControlWindow.cpp" line="318"/>
+        <location filename="../../src/widgets/BurningControlWindow.cpp" line="122"/>
+        <source>Image(*.img *.kdimg);;All Files(*.*)</source>
+        <translation>镜像文件(*.img *.kdimg);;所有文件(*.*)</translation>
+    </message>
+    <message>
+        <location filename="../../src/widgets/BurningControlWindow.cpp" line="322"/>
         <source>File %1 Too Large</source>
         <translation>文件%1太大</translation>
     </message>
     <message>
-        <location filename="../../src/widgets/BurningControlWindow.cpp" line="400"/>
+        <location filename="../../src/widgets/BurningControlWindow.cpp" line="404"/>
         <source>Del current Line</source>
         <translation>删除本行</translation>
     </message>
     <message>
-        <location filename="../../src/widgets/BurningControlWindow.cpp" line="607"/>
+        <location filename="../../src/widgets/BurningControlWindow.cpp" line="611"/>
         <source>Open Configure Failed</source>
         <translation>打开配置文件失败</translation>
     </message>
     <message>
-        <location filename="../../src/widgets/BurningControlWindow.cpp" line="733"/>
+        <location filename="../../src/widgets/BurningControlWindow.cpp" line="737"/>
         <source>Save Configure Failed</source>
         <translation>保存配置失败</translation>
     </message>
     <message>
-        <location filename="../../src/widgets/BurningControlWindow.cpp" line="199"/>
+        <location filename="../../src/widgets/BurningControlWindow.cpp" line="203"/>
         <source>Can&apos;t Find File</source>
         <translation>无法找到文件</translation>
     </message>
@@ -307,7 +315,7 @@
         <translation>镜像下载</translation>
     </message>
     <message>
-        <location filename="../../src/widgets/BurningControlWindow.cpp" line="271"/>
+        <location filename="../../src/widgets/BurningControlWindow.cpp" line="275"/>
         <source>Row %1 filepath &quot;%2&quot; is Empty</source>
         <translation>Row %1 filepath &quot;%2&quot; is Empty</translation>
     </message>
@@ -317,22 +325,22 @@
         <translation>文件大小：</translation>
     </message>
     <message>
-        <location filename="../../src/widgets/BurningControlWindow.cpp" line="330"/>
+        <location filename="../../src/widgets/BurningControlWindow.cpp" line="334"/>
         <source>Please Select at least one Image File</source>
         <translation>请至少选择一个镜像文件</translation>
     </message>
     <message>
-        <location filename="../../src/widgets/BurningControlWindow.cpp" line="698"/>
+        <location filename="../../src/widgets/BurningControlWindow.cpp" line="702"/>
         <source>Files not in Same Folder</source>
         <translation>镜像文件未在同一目录下</translation>
     </message>
     <message>
-        <location filename="../../src/widgets/BurningControlWindow.cpp" line="283"/>
+        <location filename="../../src/widgets/BurningControlWindow.cpp" line="287"/>
         <source>Row %1 file &quot;%2&quot; not Exists</source>
         <translation>Row %1 file &quot;%2&quot; not Exists</translation>
     </message>
     <message>
-        <location filename="../../src/widgets/BurningControlWindow.cpp" line="277"/>
+        <location filename="../../src/widgets/BurningControlWindow.cpp" line="281"/>
         <source>Row %1 filepath &quot;%2&quot; is Repeated</source>
         <translation>Row %1 filepath &quot;%2&quot; is Repeated</translation>
     </message>
@@ -347,26 +355,26 @@
         <translation>设置</translation>
     </message>
     <message>
-        <location filename="../../src/widgets/BurningControlWindow.cpp" line="229"/>
+        <location filename="../../src/widgets/BurningControlWindow.cpp" line="233"/>
         <source>Row %1 altName &quot;%2&quot; is Empty</source>
         <translation>Row %1 altName &quot;%2&quot; is Empty</translation>
     </message>
     <message>
-        <location filename="../../src/widgets/BurningControlWindow.cpp" line="533"/>
-        <location filename="../../src/widgets/BurningControlWindow.cpp" line="535"/>
-        <location filename="../../src/widgets/BurningControlWindow.cpp" line="594"/>
-        <location filename="../../src/widgets/BurningControlWindow.cpp" line="596"/>
+        <location filename="../../src/widgets/BurningControlWindow.cpp" line="537"/>
+        <location filename="../../src/widgets/BurningControlWindow.cpp" line="539"/>
+        <location filename="../../src/widgets/BurningControlWindow.cpp" line="598"/>
+        <location filename="../../src/widgets/BurningControlWindow.cpp" line="600"/>
         <source>Select File</source>
         <translation>选择文件</translation>
     </message>
     <message>
-        <location filename="../../src/widgets/BurningControlWindow.cpp" line="723"/>
-        <location filename="../../src/widgets/BurningControlWindow.cpp" line="725"/>
+        <location filename="../../src/widgets/BurningControlWindow.cpp" line="727"/>
+        <location filename="../../src/widgets/BurningControlWindow.cpp" line="729"/>
         <source>Json(*.json)</source>
         <translation>Json(*.json)</translation>
     </message>
     <message>
-        <location filename="../../src/widgets/BurningControlWindow.cpp" line="324"/>
+        <location filename="../../src/widgets/BurningControlWindow.cpp" line="328"/>
         <source>Please Select a &apos;loader&apos;</source>
         <translation>请选择Loader</translation>
     </message>
@@ -377,23 +385,23 @@
         <translation>解析下载配置失败</translation>
     </message>
     <message>
-        <location filename="../../src/widgets/BurningControlWindow.cpp" line="723"/>
-        <location filename="../../src/widgets/BurningControlWindow.cpp" line="725"/>
+        <location filename="../../src/widgets/BurningControlWindow.cpp" line="727"/>
+        <location filename="../../src/widgets/BurningControlWindow.cpp" line="729"/>
         <source>Save Configure</source>
         <translation>保存配置</translation>
     </message>
     <message>
-        <location filename="../../src/widgets/BurningControlWindow.cpp" line="335"/>
+        <location filename="../../src/widgets/BurningControlWindow.cpp" line="339"/>
         <source>Unknown Error</source>
         <translation>位置错误</translation>
     </message>
     <message>
-        <location filename="../../src/widgets/BurningControlWindow.cpp" line="416"/>
+        <location filename="../../src/widgets/BurningControlWindow.cpp" line="420"/>
         <source>Target Type</source>
         <translation>目标类型</translation>
     </message>
     <message>
-        <location filename="../../src/widgets/BurningControlWindow.cpp" line="260"/>
+        <location filename="../../src/widgets/BurningControlWindow.cpp" line="264"/>
         <source>Row %1 address &quot;%2&quot; is Repeated</source>
         <translation>Row %1 address &quot;%2&quot; is Repeated</translation>
     </message>
@@ -403,7 +411,7 @@
         <translation>Avalon Nano3 专用工具</translation>
     </message>
     <message>
-        <location filename="../../src/widgets/BurningControlWindow.cpp" line="415"/>
+        <location filename="../../src/widgets/BurningControlWindow.cpp" line="419"/>
         <source>Target Address</source>
         <translation>目标地址</translation>
     </message>
@@ -419,12 +427,12 @@
         <translation type="vanished">无法打开镜像文件</translation>
     </message>
     <message>
-        <location filename="../../src/common/BurningProcess.cpp" line="95"/>
+        <location filename="../../src/common/BurningProcess.cpp" line="99"/>
         <source> at 0x</source>
         <translation>在 0x</translation>
     </message>
     <message>
-        <location filename="../../src/common/BurningProcess.cpp" line="95"/>
+        <location filename="../../src/common/BurningProcess.cpp" line="99"/>
         <source>, Message: </source>
         <translation>，失败信息为： </translation>
     </message>
@@ -437,12 +445,12 @@
         <translation type="vanished">KB/s</translation>
     </message>
     <message>
-        <location filename="../../src/common/BurningProcess.cpp" line="169"/>
+        <location filename="../../src/common/BurningProcess.cpp" line="178"/>
         <source>User Canceled</source>
         <translation>用户主动取消</translation>
     </message>
     <message>
-        <location filename="../../src/common/BurningProcess.cpp" line="95"/>
+        <location filename="../../src/common/BurningProcess.cpp" line="99"/>
         <source>Write File to Device failed</source>
         <translation>写入文件到设备失败</translation>
     </message>
@@ -450,12 +458,12 @@
 <context>
     <name>K230BurningProcess</name>
     <message>
-        <location filename="../../src/common/K230BurningProcess.cpp" line="81"/>
+        <location filename="../../src/common/K230BurningProcess.cpp" line="100"/>
         <source>Device Memory error</source>
         <translation>设备内存错误</translation>
     </message>
     <message>
-        <location filename="../../src/common/K230BurningProcess.cpp" line="73"/>
+        <location filename="../../src/common/K230BurningProcess.cpp" line="92"/>
         <source>Loader Boot Failed</source>
         <translation>Loader 启动超时</translation>
     </message>
@@ -484,8 +492,8 @@
         <translation type="vanished">初始化设备</translation>
     </message>
     <message>
-        <location filename="../../src/common/K230BurningProcess.cpp" line="85"/>
-        <location filename="../../src/common/K230BurningProcess.cpp" line="91"/>
+        <location filename="../../src/common/K230BurningProcess.cpp" line="106"/>
+        <location filename="../../src/common/K230BurningProcess.cpp" line="112"/>
         <source>Device Can&apos;t find Medium as Configured</source>
         <translation>设备未能找到对应的目标介质</translation>
     </message>
@@ -498,7 +506,7 @@
         <translation type="vanished">擦除， </translation>
     </message>
     <message>
-        <location filename="../../src/common/K230BurningProcess.cpp" line="133"/>
+        <location filename="../../src/common/K230BurningProcess.cpp" line="154"/>
         <source>Image Start Offset %1 Should Align to %2 Bytes</source>
         <translation>镜像起始地址%1应该对齐到%2字节</translation>
     </message>
@@ -507,22 +515,22 @@
         <translation type="vanished">设备断开连接</translation>
     </message>
     <message>
-        <location filename="../../src/common/K230BurningProcess.cpp" line="60"/>
+        <location filename="../../src/common/K230BurningProcess.cpp" line="68"/>
         <source>Timeout for Waiting Device Plug in</source>
         <translation>设备上电超时</translation>
     </message>
     <message>
-        <location filename="../../src/common/K230BurningProcess.cpp" line="129"/>
+        <location filename="../../src/common/K230BurningProcess.cpp" line="150"/>
         <source>Unknown Error</source>
         <translation>未知错误</translation>
     </message>
     <message>
-        <location filename="../../src/common/K230BurningProcess.cpp" line="66"/>
+        <location filename="../../src/common/K230BurningProcess.cpp" line="75"/>
         <source>Write USB LOADER Failed</source>
         <translation>写入USB LOADER失败</translation>
     </message>
     <message>
-        <location filename="../../src/common/K230BurningProcess.cpp" line="95"/>
+        <location filename="../../src/common/K230BurningProcess.cpp" line="116"/>
         <source>Image Bigger than Device Medium Capacity, %1 &gt; %2</source>
         <translation>镜像文件超出设备目标介质大小， %1 &gt; %2</translation>
     </message>
@@ -657,9 +665,9 @@
 <context>
     <name>SettingsWindow</name>
     <message>
-        <location filename="../../src/widgets/SettingsWindow.ui" line="199"/>
-        <location filename="../../src/widgets/SettingsWindow.ui" line="252"/>
-        <location filename="../../src/widgets/SettingsWindow.ui" line="295"/>
+        <location filename="../../src/widgets/SettingsWindow.ui" line="186"/>
+        <location filename="../../src/widgets/SettingsWindow.ui" line="272"/>
+        <location filename="../../src/widgets/SettingsWindow.ui" line="322"/>
         <source>Sec</source>
         <translation>秒</translation>
     </message>
@@ -674,7 +682,7 @@
         <translation>恢复默认设置</translation>
     </message>
     <message>
-        <location filename="../../src/widgets/SettingsWindow.ui" line="312"/>
+        <location filename="../../src/widgets/SettingsWindow.ui" line="203"/>
         <source>Max Concurrent Downloads Count</source>
         <translation>烧录线程数量上限</translation>
     </message>
@@ -684,7 +692,7 @@
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../../src/widgets/SettingsWindow.ui" line="167"/>
+        <location filename="../../src/widgets/SettingsWindow.ui" line="154"/>
         <source>Automatic confirm upon successful completion</source>
         <translation>成功完成后自动确认</translation>
     </message>
@@ -694,17 +702,22 @@
         <translation>程序选项</translation>
     </message>
     <message>
-        <location filename="../../src/widgets/SettingsWindow.ui" line="263"/>
+        <location filename="../../src/widgets/SettingsWindow.ui" line="281"/>
+        <source>Auto Reset After Burn</source>
+        <translation>烧录后自动重启</translation>
+    </message>
+    <message>
+        <location filename="../../src/widgets/SettingsWindow.ui" line="290"/>
         <source>Automatic confirmation even after failure (no error prompt)</source>
         <translation>失败后也自动确认（无错误提示）</translation>
     </message>
     <message>
-        <location filename="../../src/widgets/SettingsWindow.ui" line="220"/>
+        <location filename="../../src/widgets/SettingsWindow.ui" line="240"/>
         <source>Automatically confirm manually added tasks</source>
         <translation>自动确认手动添加的任务</translation>
     </message>
     <message>
-        <location filename="../../src/widgets/SettingsWindow.ui" line="211"/>
+        <location filename="../../src/widgets/SettingsWindow.ui" line="334"/>
         <source>No Internet connection (no update prompt)</source>
         <translation>禁止联网（无更新提示）</translation>
     </message>
@@ -779,7 +792,7 @@
 <context>
     <name>speedStr</name>
     <message>
-        <location filename="../../src/common/BurningProcess.cpp" line="117"/>
+        <location filename="../../src/common/BurningProcess.cpp" line="119"/>
         <source>KB/s</source>
         <translation>KB/s</translation>
     </message>

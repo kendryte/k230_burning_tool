@@ -194,7 +194,7 @@ bool BurnLibrary::handleBeforeDeviceOpen(const char* const path) {
 	request->usbPath = _path;
 
 	if(hasBurning(request)) {
-		qDebug() << "Jobs already start for " << _path;
+		localLog(QStringLiteral("Jobs already start for device, %1").arg(_path));
 
 		delete request;
 		return true;
@@ -211,7 +211,7 @@ bool BurnLibrary::handleBeforeDeviceOpen(const char* const path) {
 			loop.exec();
 
 			if(hasBurning(request)) {
-				qDebug() << "Jobs have create for " << _path;
+				localLog(QStringLiteral("Jobs have create for device, %1").arg(_path));
 
 				delete request;
 				return true;
@@ -220,7 +220,7 @@ bool BurnLibrary::handleBeforeDeviceOpen(const char* const path) {
 	}
 	delete request;
 
-	qDebug() << "Jobs not create for " << _path;
+	localLog(QStringLiteral("Jobs not create for device, %1").arg(_path));
 
 	return false;
 }
@@ -269,18 +269,16 @@ bool BurnLibrary::handleHandleDeviceConfirmed(kburnDeviceNode *dev) {
 		} else if(0x02 == dev->usb->stage) {
 			evt = UbootISPConfirmed;
 		} else {
-			evt = InvaildEvent;
+			evt = InvalidEvent;
 		}
 
 		if (p->pollingDevice(dev, evt)) {
-			qDebug() << "wanted USB device handle: " << QString::number(dev->usb->deviceInfo.idVendor, 16) << ':'
-					 << QString::number(dev->usb->deviceInfo.idProduct, 16) << QChar::LineFeed;
+			localLog(QStringLiteral("wanted USB device handle, VID: 0x%1, PID: 0x%2").arg(QString::number(dev->usb->deviceInfo.idVendor, 16).toUpper(), 4, '0').arg(QString::number(dev->usb->deviceInfo.idProduct, 16).toUpper(), 4, '0'));
 			return true;
 		}
 	}
 
-	qDebug() << "unknown USB device handle: " << QString::number(dev->usb->deviceInfo.idVendor, 16) << ':'
-			 << QString::number(dev->usb->deviceInfo.idProduct, 16) << QChar::LineFeed;
+	localLog(QStringLiteral("unknown USB device handle, VID: 0x%1, PID: 0x%2").arg(QString::number(dev->usb->deviceInfo.idVendor, 16).toUpper(), 4, '0').arg(QString::number(dev->usb->deviceInfo.idProduct, 16).toUpper(), 4, '0'));
 
 	return false;
 }

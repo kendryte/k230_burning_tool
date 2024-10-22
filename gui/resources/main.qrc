@@ -15,7 +15,8 @@
         <file>rotate-right-solid.svg</file>
         <file>sliders-solid.svg</file>
         <file>exit.svg</file>
-        <file>loader_nano3_new_1.0.bin</file>
-        <file>loader.bin</file>
+        <file>loader/loader_mmc.bin</file>
+        <file>loader/loader_spi_nand.bin</file>
+        <file>loader/loader_spi_nor.bin</file>
     </qresource>
 </RCC>

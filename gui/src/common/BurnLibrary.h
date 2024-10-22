@@ -54,7 +54,7 @@ class BurnLibrary : public QObject {
 	QThreadPool *getThreadPool() { return _pool; }
 
 	enum DeviceEvent {
-		InvaildEvent = 0,
+		InvalidEvent = 0,
 		BootRomConnected,
 		BootRomDisconnected,
 		BootRomConfirmed,

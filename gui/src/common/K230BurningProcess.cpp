@@ -55,20 +55,39 @@ int K230BurningProcess::prepare(QList<struct BurnImageItem> &imageList, quint64 
 	loaderFile.close();
 
 	setStage(::tr("Waiting Stage1 Device"));
-	node = reinterpret_cast<kburnDeviceNode *>(inputs.pick(0, 30));
+
+	for(int retry = 0; retry < 30; retry++) {
+		throwIfCancel();
+
+		node = reinterpret_cast<kburnDeviceNode *>(inputs.pick(0, 1));
+		if(node) {
+			break;
+		}
+	}
 	if (node == NULL) {
 		throw KBurnException(tr("Timeout for Waiting Device Plug in"));
 	}
 
-	setStage(::tr("Write USB LOADER"), loaderFileContent.size());
+	if(0x01 == node->usb->stage) {
+		setStage(::tr("Write USB LOADER"), loaderFileContent.size());
 
-	if(!K230BurnISP_RunProgram(node, loaderFileContent.data(), loaderFileContent.size(), K230BurningProcess::serial_isp_progress, this)) {
-		throw KBurnException(tr("Write USB LOADER Failed"));
+		if(!K230BurnISP_RunProgram(node, loaderFileContent.data(), loaderFileContent.size(), K230BurningProcess::serial_isp_progress, this)) {
+			throw KBurnException(tr("Write USB LOADER Failed"));
+		}
+
+		mark_destroy_device_node(node);
 	}
 
 	setStage(::tr("Waiting Stage2 Device"));
 
-	node = reinterpret_cast<kburnDeviceNode *>(inputs.pick(1, 5));
+	for(int retry = 0; retry < 10; retry++) {
+		throwIfCancel();
+
+		node = reinterpret_cast<kburnDeviceNode *>(inputs.pick(1, 1));
+		if(node) {
+			break;
+		}
+	}
 	if (node == NULL) {
 		throw KBurnException(tr("Loader Boot Failed"));
 	}
@@ -80,6 +99,8 @@ int K230BurningProcess::prepare(QList<struct BurnImageItem> &imageList, quint64 
 	if(NULL == (kburn = kburn_create(node))) {
 		throw KBurnException(tr("Device Memory error"));
 	}
+
+	kburn_nop(kburn);
 
 	if (false == kburn_probe(kburn, isp_target, (uint64_t*)chunk_size)) {
 		throw KBurnException(tr("Device Can't find Medium as Configured"));
@@ -95,7 +116,7 @@ int K230BurningProcess::prepare(QList<struct BurnImageItem> &imageList, quint64 
 		throw KBurnException(tr("Image Bigger than Device Medium Capacity, %1 > %2").arg(max_offset).arg(capacity));
 	}
 
-	qDebug() << QString("Medium %1 capacity %2").arg(isp_target).arg(capacity);
+	BurnLibrary::instance()->localLog(QStringLiteral("Medium %1 capacity %2").arg(isp_target).arg(capacity));
 
 	setStage(::tr("Start Downloading..."));
 
@@ -143,7 +164,11 @@ bool K230BurningProcess::step(kburn_stor_address_t address, const QByteArray &ch
 }
 
 bool K230BurningProcess::end(kburn_stor_address_t address) {
-	return kbun_write_end(kburn);
+	return kbrun_write_end(kburn);
+}
+
+void K230BurningProcess::ResetChip(void) {
+	kburn_reset_chip(kburn);
 }
 
 QString K230BurningProcess::errormsg()
@@ -153,11 +178,7 @@ QString K230BurningProcess::errormsg()
 	return QString(msg);
 }
 
-#include "AppGlobalSetting.h"
-
 void K230BurningProcess::cleanup(bool success) {
-	qDebug() << __func__ << __LINE__;
-
 	if(node) {
 		mark_destroy_device_node(node);
 	}
@@ -177,16 +198,22 @@ void K230BurningProcess::cleanup(bool success) {
 
 bool K230BurningProcess::pollingDevice(kburnDeviceNode *node, BurnLibrary::DeviceEvent event) {
 	bool isOk = false;
+	bool skip_boortom = false;
 
-	qDebug() << __func__ << __LINE__ << "Stage" << node->usb->stage << "Path" << QString(node->usb->deviceInfo.pathStr) << "this->usbPath" << this->usbPath;
+	BurnLibrary::instance()->localLog(QStringLiteral("Check New Device, Stage: %1, Path %2, PollPath: %3, Event %4").arg(node->usb->stage).arg(node->usb->deviceInfo.pathStr).arg(this->usbPath).arg(event));
 
-	if((this->usbPath == QString("WaitingConnect")) && \
-		(0x01 == node->usb->stage) && \
-		(event != BurnLibrary::DeviceEvent::UbootISPDisconnected))
-	{
-		isOk = true;
-		this->usbPath = QString(node->usb->deviceInfo.pathStr);
-		emit updateTitle();
+	if(this->usbPath == QString("WaitingConnect")) {
+		if((BurnLibrary::DeviceEvent::BootRomConfirmed == event) || \
+			(BurnLibrary::DeviceEvent::UbootISPConfirmed == event))
+		{
+			isOk = true;
+
+			if(BurnLibrary::DeviceEvent::UbootISPConfirmed == event) {
+				skip_boortom = true;
+			}
+			this->usbPath = QString(node->usb->deviceInfo.pathStr);
+			emit updateTitle();
+		}
 	} else {
 		isOk = this->usbPath == node->usb->deviceInfo.pathStr;
 	}
@@ -198,6 +225,9 @@ bool K230BurningProcess::pollingDevice(kburnDeviceNode *node, BurnLibrary::Devic
 	if (event == BurnLibrary::DeviceEvent::BootRomConfirmed) {
 		inputs.set(0, node);
 	} else if (event == BurnLibrary::DeviceEvent::UbootISPConfirmed) {
+		if(isAutoCreate || skip_boortom) {
+			inputs.set(0, node);
+		}
 		inputs.set(1, node);
 	} else if (event == BurnLibrary::DeviceEvent::UbootISPDisconnected) {
 		this->cancel(KBurnException(::tr("Device Disconnected")));

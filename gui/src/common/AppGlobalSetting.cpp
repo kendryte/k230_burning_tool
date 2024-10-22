@@ -22,6 +22,7 @@ SettingsBool autoConfirmManualJob{"global", "auto-confirm-manual", false};
 SettingsUInt autoConfirmManualJobTimeout{"global", "auto-confirm-manual-timeout", 5};
 SettingsBool autoConfirmEvenError{"global", "auto-confirm-always", false};
 SettingsUInt autoConfirmEvenErrorTimeout{"global", "auto-confirm-always-timeout", 5};
+SettingsBool autoResetChipAfterBurn{"global", "auto-reset-after-burn", false};
 SettingsBool disableUpdate{"global", "no-check-update", false};
 // SettingsUInt watchVid{"global", "watch-serial-vid", 0x1a86};
 // SettingsUInt watchPid{"global", "watch-serial-pid", 0x7523};

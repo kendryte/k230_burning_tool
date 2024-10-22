@@ -143,7 +143,7 @@ kburn_err_t K230BurnISP_read_data(kburnDeviceNode *node, unsigned char *data, in
 
 #define K230_SRAM_CFG_ADDR          (0x80250000)
 #define K230_SRAM_APP_ADDR          (0x80360000)
-#define K230_SRAM_PAGE_SIZE         (1024)
+#define K230_SRAM_PAGE_SIZE         (1000)
 
 bool K230BurnISP_Greeting(kburnDeviceNode *node) {
     unsigned char info[32];

@@ -26,6 +26,8 @@ class BurningProcess : public QObject, public QRunnable {
     BurningProcess(KBMonCTX scope, const BurningRequest *request);
 
 	KBMonCTX scope;
+	bool isAutoCreate = false;
+
 	class QDataStream *imageStream = NULL;
 
 	void setResult(const KBurnException &reason);
@@ -40,6 +42,7 @@ class BurningProcess : public QObject, public QRunnable {
 	virtual bool end(kburn_stor_address_t address) = 0;
 	virtual void cleanup(bool success){};
 	virtual QString errormsg() = 0;
+	virtual void ResetChip(void) = 0;
 
   public:
     // const qint64 imageSize;

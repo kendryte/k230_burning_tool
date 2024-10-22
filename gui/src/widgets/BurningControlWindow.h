@@ -8,6 +8,7 @@
 #include <QStandardItemModel>
 #include <QMenu>
 #include <QPoint>
+#include <QString>
 
 #include "common/BurnImageItem.h"
 #include "common/CustomTableView.h"
@@ -44,13 +45,16 @@ private:
 	void readSettings(void);
 	void saveSettings(void);
 
+	QString getCurrentLoader();
+	void setCurrentLoader(QString &loader);
+	QString getDefaultLoader(QString &target);
+
+	bool checkSysImage();
+
   signals:
 	void newProcessRequested(class BurningRequest *partialRequest);
 	void showSettingRequested();
 	void updateBurnLibAutoBurnFlag(bool isAuto);
-
-  public slots:
-	bool checkSysImage();
 
   private slots:
 	void handleSettingsWindowButtonState();

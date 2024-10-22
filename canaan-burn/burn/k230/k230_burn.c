@@ -12,6 +12,7 @@
 
 enum kburn_pkt_cmd {
     KBURN_CMD_NONE = 0,
+	KBURN_CMD_REBOOT = 0x01,
 
     KBURN_CMD_DEV_PROBE = 0x10,
 	KBURN_CMD_DEV_GET_INFO = 0x11,
@@ -247,6 +248,14 @@ static int kburn_send_cmd(kburn_t *kburn, enum kburn_pkt_cmd cmd, void *data, in
     return kburn_parse_resp(&csw, kburn, cmd, result, result_size);
 }
 
+void kburn_nop(struct kburn_t *kburn)
+{
+    debug_print(KBURN_LOG_DEBUG, "issue a nop command, clear device error status");
+
+    // issue a command, clear device state
+    kburn_send_cmd(kburn, KBURN_CMD_NONE, NULL, 0, NULL, NULL);
+}
+
 kburnUsbIspCommandTaget kburn_get_medium_type(struct kburn_t *kburn)
 {
     if(kburn->medium_info.valid) {
@@ -317,6 +326,24 @@ void kburn_destory(kburn_t *kburn)
 char *kburn_get_error_msg(kburn_t *kburn)
 {
     return kburn->error_msg;
+}
+
+void kburn_reset_chip(kburn_t *kburn)
+{
+#define REBOOT_MARK 	(0x52626F74)
+
+    struct kburn_usb_pkt_wrap cbw;
+    const uint64_t reboot_mark = REBOOT_MARK;
+
+    cbw.hdr.cmd = KBURN_CMD_REBOOT;
+    cbw.hdr.data_size = sizeof(uint64_t);
+
+    memcpy(&cbw.data[0], &reboot_mark, sizeof(uint64_t));
+
+    if(KBurnNoErr != kburn_write_data(kburn, &cbw, sizeof(cbw))) {
+        debug_print(KBURN_LOG_ERROR, "command send data failed");
+        strncpy(kburn->error_msg, "cmd send failed", sizeof(kburn->error_msg));
+    }
 }
 
 bool kburn_probe(kburn_t *kburn, kburnUsbIspCommandTaget target, uint64_t *chunk_size)
@@ -479,7 +506,7 @@ bool kburn_write_chunk(struct kburn_t *kburn, void *data, uint64_t size)
     return false;
 }
 
-bool kbun_write_end(struct kburn_t *kburn)
+bool kbrun_write_end(struct kburn_t *kburn)
 {
     struct kburn_usb_pkt_wrap csw;
 
@@ -511,6 +538,8 @@ bool kbun_write_end(struct kburn_t *kburn)
     }
 
     debug_print(KBURN_LOG_INFO, "write end, resp msg %s", csw.data);
+
+    kburn_nop(kburn);
 
     return true;
 }

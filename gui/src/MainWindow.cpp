@@ -90,7 +90,7 @@ MainWindow::MainWindow(QWidget *parent)
 
 	connect(ui->burnControlWindow, &BurningControlWindow::newProcessRequested, this, &MainWindow::startNewBurnJob);
 	connect(ui->burnControlWindow, &BurningControlWindow::newProcessRequested, this, &MainWindow::onResized);
-	connect(ui->burnControlWindow, &BurningControlWindow::newProcessRequested, ui->textLog, &LoggerWindow::clear);
+	// connect(ui->burnControlWindow, &BurningControlWindow::newProcessRequested, ui->textLog, &LoggerWindow::clear);
 
 	BurnLibrary::instance()->start();
 

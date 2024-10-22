@@ -10,6 +10,7 @@ extern SettingsBool autoConfirmManualJob;
 extern SettingsUInt autoConfirmManualJobTimeout;
 extern SettingsBool autoConfirmEvenError;
 extern SettingsUInt autoConfirmEvenErrorTimeout;
+extern SettingsBool autoResetChipAfterBurn;
 extern SettingsBool disableUpdate;
 // extern SettingsUInt watchVid;
 // extern SettingsUInt watchPid;

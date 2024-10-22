@@ -14,7 +14,7 @@
 #include "AppGlobalSetting.h"
 
 BurningProcess::BurningProcess(KBMonCTX scope, const BurningRequest *request)
-	: scope(scope), imageList(request->imageList) {
+	: scope(scope), imageList(request->imageList), isAutoCreate(request->isAutoCreate) {
 	// imageFile(request->systemImageFile), imageSize(imageFile.size()) {
 	this->setAutoDelete(false);
 
@@ -70,12 +70,9 @@ void BurningProcess::_run() {
 			continue;
 		}
 
-		qDebug() << "address" << item.address << "file size" << item.size << "altname" << item.altName << "filename" << item.fileName;
+		throwIfCancel();
 
-		address = item.address;
-		if(false == begin(item.address, item.size)) {
-			throw(KBurnException(::tr("Write File to Device failed") + " (" + item.fileName + ")"));
-		}
+		BurnLibrary::instance()->localLog(QStringLiteral("address: %1,size: %2,altname: %3, filename: %4").arg(item.address).arg(item.size).arg(item.altName).arg(item.fileName));
 
 		imageFile.setFileName(item.fileName);
 		if (!imageFile.open(QIODeviceBase::ReadOnly)) {
@@ -83,7 +80,14 @@ void BurningProcess::_run() {
 		}
 		imageStream = new QDataStream(&imageFile);
 
+		address = item.address;
+		if(false == begin(item.address, item.size)) {
+			throw(KBurnException(::tr("Start Write File to Device failed") + " (" + item.fileName + ")"));
+		}
+
 		while (!imageStream->atEnd()) {
+			throwIfCancel();
+
 			int bytesRead = imageStream->readRawData(buffer->data(), buffer->size());
 
 			if (step(address, *buffer)) {
@@ -108,13 +112,17 @@ void BurningProcess::_run() {
  	if (elapsedTime > 0) {
         speed = (total_size / 1024.0) / (elapsedTime / 1000.0);
 
-        qDebug() << "Total bytes write:" << total_size;
-        qDebug() << "Elapsed time (ms):" << elapsedTime;
-        qDebug() << "Speed (KB/s):" << speed;
+		BurnLibrary::instance()->localLog(QStringLiteral("Total bytes write: %1, Elapsed time (ms): %2, Speed: %3 KB/s").arg(total_size).arg(elapsedTime).arg(speed));
     }
 	QString speedStr = QString::number(speed, 'f', 2); // Format to 2 decimal places
 
 	setStage(::tr("Download complete, Speed: ") + speedStr + ::tr("KB/s"), 100);
+
+	bool auto_reset_chip = GlobalSetting::autoResetChipAfterBurn.getValue();
+	if(auto_reset_chip) {
+		BurnLibrary::instance()->localLog(QStringLiteral("Auto Reset Chip"));
+		ResetChip();
+	}
 
 	emit completed(speedStr);
 }

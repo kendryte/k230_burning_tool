@@ -8,7 +8,7 @@ project(
 	LANGUAGES C)
 
 set(BUILD_SHARED_LIBS ON)
-set(LIBUSB_INSTALL_TARGETS ON)
+set(LIBUSB_INSTALL_TARGETS OFF)
 add_subdirectory(3rdparty/libusb-cmake)
 
 # ##############################################################################
@@ -48,39 +48,24 @@ function(push_source_code target src_dir)
 	endforeach()
 endfunction()
 
-# function(load_binary target variable src)
-# 	file(RELATIVE_PATH rel_path "${CMAKE_CURRENT_LIST_DIR}" "${src}")
-# 	set(tgt "${CMAKE_CURRENT_BINARY_DIR}/${rel_path}.generate.c")
-# 	set(tgt_hdr "${CMAKE_CURRENT_BINARY_DIR}/gen-include/generated.${variable}.h")
-
-# 	if("${src}" IS_NEWER_THAN "${tgt}")
-# 		file(READ "${src}" content HEX)
-# 		file(SIZE "${src}" size)
-
-# 		string(REGEX REPLACE "[0-9a-f][0-9a-f]" "0x\\0," content_rep "${content}")
-
-# 		file(
-# 			WRITE "${tgt}"
-# 			"#include <stdint.h>\n#include <stddef.h>\nconst uint8_t ${variable}[${size}] = {\n${content_rep}\n};\nconst size_t ${variable}_size = ${size};"
-# 		)
-# 		file(
-# 			WRITE "${tgt_hdr}"
-# 			"#include <stdint.h>\n#include <stddef.h>\nextern const uint8_t ${variable}[${size}];\nextern const size_t ${variable}_size;"
-# 		)
-# 	endif()
-
-# 	target_include_directories("${target}"
-# 		PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/gen-include")
-# 	target_sources("${target}" PRIVATE "${tgt}")
-# endfunction()
-
 add_library(canaan_burn SHARED)
-set_property(TARGET canaan_burn PROPERTY C_STANDARD 23)
-set_property(TARGET canaan_burn PROPERTY LINKER_LANGUAGE C)
 
-set_target_properties(canaan_burn PROPERTIES OUTPUT_NAME kburn)
+set_target_properties(canaan_burn PROPERTIES
+						C_STANDARD 23
+						LINKER_LANGUAGE C
+						OUTPUT_NAME kburn
+                      	INSTALL_RPATH "\$ORIGIN"
+                      	BUILD_WITH_INSTALL_RPATH TRUE)
+
+push_source_code(canaan_burn lib)
+push_source_code(canaan_burn usb)
+push_source_code(canaan_burn monitor)
+push_source_code(canaan_burn burn)
+
+target_include_directories(canaan_burn PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include")
 
 target_compile_definitions(canaan_burn PRIVATE "PROJECT_ROOT=\"${PROJECT_ROOT}\"" KBURN_ASSERT_SIZE BURN_LIB_COMPILING)
+
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
 	target_compile_definitions(canaan_burn PRIVATE "IS_DEBUG=0")
 else()
@@ -90,16 +75,6 @@ endif()
 if(${DISABLE_TERM_HYPERLINK})
 	target_compile_definitions(canaan_burn PRIVATE DISABLE_TERM_HYPERLINK)
 endif()
-
-# load_binary(canaan_burn "usb_isp_buffer" "${CMAKE_CURRENT_LIST_DIR}/usbisp.bin")
-target_link_libraries(canaan_burn PUBLIC pthread)
-
-push_source_code(canaan_burn lib)
-push_source_code(canaan_burn usb)
-push_source_code(canaan_burn monitor)
-push_source_code(canaan_burn burn)
-
-target_include_directories(canaan_burn PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include")
 
 if(DEFINED ENV{CI})
 	target_compile_options(canaan_burn PRIVATE -Wno-error=attributes -Wno-error=format-security)
@@ -114,49 +89,16 @@ if(APPLE)
 	target_compile_definitions(canaan_burn PRIVATE APPLE)
 endif()
 
-# ############################  USB  #######################################
+add_dependencies(canaan_burn usb-1.0)
+target_link_libraries(canaan_burn PUBLIC usb-1.0)
 target_include_directories(canaan_burn PUBLIC ${LIBUSB_GEN_INCLUDES})
-target_link_libraries(canaan_burn PRIVATE usb-1.0)
 
-# ############################  SERIAL  #######################################
-# if(WIN32)
-# 	include("${VCPKG_INSTALLED_DIR}/x64-windows/share/libsercomm/sercommConfig.cmake")
-# elseif(UNIX)
-# 	include("${VCPKG_INSTALLED_DIR}/x64-linux/share/libsercomm/sercommConfig.cmake")
-# elseif(APPLE)
-# 	# todo
-# endif()
+target_link_libraries(canaan_burn PUBLIC pthread)
 
-# find_package(sercomm CONFIG REQUIRED)
-# target_link_libraries(canaan_burn PRIVATE sercomm)
-
-# set(sercomm_srcs
-# "${CMAKE_CURRENT_LIST_DIR}/3rdparty/sercomm/sercomm/base.c"
-# "${CMAKE_CURRENT_LIST_DIR}/3rdparty/sercomm/sercomm/err.c"
-# "${CMAKE_CURRENT_LIST_DIR}/3rdparty/sercomm/sercomm/win/base.c"
-# "${CMAKE_CURRENT_LIST_DIR}/3rdparty/sercomm/sercomm/win/comms.c"
-# "${CMAKE_CURRENT_LIST_DIR}/3rdparty/sercomm/sercomm/win/err.c"
-# "${CMAKE_CURRENT_LIST_DIR}/3rdparty/sercomm/sercomm/win/dev.c"
-# )
-# target_sources(canaan_burn PRIVATE "${sercomm_srcs}")
-# target_include_directories(canaan_burn PRIVATE "${CMAKE_CURRENT_LIST_DIR}/3rdparty/sercomm/include/public")
-
-# set(DEF SER_BUILDING SER_WITH_ERRDESC)
-
-# foreach(file IN LISTS sercomm_srcs)
-# set_source_files_properties("${file}" PROPERTIES INCLUDE_DIRECTORIES "${CMAKE_CURRENT_LIST_DIR}/3rdparty/sercomm/include")
-# set_source_files_properties("${file}" PROPERTIES COMPILE_DEFINITIONS "${DEF}")
-# endforeach()
-
-# target_link_libraries(canaan_burn PRIVATE setupapi advapi32)
-
-# ############################  END #######################################
 if(WIN32)
 	set(WIN32LIBS ws2_32 Setupapi)
 	target_link_libraries(canaan_burn PRIVATE "${WIN32LIBS}")
 endif()
-
-# include("${CMAKE_CURRENT_LIST_DIR}/3rdparty/slip/CMakeLists.txt")
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT WIN32)
 	set(SANITIZE_ADDRESS "On")
@@ -184,6 +126,11 @@ install(TARGETS canaan_burn
 	LIBRARY DESTINATION lib
 	ARCHIVE DESTINATION lib
 	RUNTIME DESTINATION bin
+)
+
+# manual install libusb
+install(TARGETS usb-1.0
+    LIBRARY DESTINATION bin
 )
 
 install(DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/include/public" DESTINATION "include")

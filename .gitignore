@@ -1,6 +1,11 @@
-build/*
+build**
 build_ninja
 *.txt.user
 .vscode
 CMakeLists.txt.*
 *.zip
+docs/*.pdf
+
+__pycache__
+dist
+*.egg-info

@@ -54,11 +54,16 @@ BurningControlWindow::BurningControlWindow(QWidget *parent)
 	ui->label_tips->hide();
 #endif
 
+	GlobalSetting::flashTarget.connectCombobox(ui->inputTarget, true);
+
 	// auto select loader
 	QModelIndex index = tableModel->index(0, 0, QModelIndex());
 	tableModel->setData(index, true, Qt::UserRole);
 
-	GlobalSetting::flashTarget.connectCombobox(ui->inputTarget, true);
+#if IS_AVALON_NANO3
+	int taget_nand_index = ui->inputTarget->findText(QString("SPI NAND"));
+	ui->inputTarget->setCurrentIndex(taget_nand_index);
+#endif
 
 	auto instance = BurnLibrary::instance();
 	connect(instance, &BurnLibrary::onBeforDeviceOpen, this, &BurningControlWindow::handleOpenDevice);
@@ -119,7 +124,7 @@ void BurningControlWindow::on_btnStartBurn_clicked() {
 
 void BurningControlWindow::on_btnSelectImage_clicked()
 {
-	auto str = QFileDialog::getOpenFileName(this, tr("Open Image File"), ui->inputSysImage->text(), tr("Image(*.img);;All Files(*.*)"), nullptr, QFileDialog::ReadOnly);
+	auto str = QFileDialog::getOpenFileName(this, tr("Open Image File"), ui->inputSysImage->text(), tr("Image(*.img *.kdimg);;All Files(*.*)"), nullptr, QFileDialog::ReadOnly);
 	if (str.isEmpty()) {
 		return;
 	}
@@ -144,16 +149,81 @@ void BurningControlWindow::handleSettingsWindowButtonState() {
 	}
 }
 
+QString BurningControlWindow::getCurrentLoader()
+{
+	QString altNameString;
+
+	for(int row = 0; row < tableModel->rowCount(); row++) {
+		bool selected = tableModel->index(row, 0).data(Qt::UserRole).toBool();
+
+		if(selected) {
+			altNameString = tableModel->index(row, TABLEVIEW_ALTNAME_COL).data().toString();
+
+			if(altNameString == QString("loader")) {
+				return tableModel->index(row, TABLEVIEW_FILE_PATH_COL).data().toString();
+			}
+		}
+	}
+
+	return QString();
+}
+
+void BurningControlWindow::setCurrentLoader(QString &loader)
+{
+	QString altNameString;
+	QString currentTargetText = ui->inputTarget->currentText();
+
+	for(int row = 0; row < tableModel->rowCount(); row++) {
+		bool selected = tableModel->index(row, 0).data(Qt::UserRole).toBool();
+
+		if(selected) {
+			altNameString = tableModel->index(row, TABLEVIEW_ALTNAME_COL).data().toString();
+
+			if(altNameString == QString("loader")) {
+				QModelIndex fnameIndex = tableModel->index(row, TABLEVIEW_FILE_PATH_COL, QModelIndex());
+				tableModel->setData(fnameIndex, loader);
+
+				BurnLibrary::instance()->localLog(QStringLiteral("Update Target %1 user Loader %2").arg(currentTargetText).arg(loader));
+			}
+		}
+	}
+}
+
+QString BurningControlWindow::getDefaultLoader(QString &target)
+{
+	if(target == QString("EMMC"))
+	{
+		return QString(":/loader/loader_mmc.bin");
+	}
+	else if(target == QString("SD Card"))
+	{
+		return QString(":/loader/loader_mmc.bin");
+	}
+	else if(target == QString("OTP"))
+	{
+		return QString(":/loader/loader_mmc.bin");
+	}
+	else if(target == QString("SPI NAND"))
+	{
+		return QString(":/loader/loader_spi_nand.bin");
+	}
+	else if(target == QString("SPI NOR"))
+	{
+		return QString(":/loader/loader_spi_nor.bin");
+	}
+	else
+	{
+		return QString();
+	}
+}
+
 bool BurningControlWindow::checkSysImage() {
 	QFile _fd;
 	struct BurnImageItem item;
 
 	imageList.clear();
 
-	/* default loader */
-	kburnUsbIspCommandTaget isp_target = (kburnUsbIspCommandTaget)GlobalSetting::flashTarget.getValue();
-
-	qDebug() << __func__ << __LINE__ << isp_target;
+	QString currentTargetText = ui->inputTarget->currentText();
 
 	if(TABWIDGET_IMAGE_BURN_INDEX == ui->tabWidget->currentIndex()) {
 		QString fPath = ui->inputSysImage->text();
@@ -182,21 +252,16 @@ bool BurningControlWindow::checkSysImage() {
 
 			memset(&item, 0, sizeof(struct BurnImageItem));
 
-#if IS_AVALON_NANO3
-			_fd.setFileName(QString(":/loader_nano3_new_1.0.bin"));
-#else
-			_fd.setFileName(QString(":/loader.bin"));
-#endif
+			QString default_loader = getDefaultLoader(currentTargetText);
+			_fd.setFileName(QString(default_loader));
+
+			BurnLibrary::instance()->localLog(QStringLiteral("Target %1 user Default Loader %2").arg(currentTargetText).arg(default_loader));
+
 			item.address = 0;
 			item.size = _fd.size();
 			item.fileName = _fd.fileName();
 			strncpy(item.altName, "loader", 32);
 			imageList.append(item);
-
-#if IS_AVALON_NANO3
-			int taget_nand_index = ui->inputTarget->findText(QString("SPI NAND"));
-			ui->inputTarget->setCurrentIndex(taget_nand_index);
-#endif
 
 			return true;
 		} else {
@@ -211,7 +276,6 @@ bool BurningControlWindow::checkSysImage() {
 		 * 2. 检查QVector
 		 */
 
-		bool selected = false;
 		uint address = 0, itemCount = 0;
 		QString  addressString, altNameString, filePathString;
 
@@ -265,6 +329,16 @@ bool BurningControlWindow::checkSysImage() {
 						return false;
 					}
 					addressVector.append(address);
+				} else {
+					QString currentLoader = getCurrentLoader();
+
+					if(currentLoader.startsWith(":/loader/")) {
+						QString default_loader = getDefaultLoader(currentTargetText);
+
+						setCurrentLoader(default_loader);
+
+						BurnLibrary::instance()->localLog(QStringLiteral("Update Target %1 user Loader %2").arg(currentTargetText).arg(default_loader));
+					}
 				}
 
 				/**
@@ -402,8 +476,8 @@ void BurningControlWindow::initTableView(void)
 
     QAction *addItem = tableMenu->addAction(tr("Add one Line"));
     QAction *delItem = tableMenu->addAction(tr("Del current Line"));
-    QAction *importConfig = tableMenu->addAction(tr("Export Configure"));
-    QAction *exportConfig = tableMenu->addAction(tr("Import Configure"));
+    QAction *importConfig = tableMenu->addAction(tr("Import Configure"));
+    QAction *exportConfig = tableMenu->addAction(tr("Export Configure"));
 
     connect(addItem, &QAction::triggered, this, &BurningControlWindow::tableviewMenuAddItemSlot);
     connect(delItem, &QAction::triggered, this, &BurningControlWindow::tableviewMenuDelItemSlot);
@@ -461,7 +535,7 @@ void BurningControlWindow::initTableView(void)
 	 * 文件路径
 	 */
 	ui->tableView->horizontalHeader()->setSectionResizeMode(TABLEVIEW_FILE_PATH_COL, QHeaderView::Stretch);
-	tableModel->setItem(0, TABLEVIEW_FILE_PATH_COL, new QStandardItem(QString(":/loader.bin")));
+	tableModel->setItem(0, TABLEVIEW_FILE_PATH_COL, new QStandardItem(QString(":/loader/loader_mmc.bin")));
 
 	/**
 	 * Open
@@ -587,7 +661,7 @@ void BurningControlWindow::tableviewMenuDelItemSlot(bool checked)
 
 void BurningControlWindow::tableviewMenuImportConfigmSlot(bool checked)
 {
-	QString address, altName, filePath;
+	QString address, altName, filePath, tmpFilePath;
 
 	QJsonArray RootJsonArr;
 	QJsonObject RootJsonObj;
@@ -651,7 +725,17 @@ void BurningControlWindow::tableviewMenuImportConfigmSlot(bool checked)
 
 					address = temp.value(QString("addr")).toString();
 					altName = temp.value(QString("alt")).toString();
-					filePath = basePath + "/" + temp.value(QString("path")).toString();
+					tmpFilePath = temp.value(QString("path")).toString();
+
+					if(altName == QString("loader")) {
+						if(tmpFilePath.startsWith(":/loader/")) {
+							filePath = tmpFilePath;
+						} else {
+							filePath = basePath + "/" + tmpFilePath;
+						}
+					} else {
+						filePath = basePath + "/" + tmpFilePath;
+					}
 
 					qDebug() << __func__ << __LINE__  << address << altName << filePath;
 
@@ -694,20 +778,34 @@ void BurningControlWindow::tableviewMenuExportConfigmSlot(bool checked)
 				qDebug() << __func__ << __LINE__ << row << "Selected" << address << altName << filePath;
 
 				QFileInfo tempFileInfo(filePath);
-				QString tempFilePath = tempFileInfo.absolutePath();
-				if(basePath.isNull()) {
-					basePath = tempFilePath;
-				} else {
-					if(basePath != tempFilePath) {
-						QMessageBox::critical(Q_NULLPTR, QString(), tr("Files not in Same Folder"));
-						return;
+				QString tempFileName = tempFileInfo.fileName();
+
+				bool skip_check_item_path = false;
+
+				if(altName == QString("loader")) {
+					if(filePath.startsWith(":/loader/")) {
+						skip_check_item_path = true;
+						tempFileName = filePath;
+					}
+				}
+
+				if(!skip_check_item_path) {
+					QString tempFilePath = tempFileInfo.absolutePath();
+
+					if(basePath.isNull()) {
+						basePath = tempFilePath;
+					} else {
+						if(basePath != tempFilePath) {
+							QMessageBox::critical(Q_NULLPTR, QString(), tr("Files not in Same Folder"));
+							return;
+						}
 					}
 				}
 
 				QJsonObject tempObj;
 				tempObj.insert("addr", 	QJsonValue(address));
 				tempObj.insert("alt", 	QJsonValue(altName));
-				tempObj.insert("path", 	QJsonValue(tempFileInfo.fileName()));
+				tempObj.insert("path", 	QJsonValue(tempFileName));
 
 				RootJsonArr.push_back(QJsonValue(tempObj));
 			} else {

@@ -17,6 +17,7 @@ void EventStack::set(unsigned int index, void *data) {
 
 	cond.wakeAll();
 }
+
 void EventStack::cancel() {
 	this->canceled = true;
 	cond.wakeAll();
@@ -32,12 +33,16 @@ void *EventStack::pick(unsigned int index, int timeout_s) {
 		mutex.lock();
 		auto ret = list.at(index);
 		if (!ret) {
-			if (canceled)
+			if (canceled) {
+				mutex.unlock();
 				return NULL;
+			}
 
 			QDeadlineTimer deadline(tmo * 1000);
 			bool success = cond.wait(&mutex, deadline);
 			if (!success) {
+				mutex.unlock();
+
 				qDebug() << "process wait condition timeout.";
 				return NULL;
 			}

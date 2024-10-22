@@ -27,6 +27,7 @@ class K230BurningProcess : public BurningProcess {
  	bool end(kburn_stor_address_t address);
 	void cleanup(bool success);
 	QString errormsg();
+	void ResetChip(void);
 
   public:
 	K230BurningProcess(KBMonCTX scope, const K230BurningRequest *request);
