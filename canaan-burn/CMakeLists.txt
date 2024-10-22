@@ -8,7 +8,7 @@ project(
 	LANGUAGES C)
 
 set(BUILD_SHARED_LIBS ON)
-set(LIBUSB_INSTALL_TARGETS OFF)
+set(LIBUSB_INSTALL_TARGETS ON)
 add_subdirectory(3rdparty/libusb-cmake)
 
 # ##############################################################################
@@ -126,11 +126,6 @@ install(TARGETS canaan_burn
 	LIBRARY DESTINATION lib
 	ARCHIVE DESTINATION lib
 	RUNTIME DESTINATION bin
-)
-
-# manual install libusb
-install(TARGETS usb-1.0
-    LIBRARY DESTINATION bin
 )
 
 install(DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/include/public" DESTINATION "include")
