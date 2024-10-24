@@ -12,15 +12,17 @@
 
 enum kburn_pkt_cmd {
     KBURN_CMD_NONE = 0,
-	KBURN_CMD_REBOOT = 0x01,
+    KBURN_CMD_REBOOT = 0x01,
 
     KBURN_CMD_DEV_PROBE = 0x10,
-	KBURN_CMD_DEV_GET_INFO = 0x11,
+    KBURN_CMD_DEV_GET_INFO = 0x11,
 
-	KBURN_CMD_WRITE_LBA = 0x20,
-	KBURN_CMD_ERASE_LBA = 0x21,
+	KBURN_CMD_ERASE_LBA = 0x20,
 
-    KBURN_CMD_MAX,
+	KBURN_CMD_WRITE_LBA = 0x21,
+	KBURN_CMD_WRITE_LBA_CHUNK = 0x22,
+
+  KBURN_CMD_MAX,
 };
 
 enum kburn_pkt_result {
@@ -34,14 +36,14 @@ enum kburn_pkt_result {
     KBURN_RESULT_MAX,
 };
 
-#define KBUNR_USB_PKT_SIZE	(64)
+#define KBUNR_USB_PKT_SIZE	(60)
 
 #pragma pack(push,1)
 
 struct kburn_usb_pkt {
     uint16_t cmd;
     uint16_t result; /* only valid in csw */
-    uint8_t data_size;
+    uint16_t data_size;
 };
 
 struct kburn_usb_pkt_wrap {
@@ -69,6 +71,7 @@ struct kburn_t {
     char error_msg[128];
 
     int ep_in, ep_out;
+    uint16_t ep_out_mps;
     uint64_t capacity;
     uint64_t dl_total, dl_size, dl_offset;
 };
@@ -105,10 +108,12 @@ static int __get_endpoint(kburn_t *kburn)
 
 				dir = (ep->bEndpointAddress &
 					   LIBUSB_ENDPOINT_DIR_MASK);
-				if (dir == LIBUSB_ENDPOINT_IN)
+				if (dir == LIBUSB_ENDPOINT_IN) {
 					kburn->ep_in = ep->bEndpointAddress;
-				else
+                } else {
 					kburn->ep_out = ep->bEndpointAddress;
+					kburn->ep_out_mps = ep->wMaxPacketSize;
+                }
 			}
 		}
 	}
@@ -139,6 +144,12 @@ static int kburn_write_data(kburn_t *kburn, void *data, int length)
         debug_print(KBURN_LOG_ERROR, "Error - can't write bulk data, error %s, length %d, transfered %d", \
             libusb_strerror((enum libusb_error)rc), length, size);
         return KBrunUsbCommError;
+    }
+
+    if(0x00 == (length % kburn->ep_out_mps)) {
+        if(LIBUSB_SUCCESS != (rc = libusb_bulk_transfer(node->usb->handle, kburn->ep_out, data, 0, &size, kburn->medium_info.timeout_ms))) {
+            debug_print(KBURN_LOG_ERROR, "Error - can't write bulk data ZLP, error %s", libusb_strerror((enum libusb_error)rc));
+        }
     }
 
     return KBurnNoErr;
@@ -349,7 +360,7 @@ void kburn_reset_chip(kburn_t *kburn)
 bool kburn_probe(kburn_t *kburn, kburnUsbIspCommandTaget target, uint64_t *chunk_size)
 {
     uint8_t data[2];
-    uint64_t result[1];
+    uint64_t result[2];
     int result_size = sizeof(result);
 
     data[0] = target;
@@ -367,9 +378,10 @@ bool kburn_probe(kburn_t *kburn, kburnUsbIspCommandTaget target, uint64_t *chunk
         return false;
     }
 
+    debug_print(KBURN_LOG_INFO, "kburn probe, out chunksize %" PRId64 ", in chunksize %" PRId64 "\n", result[0], result[1]);
+
     if(chunk_size) {
         *chunk_size = result[0];
-        debug_print(KBURN_LOG_INFO, "kburn probe, chunksize %" PRId64 "\n", *chunk_size);
     }
 
     return true;
