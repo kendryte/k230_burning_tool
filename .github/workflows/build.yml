@@ -5,6 +5,7 @@ on:
     tags: [ "v*" ]
     branches:
       - main
+      - dev
       - feat/**
 
 jobs:
@@ -45,11 +46,13 @@ jobs:
         ls -alh build
 
     - name: Compress artifacts
+      if: github.ref != 'refs/heads/dev'
       run: |
         cd ${{ github.workspace }}/build/dist
         zip -r K230BurningTool-Windows-${{ env.REVISION }}.zip *
 
     - uses: actions/upload-artifact@v4
+      if: github.ref != 'refs/heads/dev'
       with:
         name: "K230BurningTool-Windows-${{ env.REVISION }}"
         path: ${{ github.workspace }}/build/dist/K230BurningTool-Windows-${{ env.REVISION }}.zip
@@ -57,6 +60,7 @@ jobs:
         compression-level: 0
 
     - name: Build AvalonNano3 for Windows 
+      if: github.ref != 'refs/heads/dev'
       run: |
         rm -rf ${{ github.workspace }}/build && mkdir -p ${{ github.workspace }}/build
         docker run --name qt6 -v "${PWD}:/home/user/project:ro" stateoftheartio/qt6:6.7-mingw-aqt /bin/bash -c 'export CI=1; qt-cmake ./project -G Ninja -B ./build -DBUILD_FOR_AVALON_NANO3=1; cmake --build ./build; cmake --install ./build; ls -alh ./build'
@@ -65,11 +69,13 @@ jobs:
         ls -alh build
 
     - name: Compress AvalonNano3 artifacts
+      if: github.ref != 'refs/heads/dev'
       run: |
         cd ${{ github.workspace }}/build/dist
         zip -r K230BurningTool-AvalonNano3-Windows-${{ env.REVISION }}.zip *
 
     - uses: actions/upload-artifact@v4
+      if: github.ref != 'refs/heads/dev'
       with:
         name: "K230BurningTool-AvalonNano3-Windows-${{ env.REVISION }}"
         path: ${{ github.workspace }}/build/dist/K230BurningTool-AvalonNano3-Windows-${{ env.REVISION }}.zip
@@ -121,6 +127,7 @@ jobs:
         ls -alh build
 
     - uses: actions/upload-artifact@v4
+      if: github.ref != 'refs/heads/dev'
       with:
         name: "K230BurningTool-Linux-x86_64-${{ env.REVISION }}"
         path: ${{ github.workspace }}/build/K230BurningTool-Linux-x86_64-${{ env.REVISION }}.AppImage
@@ -128,6 +135,7 @@ jobs:
         compression-level: 0
 
     - name: Build AvalonNano3 for Linux
+      if: github.ref != 'refs/heads/dev'
       run: |
         rm -rf ${{ github.workspace }}/build && mkdir -p ${{ github.workspace }}/build
         docker run --name qt6 --privileged -v /dev/fuse:/dev/fuse -v "${PWD}:/home/user/project:ro" stateoftheartio/qt6:6.6-gcc-aqt /bin/bash -c '
@@ -144,6 +152,7 @@ jobs:
         ls -alh build
 
     - uses: actions/upload-artifact@v4
+      if: github.ref != 'refs/heads/dev'
       with:
         name: "K230BurningTool-AvalonNano3-Linux-x86_64-${{ env.REVISION }}"
         path: ${{ github.workspace }}/build/K230BurningTool-AvalonNano3-Linux-x86_64-${{ env.REVISION }}.AppImage
@@ -152,6 +161,7 @@ jobs:
 
   build-for-macos:
     runs-on: macos-13
+    if: github.ref != 'refs/heads/dev'
     concurrency:
       group: ${{ github.repository }}-${{ github.workflow }}-macOS
       cancel-in-progress: true
