@@ -351,10 +351,10 @@ bool BurningControlWindow::checkSysImage() {
 				}
 
 				/* TBD: check same file? */
-				if(filepathVector.contains(filePathString)) {
-					QMessageBox::critical(Q_NULLPTR, QString(), tr("Row %1 filepath \"%2\" is Repeated").arg(row).arg(filePathString));
-					return false;
-				}
+				// if(filepathVector.contains(filePathString)) {
+				// 	QMessageBox::critical(Q_NULLPTR, QString(), tr("Row %1 filepath \"%2\" is Repeated").arg(row).arg(filePathString));
+				// 	return false;
+				// }
 
 				_fd.setFileName(filePathString);
 				if(!_fd.exists()) {
