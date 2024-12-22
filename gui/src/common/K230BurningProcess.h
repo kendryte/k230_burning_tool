@@ -21,10 +21,10 @@ class K230BurningProcess : public BurningProcess {
 	static void serial_isp_progress(void *, const kburnDeviceNode *, size_t, size_t);
 
 	int prepare(QList<struct BurnImageItem> &imageList, quint64 *total_size, quint64 *chunk_size);
-	bool begin(kburn_stor_address_t address, kburn_stor_block_t size);
-	bool step(kburn_stor_address_t address, const QByteArray &chunk);
+	bool begin(quint64 partOffset, quint64 partSize, quint64 fileSize);
+	bool step(quint64 address, const QByteArray &chunk);
 	// void recreateDeviceStatus(const kburnDeviceNode *);
- 	bool end(kburn_stor_address_t address);
+ 	bool end(quint64 address);
 	void cleanup(bool success);
 	QString errormsg();
 	void ResetChip(void);

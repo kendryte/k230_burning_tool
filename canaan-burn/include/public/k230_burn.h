@@ -28,7 +28,7 @@ PUBLIC bool kburn_parse_erase_config(struct kburn_t *kburn, uint64_t *offset, ui
 
 PUBLIC bool kburn_erase(struct kburn_t *kburn, uint64_t offset, uint64_t size, int max_retry);
 
-PUBLIC bool kburn_write_start(kburn_t *kburn, uint64_t offset, uint64_t size);
+PUBLIC bool kburn_write_start(struct kburn_t *kburn, uint64_t part_offset, uint64_t part_size, uint64_t file_size);
 PUBLIC bool kburn_write_chunk(struct kburn_t *kburn, void *data, uint64_t size);
 PUBLIC bool kbrun_write_end(struct kburn_t *kburn);
 

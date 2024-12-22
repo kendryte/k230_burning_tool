@@ -11,6 +11,7 @@
 #include <QString>
 
 #include "common/BurnImageItem.h"
+#include "common/KdImageParser.h"
 #include "common/CustomTableView.h"
 
 namespace Ui {
@@ -20,36 +21,35 @@ class BurningControlWindow;
 class BurningControlWindow : public QGroupBox {
 	Q_OBJECT
 
-	Ui::BurningControlWindow *ui;
-
-	// QFile fd;
-	QSettings settings;
-
-	bool autoBurningEnabled = false;
-
   public:
 	explicit BurningControlWindow(QWidget *parent = nullptr);
 	~BurningControlWindow();
 
-	// QString getFile() { return fd.fileName(); }
-	QList<struct BurnImageItem> getImageList() { return imageList; }
+	// QList<struct BurnImageItem> getImageList() { return imageList; }
+	QList<struct BurnImageItem> getImageList() { return getImageListFromTableView(); }
 
 private:
-	QPoint 					menuPoint;
+	Ui::BurningControlWindow *ui;
     TableHeaderView        	*tableHeader;
     QStandardItemModel     	*tableModel;
+
+	QSettings settings;
+	bool autoBurningEnabled = false;
 	QList<struct BurnImageItem>	imageList;
 
-  private:
+    struct kd_img_hdr_t lastKdImageHdr;
+	QList<struct kd_img_part_t> lastKdImageParts;
+
+private:
 	void initTableView(void);
-	void readSettings(void);
-	void saveSettings(void);
+	// void readSettings(void);
+	// void saveSettings(void);
 
-	QString getCurrentLoader();
-	void setCurrentLoader(QString &loader);
-	QString getDefaultLoader(QString &target);
+	bool parseImage();
+	bool parseKdimageToImageList(QString &imagePath, QString defaultLoader);
 
-	bool checkSysImage();
+	bool applyImageListToTableView();
+	QList<struct BurnImageItem> getImageListFromTableView();
 
   signals:
 	void newProcessRequested(class BurningRequest *partialRequest);
@@ -66,12 +66,6 @@ private:
 
     void tableviewHeaderStateChangedSlot(int state);
     void tableviewItemChangedSlot(QStandardItem* item);
-	void tabviewBtnOpenClickedSlot(const QModelIndex &index);
-
-	void tableviewMenuAddItemSlot(bool checked);
-	void tableviewMenuDelItemSlot(bool checked);
-	void tableviewMenuImportConfigmSlot(bool checked);
-	void tableviewMenuExportConfigmSlot(bool checked);
 };
 
 #endif // BURINGCONTROL_H

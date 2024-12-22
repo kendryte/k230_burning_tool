@@ -66,13 +66,13 @@ void BurningProcess::_run() {
 	timer.start();
 
 	foreach(struct BurnImageItem item, imageList) {
-		if(item.altName == QString("loader")) {
+		if(item.partName == QString("loader")) {
 			continue;
 		}
 
 		throwIfCancel();
 
-		BurnLibrary::instance()->localLog(QStringLiteral("address: %1,size: %2,altname: %3, filename: %4").arg(item.address).arg(item.size).arg(item.altName).arg(item.fileName));
+		BurnLibrary::instance()->localLog(QStringLiteral("Partition %1, offset %2, size %3; File %4, size %5").arg(item.partName).arg(item.partOffset).arg(item.partSize).arg(item.fileName).arg(item.fileSize));
 
 		imageFile.setFileName(item.fileName);
 		if (!imageFile.open(QIODeviceBase::ReadOnly)) {
@@ -80,8 +80,8 @@ void BurningProcess::_run() {
 		}
 		imageStream = new QDataStream(&imageFile);
 
-		address = item.address;
-		if(false == begin(item.address, item.size)) {
+		address = item.partOffset;
+		if(false == begin(item.partOffset, item.partSize, item.fileSize)) {
 			throw(KBurnException(::tr("Start Write File to Device failed") + " (" + item.fileName + ")"));
 		}
 

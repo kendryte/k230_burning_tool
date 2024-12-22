@@ -26,18 +26,23 @@ void K230BurningProcess::serial_isp_progress(void *self, const kburnDeviceNode *
 
 int K230BurningProcess::prepare(QList<struct BurnImageItem> &imageList, quint64 *total_size, quint64 *chunk_size) {
 	bool foundLoader = false;
-	int max_offset = 0, curr_offset = 0;
+	int max_offset = 0, curr_offset = 0, _size;
 	struct BurnImageItem loader;
 
 	foreach(struct BurnImageItem item, imageList) {
-		if(item.altName == QString("loader")) {
+		if(item.partName == QString("loader")) {
 			foundLoader = true;
 			loader = item;
 			continue;
 		}
 
-		*total_size += item.size;
-		curr_offset = item.address + item.size;
+		_size = item.partSize;
+		if(0x00 == item.partSize) {
+			_size = item.fileSize;
+		}
+
+		*total_size += _size;
+		curr_offset = item.partOffset + _size;
 		if(curr_offset > max_offset) {
 			max_offset = curr_offset;
 		}
@@ -126,7 +131,7 @@ int K230BurningProcess::prepare(QList<struct BurnImageItem> &imageList, quint64 
 	return 0;
 }
 
-bool K230BurningProcess::begin(kburn_stor_address_t address, kburn_stor_block_t size)
+bool K230BurningProcess::begin(quint64 partOffset, quint64 partSize, quint64 fileSize)
 {
 #if 0
 	if(KBURN_USB_ISP_SPI_NOR == kburn_get_medium_type(kburn)) {
@@ -144,26 +149,26 @@ bool K230BurningProcess::begin(kburn_stor_address_t address, kburn_stor_block_t 
 		}
 	}
 #else
-	quint64 _addr = address, erase_size;
+	quint64 _addr = partOffset, erase_size;
 
 	if(0x00 == (erase_size = kburn_get_erase_size(kburn))) {
 		throw KBurnException(tr("Unknown Error"));
 	}
 
 	if(0x00 != (_addr % erase_size)) {
-		throw KBurnException(tr("Image Start Offset %1 Should Align to %2 Bytes").arg(address).arg(erase_size));
+		throw KBurnException(tr("Image Start Offset %1 Should Align to %2 Bytes").arg(_addr).arg(erase_size));
 	}
 #endif
 
-	return kburn_write_start(kburn, address, size);
+	return kburn_write_start(kburn, partOffset, partSize, fileSize);
 }
 
-bool K230BurningProcess::step(kburn_stor_address_t address, const QByteArray &chunk)
+bool K230BurningProcess::step(quint64 address, const QByteArray &chunk)
 {
 	return kburn_write_chunk(kburn, (void *)chunk.constData(), chunk.size());
 }
 
-bool K230BurningProcess::end(kburn_stor_address_t address) {
+bool K230BurningProcess::end(quint64 address) {
 	return kbrun_write_end(kburn);
 }
 
