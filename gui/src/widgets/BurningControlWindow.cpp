@@ -387,10 +387,12 @@ bool BurningControlWindow::parseImage() {
 		imageFile.setFileName(currentImagePath);
 
 		item.partName = QString("image");
-		item.partOffset = 0;
-		item.partSize = 0; // no limit
+		item.partOffset = 0x00;
+		item.partSize = imageFile.size();
+        item.partEraseSize = 0x00;
 		item.fileName = imageFile.fileName();
 		item.fileSize = imageFile.size();
+
 		imageList.append(item);
 
 		return applyImageListToTableView();
