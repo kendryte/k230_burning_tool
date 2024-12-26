@@ -46,7 +46,7 @@ private:
 	// void saveSettings(void);
 
 	bool parseImage();
-	bool parseKdimageToImageList(QString &imagePath, QString defaultLoader);
+	bool parseKdimageToImageList(QString &imagePath);
 
 	bool applyImageListToTableView();
 	QList<struct BurnImageItem> getImageListFromTableView();

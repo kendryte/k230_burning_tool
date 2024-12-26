@@ -9,8 +9,6 @@
 #define KDIMG_HADER_MAGIC   (0x27CB8F93)
 #define KDIMG_PART_MAGIC    (0x91DF6DA4)
 
-#define KDIMG_CONTENT_STAT_OFFSET   (64 * 1024)
-
 struct alignas(512) kd_img_hdr_t {
     uint32_t img_hdr_magic;
     uint32_t img_hdr_crc32;
@@ -29,6 +27,7 @@ struct alignas(256) kd_img_part_t {
     uint32_t part_magic;
     uint32_t part_offset; // align to 4096
     uint32_t part_size; // align to 4096
+    uint32_t part_erase_size;
     uint32_t part_max_size;
     uint32_t part_flag;
 

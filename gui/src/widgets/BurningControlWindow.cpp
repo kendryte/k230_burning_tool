@@ -268,12 +268,14 @@ static QString convertFileSize(qint64 size) {
 QList<struct BurnImageItem> BurningControlWindow::getImageListFromTableView() {
 	QString partName;
 	QList<QString> selectedParts;
-	struct BurnImageItem loaderItem;
 	QList<struct BurnImageItem> itemList;
 
 	bool haveLoaderPart = false;
 
     int rowCount = tableModel->rowCount();
+
+	QString currentTargetText = ui->inputTarget->currentText();
+	QString dft_loader = getDefaultLoader(currentTargetText);
 
 	for (int index = 0; index < rowCount; index++) {
 		if (tableModel->index(index, 0).data(Qt::UserRole).toBool()) {
@@ -289,20 +291,26 @@ QList<struct BurnImageItem> BurningControlWindow::getImageListFromTableView() {
 
 	itemList.clear();
 
+	if(!haveLoaderPart) {
+		struct BurnImageItem item;
+
+		QFile imageFile(dft_loader);
+
+		item.partName = QString("loader");
+		item.partOffset = 0;
+		item.partSize = 0; // no limit
+		item.fileName = imageFile.fileName();
+		item.fileSize = imageFile.size();
+
+		itemList.append(item);
+	}
+
 	for (auto& item : imageList) {
 		partName = item.partName;
-
-		if(partName == QString("loader")) {
-			loaderItem = item;
-		}
 
 		if(selectedParts.contains(partName)) {
 			itemList.append(item);
 		}
-	}
-
-	if(!haveLoaderPart) {
-		itemList.append(loaderItem);
 	}
 
 	BurnLibrary::instance()->localLog(QString("Image list:"));
@@ -358,8 +366,6 @@ bool BurningControlWindow::parseImage() {
 	struct BurnImageItem item;
 
 	QString currentImagePath = ui->inputSysImage->text();
-	QString currentTargetText = ui->inputTarget->currentText();
-	QString dft_loader = getDefaultLoader(currentTargetText);
 
 	tableModel->removeRows(0, tableModel->rowCount());
 
@@ -372,10 +378,8 @@ bool BurningControlWindow::parseImage() {
 	imageFileInfo.setFile(currentImagePath);
 	imageFileSuffix = imageFileInfo.suffix().toLower();
 
-	BurnLibrary::instance()->localLog(QStringLiteral("Image (%3) Target (%1) Default Loader (%2)").arg(currentTargetText).arg(dft_loader).arg(currentImagePath));
-
 	if(imageFileSuffix == QString("kdimg")) {
-		return parseKdimageToImageList(currentImagePath, dft_loader);
+		return parseKdimageToImageList(currentImagePath);
 	} else {
 		imageList.clear();
 
@@ -383,16 +387,6 @@ bool BurningControlWindow::parseImage() {
 		imageFile.setFileName(currentImagePath);
 
 		item.partName = QString("image");
-		item.partOffset = 0;
-		item.partSize = 0; // no limit
-		item.fileName = imageFile.fileName();
-		item.fileSize = imageFile.size();
-		imageList.append(item);
-
-		// add loader
-		imageFile.setFileName(dft_loader);
-
-		item.partName = QString("loader");
 		item.partOffset = 0;
 		item.partSize = 0; // no limit
 		item.fileName = imageFile.fileName();
@@ -450,7 +444,7 @@ static bool copyPartOfFile(const QString& sourceFilePath, const QString& destina
     return true;
 }
 
-bool BurningControlWindow::parseKdimageToImageList(QString &imagePath, QString defaultLoader) {
+bool BurningControlWindow::parseKdimageToImageList(QString &imagePath) {
     struct kd_img_hdr_t hdr;
 	QList<struct kd_img_part_t> parts;
 	bool haveLoaderPart = false;
@@ -530,27 +524,6 @@ bool BurningControlWindow::parseKdimageToImageList(QString &imagePath, QString d
 	}
 
 	imageFile.close();
-
-	for(auto &part : parts) {
-		QString _partName = QString::fromUtf8(part.part_name);
-
-		if(_partName == QString("loader")) {
-			haveLoaderPart = true;
-		}
-	}
-
-	if(!haveLoaderPart) {
-		struct BurnImageItem item;
-
-		imageFile.setFileName(defaultLoader);
-
-		item.partName = QString("loader");
-		item.partOffset = 0;
-		item.partSize = 0; // no limit
-		item.fileName = imageFile.fileName();
-		item.fileSize = imageFile.size();
-		imageList.append(item);
-	}
 
 	lastKdImageHdr = hdr;
 	lastKdImageParts = parts;

@@ -81,7 +81,7 @@ void BurningProcess::_run() {
 		imageStream = new QDataStream(&imageFile);
 
 		address = item.partOffset;
-		if(false == begin(item.partOffset, item.partSize, item.fileSize)) {
+		if(false == begin(item)) {
 			throw(KBurnException(::tr("Start Write File to Device failed") + " (" + item.fileName + ")"));
 		}
 

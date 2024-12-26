@@ -105,14 +105,16 @@ void logKdImgPart(const kd_img_part_t &part)
         "  part_magic: 0x%1\n"
         "  part_offset: %2\n"
         "  part_size: %3\n"
-        "  part_max_size: %4\n"
-        "  part_flag: 0x%5\n"
-        "  part_content_offset: %6\n"
-        "  part_content_sha256: %7\n"
-        "  part_name: %8"
+        "  part_erase_size: %4\n"
+        "  part_max_size: %5\n"
+        "  part_flag: 0x%6\n"
+        "  part_content_offset: %7\n"
+        "  part_content_sha256: %8\n"
+        "  part_name: %9"
     ).arg(QString::number(part.part_magic, 16).toUpper())
      .arg(part.part_offset)
      .arg(part.part_size)
+     .arg(part.part_erase_size)
      .arg(part.part_max_size)
      .arg(QString::number(part.part_flag, 16).toUpper())
      .arg(part.part_content_offset)
@@ -222,7 +224,7 @@ bool extractKdImageToBurnImageItemList(QFile &imageFile, QList<struct kd_img_par
             } else {
                 BurnLibrary::instance()->localLog(QStringLiteral("Padding part by %1 bytes to align size").arg(padding));
 
-                QByteArray paddingData(padding, 0);
+                QByteArray paddingData(padding, 0xFF);
                 tempFile.write(paddingData);
             }
         }
@@ -247,6 +249,7 @@ bool extractKdImageToBurnImageItemList(QFile &imageFile, QList<struct kd_img_par
         item.partName = QString(part.part_name);
         item.partOffset = part.part_offset;
         item.partSize = part.part_max_size;
+        item.partEraseSize = part.part_erase_size;
         item.fileName = tempFileName;
         item.fileSize = part.part_size;
 

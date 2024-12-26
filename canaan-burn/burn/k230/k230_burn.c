@@ -298,8 +298,8 @@ bool kburn_parse_erase_config(struct kburn_t *kburn, uint64_t *offset, uint64_t 
         return false;
     }
 
-    o = round_down(o, kburn->medium_info.erase_size);
-    s = round_up(s, kburn->medium_info.erase_size);
+    o = round_up(o, kburn->medium_info.erase_size);
+    s = round_down(s, kburn->medium_info.erase_size);
 
     *offset = o;
     *size = s;
