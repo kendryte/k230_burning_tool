@@ -175,6 +175,7 @@ void BurningControlWindow::initTableView(void)
 	// ui->tableView->setContextMenuPolicy(Qt::CustomContextMenu);
 	ui->tableView->verticalHeader()->setVisible(false);
 	ui->tableView->setShowGrid(false);
+	ui->tableView->setEditTriggers(QAbstractItemView::NoEditTriggers);
 
     connect(tableModel, &QStandardItemModel::itemChanged, this, &BurningControlWindow::tableviewItemChangedSlot);
     connect(tableHeader, &TableHeaderView::stateChanged, this, &BurningControlWindow::tableviewHeaderStateChangedSlot);

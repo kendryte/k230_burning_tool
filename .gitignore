@@ -9,3 +9,6 @@ docs/*.pdf
 __pycache__
 dist
 *.egg-info
+
+.clangd
+.cache
