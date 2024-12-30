@@ -351,7 +351,7 @@ bool BurningControlWindow::applyImageListToTableView() {
 		tableModel->setData(index, true, Qt::UserRole);
 
 		tableModel->setItem(rowCount, TABLEVIEW_COL_PART_NAME, new QStandardItem(item.partName));
-		tableModel->setItem(rowCount, TABLEVIEW_COL_PART_OFFSET, new QStandardItem(QString("0x%1").arg(item.partOffset, 8, 16, QLatin1Char('0')).toUpper()));
+		tableModel->setItem(rowCount, TABLEVIEW_COL_PART_OFFSET, new QStandardItem(QString("0x") + QString("%1").arg(item.partOffset, 8, 16, QLatin1Char('0')).toUpper()));
 		tableModel->setItem(rowCount, TABLEVIEW_COL_FILE_SIZE, new QStandardItem(convertFileSize(item.fileSize)));
 
 		rowCount++;

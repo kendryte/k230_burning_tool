@@ -159,28 +159,29 @@ bool K230BurningProcess::begin(struct BurnImageItem& item)
     }
 
     if (0x00 != _part_erase_size) {
-        quint64 _erase_start = _part_offset;
+        quint64 _erase_start = _part_offset + _part_file_size;
         quint64 _erase_end = _part_offset + _part_erase_size;
 
-        // Align the erase start to the medium erase size
+        // Align the erase start to the medium erase size (round up)
         if (_erase_start % _medium_erase_size != 0) {
-            _erase_start = (_erase_start / _medium_erase_size) * _medium_erase_size;
+            _erase_start = ((_erase_start + _medium_erase_size - 1) / _medium_erase_size) * _medium_erase_size;
         }
 
-        // Align the erase size to the medium erase size
+        // Align the erase end to the medium erase size (round down)
         if (_erase_end % _medium_erase_size != 0) {
-            _erase_end = ((_erase_end + _medium_erase_size - 1) / _medium_erase_size) * _medium_erase_size;
+            _erase_end = (_erase_end / _medium_erase_size) * _medium_erase_size;
         }
 
-        quint64 _erase_size = _erase_end - _erase_start;
+        quint64 _erase_size = _erase_end > _erase_start ? _erase_end - _erase_start : 0;
 
-		BurnLibrary::instance()->localLog(QStringLiteral("Erase 0x%1 to 0x%2").arg(_erase_start, 0, 16).arg(_erase_start + _erase_size, 0, 16));
+        BurnLibrary::instance()->localLog(QStringLiteral("Erase 0x%1 to 0x%2").arg(_erase_start, 0, 16).arg(_erase_start + _erase_size, 0, 16));
 
-		if (kburn_erase(kburn, _erase_start, _erase_size, 30)) {
-			BurnLibrary::instance()->localLog(QStringLiteral("Erase 0x%1 to 0x%2 successful").arg(_erase_start, 0, 16).arg(_erase_start + _erase_size, 0, 16));
-		} else {
-			BurnLibrary::instance()->localLog(QStringLiteral("Erase 0x%1 to 0x%2 failed").arg(_erase_start, 0, 16).arg(_erase_start + _erase_size, 0, 16));
-			return false;
+		if(0 < _erase_size) {
+			if (kburn_erase(kburn, _erase_start, _erase_size, 30)) {
+				BurnLibrary::instance()->localLog(QStringLiteral("Erase 0x%1 to 0x%2 successful").arg(_erase_start, 0, 16).arg(_erase_start + _erase_size, 0, 16));
+			} else {
+				BurnLibrary::instance()->localLog(QStringLiteral("Erase 0x%1 to 0x%2 failed").arg(_erase_start, 0, 16).arg(_erase_start + _erase_size, 0, 16));
+			}
 		}
     }
 

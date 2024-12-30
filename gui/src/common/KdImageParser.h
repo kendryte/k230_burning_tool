@@ -13,6 +13,7 @@ struct alignas(512) kd_img_hdr_t {
     uint32_t img_hdr_magic;
     uint32_t img_hdr_crc32;
     uint32_t img_hdr_flag;
+	uint32_t img_hdr_version;
 
     uint32_t part_tbl_num;
     uint32_t part_tbl_crc32;
