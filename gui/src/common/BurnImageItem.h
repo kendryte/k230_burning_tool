@@ -8,11 +8,14 @@
 struct BurnImageItem
 {
 	bool operator < (const struct BurnImageItem& other) const {
-		return address < other.address;
+		return partOffset < other.partOffset;
     }
 
-	char altName[32];
-	uint32_t address;
-	uint32_t size;
+	QString partName;
+	uint32_t partOffset;
+	uint32_t partSize;
+	uint32_t partEraseSize;
+
 	QString fileName; 
+	uint32_t fileSize;
 };

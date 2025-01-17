@@ -48,7 +48,7 @@ void BurningProcess::_run() {
 	QFile imageFile;
 
 	bool founLoader = false;
-	quint64 total_size = 0, burned_size = 0, chunk_size = 8192;
+	quint64 total_size = 0, burned_size = 0, chunk_size = 8192, block_size = 0;
 	kburn_stor_address_t address = 0;
 
 	Q_ASSERT(_isStarted);
@@ -56,23 +56,24 @@ void BurningProcess::_run() {
 	QThread::currentThread()->setObjectName("burn:" + getTitle());
 
 	throwIfCancel();
-
-	prepare(imageList, &total_size, &chunk_size);
-	buffer = new QByteArray(chunk_size, 0);
+	prepare(imageList, &total_size, &chunk_size, &block_size);
+	throwIfCancel();
 
 	setStage(::tr("Downloading..."), total_size);
 
 	QElapsedTimer timer;
 	timer.start();
 
+	buffer = new QByteArray(chunk_size, 0);
+
 	foreach(struct BurnImageItem item, imageList) {
-		if(item.altName == QString("loader")) {
+		if(item.partName == QString("loader")) {
 			continue;
 		}
 
 		throwIfCancel();
 
-		BurnLibrary::instance()->localLog(QStringLiteral("address: %1,size: %2,altname: %3, filename: %4").arg(item.address).arg(item.size).arg(item.altName).arg(item.fileName));
+		BurnLibrary::instance()->localLog(QStringLiteral("Partition %1, offset %2, size %3; File %4, size %5").arg(item.partName).arg(item.partOffset).arg(item.partSize).arg(item.fileName).arg(item.fileSize));
 
 		imageFile.setFileName(item.fileName);
 		if (!imageFile.open(QIODeviceBase::ReadOnly)) {
@@ -80,8 +81,8 @@ void BurningProcess::_run() {
 		}
 		imageStream = new QDataStream(&imageFile);
 
-		address = item.address;
-		if(false == begin(item.address, item.size)) {
+		address = item.partOffset;
+		if(false == begin(item)) {
 			throw(KBurnException(::tr("Start Write File to Device failed") + " (" + item.fileName + ")"));
 		}
 
@@ -90,7 +91,12 @@ void BurningProcess::_run() {
 
 			int bytesRead = imageStream->readRawData(buffer->data(), buffer->size());
 
-			if (step(address, *buffer)) {
+			if ((bytesRead > 0) && (bytesRead % block_size != 0)) {
+				memset(buffer->data() + bytesRead, 0, block_size - (bytesRead % block_size));
+				bytesRead += (block_size - (bytesRead % block_size)); // Update bytesRead to reflect the padded size
+			}
+
+			if (step(address, *buffer, bytesRead)) {
 				address += bytesRead;
 
 				burned_size += bytesRead;

@@ -12,15 +12,17 @@
 
 enum kburn_pkt_cmd {
     KBURN_CMD_NONE = 0,
-	KBURN_CMD_REBOOT = 0x01,
+    KBURN_CMD_REBOOT = 0x01,
 
     KBURN_CMD_DEV_PROBE = 0x10,
-	KBURN_CMD_DEV_GET_INFO = 0x11,
+    KBURN_CMD_DEV_GET_INFO = 0x11,
 
-	KBURN_CMD_WRITE_LBA = 0x20,
-	KBURN_CMD_ERASE_LBA = 0x21,
+	KBURN_CMD_ERASE_LBA = 0x20,
 
-    KBURN_CMD_MAX,
+	KBURN_CMD_WRITE_LBA = 0x21,
+	KBURN_CMD_WRITE_LBA_CHUNK = 0x22,
+
+  KBURN_CMD_MAX,
 };
 
 enum kburn_pkt_result {
@@ -34,14 +36,14 @@ enum kburn_pkt_result {
     KBURN_RESULT_MAX,
 };
 
-#define KBUNR_USB_PKT_SIZE	(64)
+#define KBUNR_USB_PKT_SIZE	(60)
 
 #pragma pack(push,1)
 
 struct kburn_usb_pkt {
     uint16_t cmd;
     uint16_t result; /* only valid in csw */
-    uint8_t data_size;
+    uint16_t data_size;
 };
 
 struct kburn_usb_pkt_wrap {
@@ -69,6 +71,7 @@ struct kburn_t {
     char error_msg[128];
 
     int ep_in, ep_out;
+    uint16_t ep_out_mps;
     uint64_t capacity;
     uint64_t dl_total, dl_size, dl_offset;
 };
@@ -105,10 +108,12 @@ static int __get_endpoint(kburn_t *kburn)
 
 				dir = (ep->bEndpointAddress &
 					   LIBUSB_ENDPOINT_DIR_MASK);
-				if (dir == LIBUSB_ENDPOINT_IN)
+				if (dir == LIBUSB_ENDPOINT_IN) {
 					kburn->ep_in = ep->bEndpointAddress;
-				else
+                } else {
 					kburn->ep_out = ep->bEndpointAddress;
+					kburn->ep_out_mps = ep->wMaxPacketSize;
+                }
 			}
 		}
 	}
@@ -139,6 +144,12 @@ static int kburn_write_data(kburn_t *kburn, void *data, int length)
         debug_print(KBURN_LOG_ERROR, "Error - can't write bulk data, error %s, length %d, transfered %d", \
             libusb_strerror((enum libusb_error)rc), length, size);
         return KBrunUsbCommError;
+    }
+
+    if(0x00 == (length % kburn->ep_out_mps)) {
+        if(LIBUSB_SUCCESS != (rc = libusb_bulk_transfer(node->usb->handle, kburn->ep_out, data, 0, &size, kburn->medium_info.timeout_ms))) {
+            debug_print(KBURN_LOG_ERROR, "Error - can't write bulk data ZLP, error %s", libusb_strerror((enum libusb_error)rc));
+        }
     }
 
     return KBurnNoErr;
@@ -276,6 +287,16 @@ uint64_t kburn_get_erase_size(struct kburn_t *kburn)
     return 0;
 }
 
+uint64_t kburn_get_medium_blk_size(struct kburn_t *kburn)
+{
+    if(kburn->medium_info.valid) {
+        return kburn->medium_info.blk_size;
+    }
+    debug_print(KBURN_LOG_ERROR, "unknown meidum type");
+
+    return 0;
+}
+
 bool kburn_parse_erase_config(struct kburn_t *kburn, uint64_t *offset, uint64_t *size)
 {
     uint64_t o, s;
@@ -287,8 +308,8 @@ bool kburn_parse_erase_config(struct kburn_t *kburn, uint64_t *offset, uint64_t 
         return false;
     }
 
-    o = round_down(o, kburn->medium_info.erase_size);
-    s = round_up(s, kburn->medium_info.erase_size);
+    o = round_up(o, kburn->medium_info.erase_size);
+    s = round_down(s, kburn->medium_info.erase_size);
 
     *offset = o;
     *size = s;
@@ -349,7 +370,7 @@ void kburn_reset_chip(kburn_t *kburn)
 bool kburn_probe(kburn_t *kburn, kburnUsbIspCommandTaget target, uint64_t *chunk_size)
 {
     uint8_t data[2];
-    uint64_t result[1];
+    uint64_t result[2];
     int result_size = sizeof(result);
 
     data[0] = target;
@@ -367,9 +388,10 @@ bool kburn_probe(kburn_t *kburn, kburnUsbIspCommandTaget target, uint64_t *chunk
         return false;
     }
 
+    debug_print(KBURN_LOG_INFO, "kburn probe, out chunksize %" PRId64 ", in chunksize %" PRId64 "\n", result[0], result[1]);
+
     if(chunk_size) {
         *chunk_size = result[0];
-        debug_print(KBURN_LOG_INFO, "kburn probe, chunksize %" PRId64 "\n", *chunk_size);
     }
 
     return true;
@@ -454,11 +476,11 @@ bool kburn_erase(struct kburn_t *kburn, uint64_t offset, uint64_t size, int max_
     return KBurnNoErr == kburn_parse_resp(&csw, kburn, KBURN_CMD_ERASE_LBA, NULL, NULL);
 }
 
-bool kburn_write_start(struct kburn_t *kburn, uint64_t offset, uint64_t size)
+bool kburn_write_start(struct kburn_t *kburn, uint64_t part_offset, uint64_t part_size, uint64_t file_size)
 {
-    uint64_t cfg[2] = {offset, size};
+    uint64_t cfg[3] = {part_offset, file_size, part_size};
 
-    if((offset + size) > kburn->medium_info.capacity) {
+    if((part_offset + part_size) > kburn->medium_info.capacity) {
         debug_print(KBURN_LOG_ERROR, "kburn write medium exceed");
         strncpy(kburn->error_msg, "kburn write medium exceed", sizeof(kburn->error_msg));
         return false;

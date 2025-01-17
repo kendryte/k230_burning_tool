@@ -24,20 +24,25 @@ void K230BurningProcess::serial_isp_progress(void *self, const kburnDeviceNode *
 	_this->setProgress(current);
 }
 
-int K230BurningProcess::prepare(QList<struct BurnImageItem> &imageList, quint64 *total_size, quint64 *chunk_size) {
+int K230BurningProcess::prepare(QList<struct BurnImageItem> &imageList, quint64 *total_size, quint64 *chunk_size, quint64 *blk_size) {
 	bool foundLoader = false;
-	int max_offset = 0, curr_offset = 0;
+	int max_offset = 0, curr_offset = 0, _size;
 	struct BurnImageItem loader;
 
 	foreach(struct BurnImageItem item, imageList) {
-		if(item.altName == QString("loader")) {
+		if(item.partName == QString("loader")) {
 			foundLoader = true;
 			loader = item;
 			continue;
 		}
 
-		*total_size += item.size;
-		curr_offset = item.address + item.size;
+		_size = item.partSize;
+		if(0x00 == item.partSize) {
+			_size = item.fileSize;
+		}
+
+		*total_size += _size;
+		curr_offset = item.partOffset + _size;
 		if(curr_offset > max_offset) {
 			max_offset = curr_offset;
 		}
@@ -107,16 +112,16 @@ int K230BurningProcess::prepare(QList<struct BurnImageItem> &imageList, quint64 
 	}
 
 	quint64 capacity = kburn_get_capacity(kburn);
-
 	if(0x00 == capacity) {
 		throw KBurnException(tr("Device Can't find Medium as Configured"));
 	}
-
 	if(max_offset > capacity) {
 		throw KBurnException(tr("Image Bigger than Device Medium Capacity, %1 > %2").arg(max_offset).arg(capacity));
 	}
-
 	BurnLibrary::instance()->localLog(QStringLiteral("Medium %1 capacity %2").arg(isp_target).arg(capacity));
+
+	*blk_size = kburn_get_medium_blk_size(kburn);
+	BurnLibrary::instance()->localLog(QStringLiteral("Medium %1 block size %2").arg(isp_target).arg(*blk_size));
 
 	setStage(::tr("Start Downloading..."));
 
@@ -126,44 +131,70 @@ int K230BurningProcess::prepare(QList<struct BurnImageItem> &imageList, quint64 
 	return 0;
 }
 
-bool K230BurningProcess::begin(kburn_stor_address_t address, kburn_stor_block_t size)
+static inline unsigned long long roundup(unsigned long long value, unsigned long long align)
 {
-#if 0
-	if(KBURN_USB_ISP_SPI_NOR == kburn_get_medium_type(kburn)) {
-		quint64 _addr = address, _size = size;
-		if(false == kburn_parse_erase_config(kburn, &_addr, &_size)) {
-			return false;
-		}
-
-		QString str_range = QString("0x%1 - 0x%2").arg(QString::number(_addr, 16)).arg(QString::number(_size, 16));
-
-		setStage(::tr("Erase, ") + str_range, _size);
-
-		if(false == kburn_erase(kburn, _addr, _size, 20)) {
-			return false;
-		}
-	}
-#else
-	quint64 _addr = address, erase_size;
-
-	if(0x00 == (erase_size = kburn_get_erase_size(kburn))) {
-		throw KBurnException(tr("Unknown Error"));
-	}
-
-	if(0x00 != (_addr % erase_size)) {
-		throw KBurnException(tr("Image Start Offset %1 Should Align to %2 Bytes").arg(address).arg(erase_size));
-	}
-#endif
-
-	return kburn_write_start(kburn, address, size);
+	return ((value - 1)/align + 1) * align;
 }
 
-bool K230BurningProcess::step(kburn_stor_address_t address, const QByteArray &chunk)
+static inline unsigned long long rounddown(unsigned long long value, unsigned long long align)
 {
-	return kburn_write_chunk(kburn, (void *)chunk.constData(), chunk.size());
+	return value - (value % align);
 }
 
-bool K230BurningProcess::end(kburn_stor_address_t address) {
+bool K230BurningProcess::begin(struct BurnImageItem& item)
+{
+    quint64 _medium_erase_size;
+
+    quint64 _part_offset = item.partOffset;
+    quint64 _part_size = item.partSize;
+    quint64 _part_erase_size = item.partEraseSize;
+    quint64 _part_file_size = item.fileSize;
+
+    if (0x00 == (_medium_erase_size = kburn_get_erase_size(kburn))) {
+        throw KBurnException(tr("Unknown Error"));
+    }
+
+    if (0x00 != (_part_offset % _medium_erase_size)) {
+        throw KBurnException(tr("Image Start Offset %1 Should Align to %2 Bytes").arg(_part_offset).arg(_medium_erase_size));
+    }
+
+    if (0x00 != _part_erase_size) {
+        quint64 _erase_start = _part_offset + _part_file_size;
+        quint64 _erase_end = _part_offset + _part_erase_size;
+
+        // Align the erase start to the medium erase size (round up)
+        if (_erase_start % _medium_erase_size != 0) {
+            _erase_start = ((_erase_start + _medium_erase_size - 1) / _medium_erase_size) * _medium_erase_size;
+        }
+
+        // Align the erase end to the medium erase size (round down)
+        if (_erase_end % _medium_erase_size != 0) {
+            _erase_end = (_erase_end / _medium_erase_size) * _medium_erase_size;
+        }
+
+        quint64 _erase_size = _erase_end > _erase_start ? _erase_end - _erase_start : 0;
+
+        BurnLibrary::instance()->localLog(QStringLiteral("Erase 0x%1 to 0x%2").arg(_erase_start, 0, 16).arg(_erase_start + _erase_size, 0, 16));
+
+		if(0 < _erase_size) {
+			if (kburn_erase(kburn, _erase_start, _erase_size, 30)) {
+				BurnLibrary::instance()->localLog(QStringLiteral("Erase 0x%1 to 0x%2 successful").arg(_erase_start, 0, 16).arg(_erase_start + _erase_size, 0, 16));
+			} else {
+				BurnLibrary::instance()->localLog(QStringLiteral("Erase 0x%1 to 0x%2 failed").arg(_erase_start, 0, 16).arg(_erase_start + _erase_size, 0, 16));
+			}
+		}
+    }
+
+    // Start writing
+    return kburn_write_start(kburn, _part_offset, _part_size, _part_file_size);
+}
+
+bool K230BurningProcess::step(quint64 address, const QByteArray &chunk, quint64 chunk_size)
+{
+	return kburn_write_chunk(kburn, (void *)chunk.constData(), chunk_size);
+}
+
+bool K230BurningProcess::end(quint64 address) {
 	return kbrun_write_end(kburn);
 }
 
