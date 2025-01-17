@@ -287,6 +287,16 @@ uint64_t kburn_get_erase_size(struct kburn_t *kburn)
     return 0;
 }
 
+uint64_t kburn_get_medium_blk_size(struct kburn_t *kburn)
+{
+    if(kburn->medium_info.valid) {
+        return kburn->medium_info.blk_size;
+    }
+    debug_print(KBURN_LOG_ERROR, "unknown meidum type");
+
+    return 0;
+}
+
 bool kburn_parse_erase_config(struct kburn_t *kburn, uint64_t *offset, uint64_t *size)
 {
     uint64_t o, s;

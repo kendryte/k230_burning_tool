@@ -48,7 +48,7 @@ void BurningProcess::_run() {
 	QFile imageFile;
 
 	bool founLoader = false;
-	quint64 total_size = 0, burned_size = 0, chunk_size = 8192;
+	quint64 total_size = 0, burned_size = 0, chunk_size = 8192, block_size = 0;
 	kburn_stor_address_t address = 0;
 
 	Q_ASSERT(_isStarted);
@@ -56,14 +56,15 @@ void BurningProcess::_run() {
 	QThread::currentThread()->setObjectName("burn:" + getTitle());
 
 	throwIfCancel();
-
-	prepare(imageList, &total_size, &chunk_size);
-	buffer = new QByteArray(chunk_size, 0);
+	prepare(imageList, &total_size, &chunk_size, &block_size);
+	throwIfCancel();
 
 	setStage(::tr("Downloading..."), total_size);
 
 	QElapsedTimer timer;
 	timer.start();
+
+	buffer = new QByteArray(chunk_size, 0);
 
 	foreach(struct BurnImageItem item, imageList) {
 		if(item.partName == QString("loader")) {
@@ -90,7 +91,12 @@ void BurningProcess::_run() {
 
 			int bytesRead = imageStream->readRawData(buffer->data(), buffer->size());
 
-			if (step(address, *buffer)) {
+			if ((bytesRead > 0) && (bytesRead % block_size != 0)) {
+				memset(buffer->data() + bytesRead, 0, block_size - (bytesRead % block_size));
+				bytesRead += (block_size - (bytesRead % block_size)); // Update bytesRead to reflect the padded size
+			}
+
+			if (step(address, *buffer, bytesRead)) {
 				address += bytesRead;
 
 				burned_size += bytesRead;

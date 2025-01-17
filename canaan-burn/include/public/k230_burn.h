@@ -25,6 +25,7 @@ PUBLIC kburnUsbIspCommandTaget kburn_get_medium_type(struct kburn_t *kburn);
 PUBLIC uint64_t kburn_get_capacity(kburn_t *kburn);
 PUBLIC uint64_t kburn_get_erase_size(struct kburn_t *kburn);
 PUBLIC bool kburn_parse_erase_config(struct kburn_t *kburn, uint64_t *offset, uint64_t *size);
+PUBLIC uint64_t kburn_get_medium_blk_size(struct kburn_t *kburn);
 
 PUBLIC bool kburn_erase(struct kburn_t *kburn, uint64_t offset, uint64_t size, int max_retry);
 

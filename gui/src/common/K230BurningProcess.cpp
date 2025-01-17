@@ -24,7 +24,7 @@ void K230BurningProcess::serial_isp_progress(void *self, const kburnDeviceNode *
 	_this->setProgress(current);
 }
 
-int K230BurningProcess::prepare(QList<struct BurnImageItem> &imageList, quint64 *total_size, quint64 *chunk_size) {
+int K230BurningProcess::prepare(QList<struct BurnImageItem> &imageList, quint64 *total_size, quint64 *chunk_size, quint64 *blk_size) {
 	bool foundLoader = false;
 	int max_offset = 0, curr_offset = 0, _size;
 	struct BurnImageItem loader;
@@ -112,16 +112,16 @@ int K230BurningProcess::prepare(QList<struct BurnImageItem> &imageList, quint64 
 	}
 
 	quint64 capacity = kburn_get_capacity(kburn);
-
 	if(0x00 == capacity) {
 		throw KBurnException(tr("Device Can't find Medium as Configured"));
 	}
-
 	if(max_offset > capacity) {
 		throw KBurnException(tr("Image Bigger than Device Medium Capacity, %1 > %2").arg(max_offset).arg(capacity));
 	}
-
 	BurnLibrary::instance()->localLog(QStringLiteral("Medium %1 capacity %2").arg(isp_target).arg(capacity));
+
+	*blk_size = kburn_get_medium_blk_size(kburn);
+	BurnLibrary::instance()->localLog(QStringLiteral("Medium %1 block size %2").arg(isp_target).arg(*blk_size));
 
 	setStage(::tr("Start Downloading..."));
 
@@ -189,9 +189,9 @@ bool K230BurningProcess::begin(struct BurnImageItem& item)
     return kburn_write_start(kburn, _part_offset, _part_size, _part_file_size);
 }
 
-bool K230BurningProcess::step(quint64 address, const QByteArray &chunk)
+bool K230BurningProcess::step(quint64 address, const QByteArray &chunk, quint64 chunk_size)
 {
-	return kburn_write_chunk(kburn, (void *)chunk.constData(), chunk.size());
+	return kburn_write_chunk(kburn, (void *)chunk.constData(), chunk_size);
 }
 
 bool K230BurningProcess::end(quint64 address) {
