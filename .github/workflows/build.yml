@@ -59,15 +59,6 @@ jobs:
         if-no-files-found: error
         compression-level: 0
 
-    - name: Build AvalonNano3 for Windows 
-      if: github.ref != 'refs/heads/dev'
-      run: |
-        rm -rf ${{ github.workspace }}/build && mkdir -p ${{ github.workspace }}/build
-        docker run --name qt6 -v "${PWD}:/home/user/project:ro" stateoftheartio/qt6:6.7-mingw-aqt /bin/bash -c 'export CI=1; qt-cmake ./project -G Ninja -B ./build -DBUILD_FOR_AVALON_NANO3=1; cmake --build ./build; cmake --install ./build; ls -alh ./build'
-        docker cp qt6:/home/user/build/dist ${{ github.workspace }}/build
-        docker rm qt6
-        ls -alh build
-
   build-for-linux:
     runs-on: ubuntu-latest
     concurrency:
