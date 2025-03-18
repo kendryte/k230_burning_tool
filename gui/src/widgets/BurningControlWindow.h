@@ -9,6 +9,7 @@
 #include <QMenu>
 #include <QPoint>
 #include <QString>
+#include <QDateTime>
 
 #include "common/BurnImageItem.h"
 #include "common/KdImageParser.h"
@@ -36,9 +37,12 @@ private:
 	QSettings settings;
 	bool autoBurningEnabled = false;
 	QList<struct BurnImageItem>	imageList;
+	QList<struct BurnImageItem>	lastKdImageList;
 
     struct kd_img_hdr_t lastKdImageHdr;
 	QList<struct kd_img_part_t> lastKdImageParts;
+
+	QDateTime lastKdImageModifiedTime;
 
 private:
 	void initTableView(void);

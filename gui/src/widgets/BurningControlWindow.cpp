@@ -84,6 +84,17 @@ void BurningControlWindow::on_buttonStartAuto_clicked(bool checked) {
 }
 
 void BurningControlWindow::on_btnStartBurn_clicked() {
+	QString currentImagePath = ui->inputSysImage->text();
+
+	QFileInfo imageFileInfo(currentImagePath);
+	QDateTime imageFileLastModified = imageFileInfo.lastModified();
+
+	if(lastKdImageModifiedTime != imageFileLastModified) {
+		BurnLibrary::instance()->localLog(QStringLiteral("Image (%1) changed").arg(currentImagePath));
+
+		parseImage();
+	}
+
 	QList<struct BurnImageItem> list = getImageList();
 
 	if(0x01 >= list.size()) {
@@ -380,6 +391,8 @@ bool BurningControlWindow::parseImage() {
 	imageFileSuffix = imageFileInfo.suffix().toLower();
 
 	if(imageFileSuffix == QString("kdimg")) {
+		lastKdImageModifiedTime = imageFileInfo.lastModified();
+
 		return parseKdimageToImageList(currentImagePath);
 	} else {
 		imageList.clear();
@@ -468,6 +481,8 @@ bool BurningControlWindow::parseKdimageToImageList(QString &imagePath) {
 	if(compareKdImage(hdr, parts, lastKdImageHdr, lastKdImageParts)) {
 		imageFile.close();
 		BurnLibrary::instance()->localLog(QStringLiteral("Same KdImage %1").arg(imagePath));
+
+		imageList = lastKdImageList;
 		return applyImageListToTableView();
 	}
 
@@ -530,6 +545,7 @@ bool BurningControlWindow::parseKdimageToImageList(QString &imagePath) {
 
 	lastKdImageHdr = hdr;
 	lastKdImageParts = parts;
+	lastKdImageList = imageList;
 
 	return applyImageListToTableView();
 }
