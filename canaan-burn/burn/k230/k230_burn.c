@@ -476,9 +476,9 @@ bool kburn_erase(struct kburn_t *kburn, uint64_t offset, uint64_t size, int max_
     return KBurnNoErr == kburn_parse_resp(&csw, kburn, KBURN_CMD_ERASE_LBA, NULL, NULL);
 }
 
-bool kburn_write_start(struct kburn_t *kburn, uint64_t part_offset, uint64_t part_size, uint64_t file_size)
+bool kburn_write_start(struct kburn_t *kburn, uint64_t part_offset, uint64_t part_size, uint64_t part_flag, uint64_t file_size)
 {
-    uint64_t cfg[3] = {part_offset, file_size, part_size};
+    uint64_t cfg[4] = {part_offset, file_size, part_size, part_flag};
 
     if((part_offset + part_size) > kburn->medium_info.capacity) {
         debug_print(KBURN_LOG_ERROR, "kburn write medium exceed");

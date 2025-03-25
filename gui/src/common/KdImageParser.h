@@ -30,7 +30,7 @@ struct alignas(256) kd_img_part_t {
     uint32_t part_size; // align to 4096
     uint32_t part_erase_size;
     uint32_t part_max_size;
-    uint32_t part_flag;
+    uint64_t part_flag;
 
     uint32_t part_content_offset;
     uint32_t part_content_size;

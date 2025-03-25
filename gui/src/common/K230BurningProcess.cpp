@@ -27,7 +27,10 @@ void K230BurningProcess::serial_isp_progress(void *self, const kburnDeviceNode *
 int K230BurningProcess::prepare(QList<struct BurnImageItem> &imageList, quint64 *total_size, quint64 *chunk_size, quint64 *blk_size) {
 	bool foundLoader = false;
 	int max_offset = 0, curr_offset = 0, _size;
+	quint64 part_flag;
 	struct BurnImageItem loader;
+
+	kburnUsbIspCommandTaget isp_target = (kburnUsbIspCommandTaget)GlobalSetting::flashTarget.getValue();
 
 	foreach(struct BurnImageItem item, imageList) {
 		if(item.partName == QString("loader")) {
@@ -39,6 +42,22 @@ int K230BurningProcess::prepare(QList<struct BurnImageItem> &imageList, quint64 
 		_size = item.partSize;
 		if(0x00 == item.partSize) {
 			_size = item.fileSize;
+		}
+
+		part_flag = item.partFlag;
+		if(0x00 != part_flag) {
+			quint64 flag_flag, flag_val1, flag_val2;
+
+			flag_flag = KBURN_FLAG_FLAG(part_flag);
+			flag_val1 = KBURN_FLAG_VAL1(part_flag);
+			flag_val2 = KBURN_FLAG_VAL2(part_flag);
+
+			quint32 page_size_with_oob = flag_val1 + flag_val2;
+
+			if((KBURN_USB_ISP_SPI_NAND == isp_target) && (KBURN_FLAG_SPI_NAND_WRITE_WITH_OOB == flag_flag)) {
+				_size /= page_size_with_oob;
+				_size *= flag_val1;
+			}
 		}
 
 		*total_size += _size;
@@ -99,8 +118,6 @@ int K230BurningProcess::prepare(QList<struct BurnImageItem> &imageList, quint64 
 
 	setStage(::tr("Init Device"));
 
-	kburnUsbIspCommandTaget isp_target = (kburnUsbIspCommandTaget)GlobalSetting::flashTarget.getValue();
-
 	if(NULL == (kburn = kburn_create(node))) {
 		throw KBurnException(tr("Device Memory error"));
 	}
@@ -149,6 +166,7 @@ bool K230BurningProcess::begin(struct BurnImageItem& item)
     quint64 _part_size = item.partSize;
     quint64 _part_erase_size = item.partEraseSize;
     quint64 _part_file_size = item.fileSize;
+    quint64 _part_flag = item.partFlag;
 
     if (0x00 == (_medium_erase_size = kburn_get_erase_size(kburn))) {
         throw KBurnException(tr("Unknown Error"));
@@ -186,7 +204,7 @@ bool K230BurningProcess::begin(struct BurnImageItem& item)
     }
 
     // Start writing
-    return kburn_write_start(kburn, _part_offset, _part_size, _part_file_size);
+    return kburn_write_start(kburn, _part_offset, _part_size, _part_flag, _part_file_size);
 }
 
 bool K230BurningProcess::step(quint64 address, const QByteArray &chunk, quint64 chunk_size)

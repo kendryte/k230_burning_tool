@@ -250,6 +250,7 @@ bool extractKdImageToBurnImageItemList(QFile &imageFile, QList<struct kd_img_par
         item.partOffset = part.part_offset;
         item.partSize = part.part_max_size;
         item.partEraseSize = part.part_erase_size;
+        item.partFlag = part.part_flag;
         item.fileName = tempFileName;
         item.fileSize = part.part_size;
 

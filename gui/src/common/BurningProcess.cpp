@@ -48,8 +48,14 @@ void BurningProcess::_run() {
 	QFile imageFile;
 
 	bool founLoader = false;
-	quint64 total_size = 0, burned_size = 0, chunk_size = 8192, block_size = 0;
+	quint64 total_size = 0, burned_size = 0, chunk_size = 8192, block_size = 0, part_flag = 0;
+
+	quint64 block_size_bak, chunk_size_bak;
+	quint32 flag_flag, flag_val1, flag_val2;
+
 	kburn_stor_address_t address = 0;
+
+	kburnUsbIspCommandTaget isp_target = (kburnUsbIspCommandTaget)GlobalSetting::flashTarget.getValue();
 
 	Q_ASSERT(_isStarted);
 
@@ -84,6 +90,40 @@ void BurningProcess::_run() {
 		address = item.partOffset;
 		if(false == begin(item)) {
 			throw(KBurnException(::tr("Start Write File to Device failed") + " (" + item.fileName + ")"));
+		}
+
+		part_flag = item.partFlag;
+		if(0x00 != part_flag) {
+			flag_flag = KBURN_FLAG_FLAG(part_flag);
+			flag_val1 = KBURN_FLAG_VAL1(part_flag);
+			flag_val2 = KBURN_FLAG_VAL2(part_flag);
+
+			BurnLibrary::instance()->localLog(QStringLiteral("Flag: flag %1, val1 %2, val2 %3").arg(flag_flag).arg(flag_val1).arg(flag_val2));
+
+			if((KBURN_USB_ISP_SPI_NAND == isp_target) && (KBURN_FLAG_SPI_NAND_WRITE_WITH_OOB == flag_flag)) {
+				quint32 page_size_with_oob = flag_val1 + flag_val2;
+
+				block_size_bak = block_size;
+				chunk_size_bak = chunk_size;
+
+				block_size = page_size_with_oob;
+				chunk_size = ((chunk_size / page_size_with_oob) - 1) * page_size_with_oob;
+				buffer->resize(chunk_size);
+
+				BurnLibrary::instance()->localLog(QStringLiteral("New block size %1, chunk size %2").arg(block_size).arg(chunk_size));
+			}
+		} else {
+			flag_flag = 0;
+			flag_val1 = 0;
+			flag_val2 = 0;
+
+			if(0x00 != block_size_bak) {
+				block_size = block_size_bak;
+			}
+
+			if(0x00 != chunk_size_bak) {
+				buffer->resize(chunk_size_bak);
+			}
 		}
 
 		while (!imageStream->atEnd()) {
