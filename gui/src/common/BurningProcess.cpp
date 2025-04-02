@@ -50,8 +50,8 @@ void BurningProcess::_run() {
 	bool founLoader = false;
 	quint64 total_size = 0, burned_size = 0, chunk_size = 8192, block_size = 0, part_flag = 0;
 
-	quint64 block_size_bak, chunk_size_bak;
 	quint32 flag_flag, flag_val1, flag_val2;
+	quint64 block_size_bak = 0, chunk_size_bak = 0;
 
 	kburn_stor_address_t address = 0;
 
@@ -119,10 +119,12 @@ void BurningProcess::_run() {
 
 			if(0x00 != block_size_bak) {
 				block_size = block_size_bak;
+				block_size_bak = 0;
 			}
 
 			if(0x00 != chunk_size_bak) {
 				buffer->resize(chunk_size_bak);
+				chunk_size_bak = 0;
 			}
 		}
 
