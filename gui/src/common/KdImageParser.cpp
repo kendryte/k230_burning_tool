@@ -138,9 +138,12 @@ bool extractKdImageToBurnImageItemList(QFile &imageFile, QList<struct kd_img_par
 
     // Temporary folder for storing extracted files
     QDir tempDir(QDir::tempPath() + "/BurnImageItems");
-    if (!tempDir.exists()) {
-        tempDir.mkpath(".");
+    // Remove the directory and all its contents if it exists
+    if (tempDir.exists()) {
+        tempDir.removeRecursively();
     }
+    // Create fresh directory
+    tempDir.mkpath(".");
 
     // Iterate over the parts
     for (const kd_img_part_t &part : parts) {
