@@ -45,7 +45,7 @@ int parseKdImage(QFile &imageFile, struct kd_img_hdr_t& hdr, QList<struct kd_img
 bool compareKdImage(struct kd_img_hdr_t& current_hdr, QList<struct kd_img_part_t> & current_parts,
         struct kd_img_hdr_t& last_hdr, QList<struct kd_img_part_t> & last_parts);
 
-bool extractKdImageToBurnImageItemList(QFile &imageFile, QList<struct kd_img_part_t> & parts, QList<struct BurnImageItem> &list);
+bool extractKdImageToBurnImageItemList(QFile &imageFile, QList<struct kd_img_part_t> &parts, QList<struct kd_img_part_t> &lastParts, QList<struct BurnImageItem> &list, QList<struct BurnImageItem> &lastList);
 
 class ExtractKdImageWorker : public QObject {
     Q_OBJECT
@@ -55,8 +55,8 @@ public:
     ~ExtractKdImageWorker() {}
 
 public slots:
-    void extractKdImage(QFile &imageFile, QList<struct kd_img_part_t> & parts, QList<struct BurnImageItem> &list) {
-	    bool result = extractKdImageToBurnImageItemList(imageFile, parts, list);
+    void extractKdImage(QFile &imageFile, QList<struct kd_img_part_t> &parts, QList<struct kd_img_part_t> &lastParts, QList<struct BurnImageItem> &list, QList<struct BurnImageItem> &lastList) {
+	    bool result = extractKdImageToBurnImageItemList(imageFile, parts, lastParts, list, lastList);
         emit taskCompleted(result);
     }
 

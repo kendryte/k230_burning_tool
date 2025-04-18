@@ -123,74 +123,125 @@ void logKdImgPart(const kd_img_part_t &part)
 
     BurnLibrary::instance()->localLog(logMessage);
 }
-bool extractKdImageToBurnImageItemList(QFile &imageFile, QList<struct kd_img_part_t> &parts, QList<struct BurnImageItem> &list)
-{
-    constexpr qint64 ChunkSize = 4 * 1024 * 1024; // 4 MiB
 
-    // Check if the file is open
+bool extractKdImageToBurnImageItemList(QFile &imageFile, QList<struct kd_img_part_t> &parts, QList<struct kd_img_part_t> &lastParts, QList<struct BurnImageItem> &list, QList<struct BurnImageItem> &lastList)
+{
+    constexpr qint64 ChunkSize = 64 * 1024 * 1024;
+
     if (!imageFile.isOpen()) {
         BurnLibrary::instance()->localLog(QStringLiteral("%1 imageFile not open").arg(__func__));
         return false;
     }
 
-    // Reset the list to ensure it starts clean
     list.clear();
 
-    // Temporary folder for storing extracted files
-    QDir tempDir(QDir::tempPath() + "/BurnImageItems");
-    // Remove the directory and all its contents if it exists
-    if (tempDir.exists()) {
-        tempDir.removeRecursively();
+    const QString basePath = QDir::tempPath();
+    QDir tempDir(basePath);
+    QString newFolderName = "BurnImageItems";
+    QString lastFolderName = "BurnImageItemsLast";
+
+    QString newFolderPath = tempDir.filePath(newFolderName);
+    QString lastFolderPath = tempDir.filePath(lastFolderName);
+
+    // If lastFolder exists, remove it (from previous run)
+    QDir lastTempDir(lastFolderPath);
+    if (lastTempDir.exists()) {
+        lastTempDir.removeRecursively();
     }
-    // Create fresh directory
-    tempDir.mkpath(".");
 
-    // Iterate over the parts
+    // If current BurnImageItems exists, rename it to BurnImageItemsLast
+    QDir currentTempDir(newFolderPath);
+    if (currentTempDir.exists()) {
+        if (!tempDir.rename(newFolderName, lastFolderName)) {
+            BurnLibrary::instance()->localLog(QStringLiteral("Failed to rename existing BurnImageItems to BurnImageItemsLast"));
+            return false;
+        }
+
+        // Adjust lastList file paths after renaming
+        for (BurnImageItem &item : lastList) {
+            QFileInfo fi(item.fileName);
+            item.fileName = QDir(lastFolderPath).filePath(fi.fileName());
+        }
+    }
+
+    // Create a fresh BurnImageItems directory
+    QDir newTempDir(newFolderPath);
+    if (!newTempDir.exists()) {
+        if (!newTempDir.mkpath(".")) {
+            BurnLibrary::instance()->localLog(QStringLiteral("Failed to create new BurnImageItems folder"));
+            return false;
+        }
+    }
+
     for (const kd_img_part_t &part : parts) {
-        // Create an instance of QElapsedTimer
         QElapsedTimer timer;
-
-        // Start the timer
         timer.start();
 
         logKdImgPart(part);
 
-        // Validate the part magic
         if (part.part_magic != KDIMG_PART_MAGIC) {
             BurnLibrary::instance()->localLog(QStringLiteral("Invalid part magic: %1").arg(part.part_magic));
             return false;
         }
 
-        // Prepare the SHA-256 calculation
-        QCryptographicHash hash(QCryptographicHash::Sha256);
+        QByteArray expectedHash = QByteArray(reinterpret_cast<const char*>(part.part_content_sha256), 32);
+        QString partNameStr = QString(part.part_name);
+        QString newTempFileName = newTempDir.filePath(QString("%1_0x%2.bin").arg(partNameStr).arg(QString::number(part.part_offset, 16)));
 
-        // Save the file data to the temporary folder
-        QString tempFileName = tempDir.filePath(QString("%1_0x%2.bin").arg(QString(part.part_name)).arg(QString::number(part.part_offset, 16)));
-        QFile tempFile(tempFileName);
+        bool reused = false;
 
-        // Check if the file already exists and remove it
-        if (tempFile.exists()) {
-            if (!tempFile.remove()) {
-                BurnLibrary::instance()->localLog(QStringLiteral("Failed to remove existing temp file: %1").arg(tempFileName));
-                return false;
+        // Try to reuse from lastParts and lastList (coming from BurnImageItemsLast)
+        for (int i = 0; i < lastParts.size(); ++i) {
+            const kd_img_part_t &lastPart = lastParts[i];
+            const BurnImageItem &lastItem = lastList[i];
+
+            QByteArray lastHash = QByteArray(reinterpret_cast<const char*>(lastPart.part_content_sha256), 32);
+            if (lastHash == expectedHash && QString(lastPart.part_name) == partNameStr) {
+                QString oldFilePath = lastItem.fileName;
+
+                // Copy the reused file into the new folder
+                if (QFile::copy(oldFilePath, newTempFileName)) {
+                    BurnLibrary::instance()->localLog(QStringLiteral("Reused and copied part: %1").arg(partNameStr));
+
+                    BurnImageItem reusedItem;
+                    reusedItem.partName = partNameStr;
+                    reusedItem.partOffset = part.part_offset;
+                    reusedItem.partSize = part.part_max_size;
+                    reusedItem.partEraseSize = part.part_erase_size;
+                    reusedItem.partFlag = part.part_flag;
+                    reusedItem.fileName = newTempFileName;
+                    reusedItem.fileSize = part.part_size;
+                    list.append(reusedItem);
+                    reused = true;
+                } else {
+                    BurnLibrary::instance()->localLog(QStringLiteral("Failed to copy reused file: %1").arg(oldFilePath));
+                    return false;
+                }
+                break;
             }
         }
 
+        if (reused) {
+            continue;
+        }
+
+        // Not reused — extract from image
+        QCryptographicHash hash(QCryptographicHash::Sha256);
+        QFile tempFile(newTempFileName);
+
         if (!tempFile.open(QIODevice::WriteOnly)) {
-            BurnLibrary::instance()->localLog(QStringLiteral("Failed to create temp file: %1").arg(tempFileName));
+            BurnLibrary::instance()->localLog(QStringLiteral("Failed to create temp file: %1").arg(newTempFileName));
             return false;
         }
 
-        // Extract data in chunks
         qint64 remainingSize = part.part_content_size;
         qint64 currentOffset = part.part_content_offset;
 
         while (remainingSize > 0) {
             qint64 bytesToRead = qMin(ChunkSize, remainingSize);
 
-            // Explicitly flush and sync the file stream before reading
             if (!imageFile.seek(currentOffset)) {
-                BurnLibrary::instance()->localLog(QStringLiteral("Failed to seek to content offset: %1").arg(currentOffset));
+                BurnLibrary::instance()->localLog(QStringLiteral("Failed to seek to offset: %1").arg(currentOffset));
                 tempFile.close();
                 tempFile.remove();
                 return false;
@@ -204,12 +255,10 @@ bool extractKdImageToBurnImageItemList(QFile &imageFile, QList<struct kd_img_par
                 return false;
             }
 
-            // Update the SHA-256 hash
             hash.addData(chunkData);
 
-            // Write the chunk to the temporary file
             if (tempFile.write(chunkData) != bytesToRead) {
-                BurnLibrary::instance()->localLog(QStringLiteral("Failed to write chunk to temp file: %1").arg(tempFileName));
+                BurnLibrary::instance()->localLog(QStringLiteral("Failed to write chunk to temp file: %1").arg(newTempFileName));
                 tempFile.close();
                 tempFile.remove();
                 return false;
@@ -219,14 +268,13 @@ bool extractKdImageToBurnImageItemList(QFile &imageFile, QList<struct kd_img_par
             remainingSize -= bytesToRead;
         }
 
-        if(part.part_content_size < part.part_size) {
+        // Padding if necessary
+        if (part.part_content_size < part.part_size) {
             uint32_t padding = part.part_size - part.part_content_size;
-
-            if(padding > 4096) {
+            if (padding > 4096) {
                 BurnLibrary::instance()->localLog(QStringLiteral("Error align part size, %1").arg(padding));
             } else {
-                BurnLibrary::instance()->localLog(QStringLiteral("Padding part by %1 bytes to align size").arg(padding));
-
+                BurnLibrary::instance()->localLog(QStringLiteral("Padding part by %1 bytes").arg(padding));
                 QByteArray paddingData(padding, 0xFF);
                 tempFile.write(paddingData);
             }
@@ -234,35 +282,30 @@ bool extractKdImageToBurnImageItemList(QFile &imageFile, QList<struct kd_img_par
 
         tempFile.close();
 
-        // Finalize the SHA-256 hash
         QByteArray calculatedHash = hash.result();
-        QByteArray expectedHash = QByteArray(reinterpret_cast<const char*>(part.part_content_sha256), 32);
-
-        // Compare the hashes
         if (calculatedHash != expectedHash) {
-            BurnLibrary::instance()->localLog(QStringLiteral("SHA-256 mismatch for part: %1").arg(QString(part.part_name)));
-            BurnLibrary::instance()->localLog(QStringLiteral("Calculated SHA-256: %1").arg(calculatedHash.toHex()));
-            BurnLibrary::instance()->localLog(QStringLiteral("Expected SHA-256:   %1").arg(expectedHash.toHex()));
-            // tempFile.remove();
-            // return false;
+            BurnLibrary::instance()->localLog(QStringLiteral("SHA-256 mismatch for part: %1").arg(partNameStr));
+            BurnLibrary::instance()->localLog(QStringLiteral("Calculated: %1").arg(calculatedHash.toHex()));
+            BurnLibrary::instance()->localLog(QStringLiteral("Expected:   %1").arg(expectedHash.toHex()));
         }
 
-        // Populate the BurnImageItem
         BurnImageItem item;
-        item.partName = QString(part.part_name);
+        item.partName = partNameStr;
         item.partOffset = part.part_offset;
         item.partSize = part.part_max_size;
         item.partEraseSize = part.part_erase_size;
         item.partFlag = part.part_flag;
-        item.fileName = tempFileName;
+        item.fileName = newTempFileName;
         item.fileSize = part.part_size;
-
-        // Append to the list
         list.append(item);
 
-        // Get the elapsed time in milliseconds
-        qint64 elapsed = timer.elapsed();
-        BurnLibrary::instance()->localLog(QStringLiteral("use time %1 ms").arg(elapsed));
+        BurnLibrary::instance()->localLog(QStringLiteral("use time %1 ms").arg(timer.elapsed()));
+    }
+
+    // Cleanup BurnImageItemsLast after use
+    if (lastTempDir.exists()) {
+        lastTempDir.removeRecursively();
+        BurnLibrary::instance()->localLog("Cleaned up BurnImageItemsLast after reuse.");
     }
 
     return !list.isEmpty();

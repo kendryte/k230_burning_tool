@@ -467,7 +467,7 @@ bool BurningControlWindow::parseKdimageToImageList(QString &imagePath) {
 
 	QFile imageFile(imagePath);
 
-    if (!imageFile.open(QIODevice::ReadOnly /* | QIODevice::Unbuffered */)) {
+    if (!imageFile.open(QIODevice::ReadOnly | QIODevice::Unbuffered)) {
 		BurnLibrary::instance()->localLog(QStringLiteral("Could not open kdimage file: %1").arg(imagePath));
         return false;
     }
@@ -508,7 +508,7 @@ bool BurningControlWindow::parseKdimageToImageList(QString &imagePath) {
 		// Connect signals and slots
 		QObject::connect(workerThread, &QThread::started, [this, worker, &imageFile, &parts]() {
 			// Start the long-running task once the thread is started
-			worker->extractKdImage(imageFile, parts, imageList);
+			worker->extractKdImage(imageFile, parts, lastKdImageParts, imageList, lastKdImageList);
 		});
 
 		// Connect the taskCompleted signal to handle the completion
