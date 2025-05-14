@@ -53,12 +53,32 @@ int parseKdImage(QFile &imageFile, kd_img_hdr_t& hdr, QList<kd_img_part_t> &part
         return -1;
     }
 
+    BurnLibrary::instance()->localLog(QStringLiteral("hdr.img_hdr_version %1").arg(hdr.img_hdr_version));
+
     for (int i = 0; i < sizePartsContent; i += sizeof(kd_img_part_t)) {
         kd_img_part_t part;
         QByteArray partData = part_table_content.mid(i, sizeof(kd_img_part_t));
 
-        // Copy the part data into the struct
-        std::memcpy(&part, partData.data(), sizeof(kd_img_part_t));
+        if(0x02 <= hdr.img_hdr_version) {
+            std::memcpy(&part, partData.data(), sizeof(kd_img_part_t));
+        } else {
+            // Version 0 (v1) - need to convert to v2 format
+            kd_img_part_v1_t part_v1;
+            std::memcpy(&part_v1, partData.data(), sizeof(kd_img_part_v1_t));
+
+            // Convert v1 to v2 by copying each field
+            part.part_magic = part_v1.part_magic;
+            part.part_offset = part_v1.part_offset;
+            part.part_size = part_v1.part_size;
+            part.part_erase_size = part_v1.part_erase_size;
+            part.part_max_size = part_v1.part_max_size;
+            part.part_flag = part_v1.part_flag;
+            part.part_content_offset = part_v1.part_content_offset;
+            part.part_content_size = part_v1.part_content_size;
+
+            std::memcpy(part.part_content_sha256, part_v1.part_content_sha256, 32);
+            std::memcpy(part.part_name, part_v1.part_name, 32);
+        }
 
         if(KDIMG_PART_MAGIC != part.part_magic) {
             BurnLibrary::instance()->localLog(QStringLiteral("%1 invalid part header magic, %2 != %3!").arg(__func__).arg(KDIMG_PART_MAGIC).arg(part.part_magic));

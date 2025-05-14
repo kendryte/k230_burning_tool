@@ -70,6 +70,8 @@ struct kburn_t {
 
     char error_msg[128];
 
+    int loader_version;
+
     int ep_in, ep_out;
     uint16_t ep_out_mps;
     uint64_t capacity;
@@ -121,6 +123,32 @@ static int __get_endpoint(kburn_t *kburn)
 	libusb_free_config_descriptor(config);
 
 	return LIBUSB_SUCCESS;
+}
+
+static int kburn_probe_loader_version(kburn_t *kburn)
+{
+    int rc = -1;
+    uint32_t version = 0;
+
+    kburnDeviceNode *node = kburn->node;
+
+    rc = libusb_control_transfer(/* dev_handle    */ node->usb->handle,
+                                /* bmRequestType */ (uint8_t)(LIBUSB_ENDPOINT_IN | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE),
+                                /* bRequest      */ 0,
+                                /* wValue        */ (uint16_t)(0x0001),
+                                /* wIndex        */ 0,
+                                /* Data          */ (uint8_t *)&version,
+                                /* wLength       */ sizeof(version),
+                                /* timeout       */ USB_TIMEOUT);
+
+    if (rc < LIBUSB_SUCCESS) {
+        debug_print(KBURN_LOG_ERROR, "Error - can't issue a control transfer, error %s", libusb_strerror((enum libusb_error)rc));
+        return 0; // version 0 not support this request.
+    }
+
+    debug_print(KBURN_LOG_TRACE, "loader version %d", version);
+
+    return version;
 }
 
 static int kburn_write_data(kburn_t *kburn, void *data, int length)
@@ -332,6 +360,8 @@ kburn_t *kburn_create(kburnDeviceNode *node)
             free(kburn);
             kburn = NULL;
         }
+
+        kburn->loader_version = kburn_probe_loader_version(kburn);
     }
 
     return kburn;
@@ -478,6 +508,7 @@ bool kburn_erase(struct kburn_t *kburn, uint64_t offset, uint64_t size, int max_
 
 bool kburn_write_start(struct kburn_t *kburn, uint64_t part_offset, uint64_t part_size, uint64_t part_flag, uint64_t file_size)
 {
+    int cfg_size = sizeof(uint64_t) * 3;
     uint64_t cfg[4] = {part_offset, file_size, part_size, part_flag};
 
     if((part_offset + part_size) > kburn->medium_info.capacity) {
@@ -492,7 +523,11 @@ bool kburn_write_start(struct kburn_t *kburn, uint64_t part_offset, uint64_t par
         return false;
     }
 
-    if (KBurnNoErr != kburn_send_cmd(kburn, KBURN_CMD_WRITE_LBA, &cfg[0], sizeof(cfg), NULL, NULL)) {
+    if(0x01 <= kburn->loader_version) {
+        cfg_size = sizeof(uint64_t) * 4;
+    }
+
+    if (KBurnNoErr != kburn_send_cmd(kburn, KBURN_CMD_WRITE_LBA, &cfg[0], cfg_size, NULL, NULL)) {
         debug_print(KBURN_LOG_ERROR, "kburn write medium cfg failed");
         return false;
     }

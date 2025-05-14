@@ -24,6 +24,22 @@ struct alignas(512) kd_img_hdr_t {
 };
 static_assert(sizeof(struct kd_img_hdr_t) == 512, "Size of kd_img_part_t struct is not 512 bytes!");
 
+struct alignas(256) kd_img_part_v1_t {
+    uint32_t part_magic;
+    uint32_t part_offset;
+    uint32_t part_size;
+    uint32_t part_erase_size;
+    uint32_t part_max_size;
+    uint32_t part_flag; // diff with v2
+
+    uint32_t part_content_offset;
+    uint32_t part_content_size;
+	uint8_t  part_content_sha256[32];
+
+    char part_name[32];
+};
+static_assert(sizeof(struct kd_img_part_v1_t) == 256, "Size of kd_img_part_v1_t struct is not 256 bytes!");
+
 struct alignas(256) kd_img_part_t {
     uint32_t part_magic;
     uint32_t part_offset; // align to 4096
