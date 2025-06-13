@@ -111,63 +111,63 @@ jobs:
         if-no-files-found: error
         compression-level: 0
 
-  build-for-macos:
-    runs-on: macos-13
-    if: github.ref != 'refs/heads/dev'
-    concurrency:
-      group: ${{ github.repository }}-${{ github.workflow }}-macOS
-      cancel-in-progress: true
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        submodules: recursive
-        token: ${{ secrets.GIT_TOKEN }}
+  # build-for-macos:
+  #   runs-on: macos-13
+  #   if: github.ref != 'refs/heads/dev'
+  #   concurrency:
+  #     group: ${{ github.repository }}-${{ github.workflow }}-macOS
+  #     cancel-in-progress: true
+  #   steps:
+  #   - name: Checkout code
+  #     uses: actions/checkout@v4
+  #     with:
+  #       submodules: recursive
+  #       token: ${{ secrets.GIT_TOKEN }}
 
-    - name: Get Git revision and set as environment variable
-      id: get_revision
-      run: |
-        revision=$(git describe --long --tag --dirty --always)
-        echo "REVISION=$revision" >> $GITHUB_ENV
+  #   - name: Get Git revision and set as environment variable
+  #     id: get_revision
+  #     run: |
+  #       revision=$(git describe --long --tag --dirty --always)
+  #       echo "REVISION=$revision" >> $GITHUB_ENV
 
-    - name: Install Qt
-      uses: jurplel/install-qt-action@v4
-      with:
-        version: '6.7.2'
-        host: 'mac'
-        target: 'desktop'
-        arch: 'clang_64'
-        dir: '${{ github.workspace }}/qt/'
-        install-deps: 'true'
-        # modules: 'qtcharts qtwebengine'
-        archives: 'qttranslations qtbase qtsvg qttools'
-        cache: 'false'
-        cache-key-prefix: 'install-qt-action'
-        setup-python: 'true'
-        tools: 'tools_cmake tools_ninja'
-        set-env: 'true'
-        tools-only: 'false'
-        aqtversion: '==3.1.*'
-        py7zrversion: '==0.20.*'
-        # extra: '--external 7z'
+  #   - name: Install Qt
+  #     uses: jurplel/install-qt-action@v4
+  #     with:
+  #       version: '6.7.2'
+  #       host: 'mac'
+  #       target: 'desktop'
+  #       arch: 'clang_64'
+  #       dir: '${{ github.workspace }}/qt/'
+  #       install-deps: 'true'
+  #       # modules: 'qtcharts qtwebengine'
+  #       archives: 'qttranslations qtbase qtsvg qttools'
+  #       cache: 'false'
+  #       cache-key-prefix: 'install-qt-action'
+  #       setup-python: 'true'
+  #       tools: 'tools_cmake tools_ninja'
+  #       set-env: 'true'
+  #       tools-only: 'false'
+  #       aqtversion: '==3.1.*'
+  #       py7zrversion: '==0.20.*'
+  #       # extra: '--external 7z'
 
-    - name: Build for macOS
-      run: |
-        export PATH="$PATH:$IQTA_TOOLS/Ninja:$IQTA_TOOLS/CMake/CMake.app/Contents/bin"
-        cc --version
-        rm -rf ${{ github.workspace }}/build && mkdir -p ${{ github.workspace }}/build
-        cd build
-        qt-cmake .. -G Ninja
-        ninja --verbose
-        ninja install
-        mv ${{ github.workspace }}/build/gui/K230BurningTool.dmg ${{ github.workspace }}/build/gui/K230BurningTool-macOS-${{ env.REVISION }}-unsigned.dmg
+  #   - name: Build for macOS
+  #     run: |
+  #       export PATH="$PATH:$IQTA_TOOLS/Ninja:$IQTA_TOOLS/CMake/CMake.app/Contents/bin"
+  #       cc --version
+  #       rm -rf ${{ github.workspace }}/build && mkdir -p ${{ github.workspace }}/build
+  #       cd build
+  #       qt-cmake .. -G Ninja
+  #       ninja --verbose
+  #       ninja install
+  #       mv ${{ github.workspace }}/build/gui/K230BurningTool.dmg ${{ github.workspace }}/build/gui/K230BurningTool-macOS-${{ env.REVISION }}-unsigned.dmg
 
-    - uses: actions/upload-artifact@v4
-      with:
-        name: "K230BurningTool-macOS-${{ env.REVISION }}"
-        path: ${{ github.workspace }}/build/gui/*.dmg
-        if-no-files-found: error
-        compression-level: 0
+  #   - uses: actions/upload-artifact@v4
+  #     with:
+  #       name: "K230BurningTool-macOS-${{ env.REVISION }}"
+  #       path: ${{ github.workspace }}/build/gui/*.dmg
+  #       if-no-files-found: error
+  #       compression-level: 0
 
       # - name: Set up Developer ID certificate
       #   run: |
@@ -259,4 +259,4 @@ jobs:
             k230_burningtool_lastest.txt
             ./release/**/*.zip
             ./release/**/*.AppImage
-            ./release/**/*.dmg
+            # ./release/**/*.dmg

@@ -135,7 +135,7 @@ kburn_err_t open_single_usb_port(KBMonCTX monitor, struct libusb_device *dev, bo
 		debug_print(KBURN_LOG_INFO, "user verify pass");
 	}
 
-#ifndef WIN32
+#if !defined (WIN32) && !defined (APPLE)
 	r = libusb_kernel_driver_active(node->usb->handle, 0);
 	if (r == 0) {
 		debug_print(KBURN_LOG_DEBUG, "libusb kernel driver is already set to this device");

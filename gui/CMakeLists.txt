@@ -82,10 +82,17 @@ if(WIN32)
 elseif(APPLE)
 	set_target_properties(K230BurningTool PROPERTIES
 		MACOSX_BUNDLE TRUE
-		MACOSX_BUNDLE_GUI_IDENTIFIER canaan-creative.com
+		MACOSX_BUNDLE_GUI_IDENTIFIER kendryte.com
+		MACOSX_BUNDLE_ICON_FILE icon.icns
 		MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_LIST_DIR}/resources/Info.plist
 		MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
 		MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
+	)
+
+	add_custom_command(TARGET K230BurningTool POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:K230BurningTool>/../Resources"
+		COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_LIST_DIR}/resources/icon.icns "$<TARGET_FILE_DIR:K230BurningTool>/../Resources/"
+		COMMENT "Copying icon file to app bundle"
 	)
 endif()
 
