@@ -12,3 +12,5 @@ dist
 
 .clangd
 .cache
+
+.DS_Store
