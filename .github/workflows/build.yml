@@ -49,7 +49,7 @@ jobs:
             ls -alh ${{ github.workspace }}/build/dist
             ls -alh ${{ github.workspace }}/build/dist/bin
 
-            zip -j "${{ github.workspace }}/build/K230BurningTool-Windows-${{ matrix.variant }}-${{ env.REVISION }}.zip" "${{ github.workspace }}/build/dist/bin/*"
+            zip -j "${{ github.workspace }}/build/K230BurningTool-Windows-${{ matrix.variant }}-${{ env.REVISION }}.zip" ${{ github.workspace }}/build/dist/bin/*
           else
             docker run --name qt6 --privileged -v /dev/fuse:/dev/fuse -v "${PWD}:/home/user/project:ro" stateoftheartio/qt6:6.6-gcc-aqt /bin/bash -c '
               export CI=1
