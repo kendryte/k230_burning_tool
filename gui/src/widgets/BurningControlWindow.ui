@@ -163,7 +163,7 @@
        </spacer>
       </item>
       <item row="0" column="1">
-       <widget class="QLabel" name="label">
+       <widget class="QLabel" name="label_medium">
         <property name="minimumSize">
          <size>
           <width>80</width>

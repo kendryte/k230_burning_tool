@@ -69,12 +69,6 @@ target_include_directories(K230BurningTool PRIVATE "${CMAKE_CURRENT_LIST_DIR}/sr
 
 target_link_libraries(K230BurningTool PRIVATE Qt6::Widgets Qt6::Network Qt6::Svg)
 
-if(WIN32 AND TARGET_AVALON_NANO3)
-	set_target_properties(K230BurningTool PROPERTIES OUTPUT_NAME KendryteBurningTool-AvalonNano3)
-else()
-	set_target_properties(K230BurningTool PROPERTIES OUTPUT_NAME K230BurningTool)
-endif()
-
 if(WIN32)
 	set_target_properties(K230BurningTool PROPERTIES
 		WIN32_EXECUTABLE TRUE
@@ -89,9 +83,15 @@ elseif(APPLE)
 		MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
 	)
 
+	if(TARGET_AVALON_NANO3)
+		set(K230BurningTool_ICON "${CMAKE_CURRENT_LIST_DIR}/resources/avalon_nano3.icns")
+	else()
+		set(K230BurningTool_ICON "${CMAKE_CURRENT_LIST_DIR}/resources/icon.icns")
+	endif()
+
 	add_custom_command(TARGET K230BurningTool POST_BUILD
 		COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:K230BurningTool>/../Resources"
-		COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_LIST_DIR}/resources/icon.icns "$<TARGET_FILE_DIR:K230BurningTool>/../Resources/"
+		COMMAND ${CMAKE_COMMAND} -E copy ${K230BurningTool_ICON} "$<TARGET_FILE_DIR:K230BurningTool>/../Resources/"
 		COMMENT "Copying icon file to app bundle"
 	)
 endif()
@@ -119,8 +119,10 @@ target_compile_definitions(K230BurningTool PRIVATE "SETTINGS_CATEGORY=\"k230Burn
 
 if(TARGET_AVALON_NANO3)
 	target_compile_definitions(K230BurningTool PRIVATE "IS_AVALON_NANO3=1")
+	set_target_properties(K230BurningTool PROPERTIES OUTPUT_NAME Avalon_Home_Series_Firmware_Upgrade_Tool)
 else()
 	target_compile_definitions(K230BurningTool PRIVATE "IS_AVALON_NANO3=0")
+	set_target_properties(K230BurningTool PROPERTIES OUTPUT_NAME K230BurningTool)
 endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
