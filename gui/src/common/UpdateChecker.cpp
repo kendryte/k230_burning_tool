@@ -31,7 +31,7 @@ void UpdateChecker::_run() {
 	emit giveTip(::tr("Checking Update..."));
 
 	QNetworkAccessManager mgr;
-	QNetworkRequest request{QUrl("https://kendryte-download.canaan-creative.com/developer/tools/k230_burningtool//k230_burningtool_lastest.txt")};
+	QNetworkRequest request{QUrl("https://kendryte-download.canaan-creative.com/developer/tools/k230_burningtool/k230_burningtool_lastest.txt")};
 
 	QNetworkReply *reply = mgr.get(request);
 

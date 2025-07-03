@@ -138,7 +138,7 @@ void MainWindow::closeEvent(QCloseEvent *ev) {
 }
 
 void MainWindow::on_btnOpenWebsite_triggered() {
-	QDesktopServices::openUrl(QUrl("https://kendryte-download.canaan-creative.com/k230/downloads/burn_tool"));
+	QDesktopServices::openUrl(QUrl("https://kendryte-download.canaan-creative.com/developer/tools/k230_burningtool"));
 }
 
 void MainWindow::on_btnSaveLog_triggered() {
