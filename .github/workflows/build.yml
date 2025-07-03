@@ -83,14 +83,14 @@ jobs:
           # Create output directory
           mkdir -p ${{ github.workspace }}/artifact_output
 
-          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+          if [ "${{ matrix.os }}" = "windows" ]; then
             if [ -d "${{ github.workspace }}/build/dist/bin" ]; then
               cp -r ${{ github.workspace }}/build/dist/bin ${{ github.workspace }}/artifact_output/
             fi
           fi
-          
+
           # For Linux: Copy AppImage if it exists
-          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+          if [ "${{ matrix.os }}" = "linux" ]; then
             if ls ${{ github.workspace }}/build/build/K230BurningTool-*.AppImage 1> /dev/null 2>&1; then
               cp ${{ github.workspace }}/build/build/K230BurningTool-*.AppImage ${{ github.workspace }}/artifact_output/
             fi
