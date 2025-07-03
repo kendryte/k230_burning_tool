@@ -36,8 +36,6 @@ BurningControlWindow::BurningControlWindow(QWidget *parent)
 	: QGroupBox(parent), ui(new Ui::BurningControlWindow), settings(QSettings::Scope::UserScope, SETTINGS_CATEGORY, "burning") {
 	ui->setupUi(this);
 
-	ui->buttonStartAuto->setStyleSheet("QPushButton { padding-left: 8px; }");
-
 	initTableView();
 
 	GlobalSetting::flashTarget.connectCombobox(ui->inputTarget, true);
