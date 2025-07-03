@@ -42,7 +42,7 @@ jobs:
               cmake --install ./build
               ls -alh ./build
             '
-            docker cp qt6:/home/user/build/dist/* ${{ github.workspace }}/build/
+            docker cp qt6:/home/user/build/dist ${{ github.workspace }}/build/
             docker rm qt6
 
             # Use CMake-set name, so just package directly:
@@ -65,10 +65,11 @@ jobs:
               cmake --install ./build
               ls -alh ./build
             '
-            docker cp qt6:/home/user/build/* ${{ github.workspace }}/build/
+            docker cp qt6:/home/user/build ${{ github.workspace }}/build/
             docker rm qt6
 
             ls -alh ${{ github.workspace }}/build
+            ls -alh ${{ github.workspace }}/build/build
             zip -j "${{ github.workspace }}/build/K230BurningTool-Linux-${{ matrix.variant }}-${{ env.REVISION }}.zip" "${{ github.workspace }}/build/K230BurningTool-x86_64.AppImage"
           fi
 
