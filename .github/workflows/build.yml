@@ -68,13 +68,7 @@ jobs:
             docker cp qt6:/home/user/build ${{ github.workspace }}/build
             docker rm qt6
 
-            if [[ "${{ matrix.variant }}" == "avalon3" ]]; then
-              appimage="Avalon_Home_Series_Firmware_Upgrade_Tool.AppImage"
-            else
-              appimage="K230BurningTool-x86_64.AppImage"
-            fi
-
-            zip -j "${{ github.workspace }}/build/K230BurningTool-Linux-${{ matrix.variant }}-${{ env.REVISION }}.zip" "${{ github.workspace }}/build/${appimage}"
+            zip -j "${{ github.workspace }}/build/K230BurningTool-Linux-${{ matrix.variant }}-${{ env.REVISION }}.zip" "${{ github.workspace }}/build/K230BurningTool-x86_64.AppImage"
           fi
 
       - name: Upload artifact
