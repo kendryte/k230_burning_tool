@@ -84,7 +84,7 @@ elseif(APPLE)
 	)
 
 	if(TARGET_AVALON_NANO3)
-		set(K230BurningTool_ICON "${CMAKE_CURRENT_LIST_DIR}/resources/avalon_nano3.icns")
+		set(K230BurningTool_ICON "${CMAKE_CURRENT_LIST_DIR}/resources/icon_avalon.icns")
 	else()
 		set(K230BurningTool_ICON "${CMAKE_CURRENT_LIST_DIR}/resources/icon.icns")
 	endif()
@@ -117,15 +117,24 @@ target_link_libraries(K230BurningTool PRIVATE canaan_burn)
 
 target_compile_definitions(K230BurningTool PRIVATE "SETTINGS_CATEGORY=\"k230Burning\"")
 
-if(TARGET_AVALON_NANO3)
-	target_compile_definitions(K230BurningTool PRIVATE "IS_AVALON_NANO3=1")
-	if(WIN32)
-		set_target_properties(K230BurningTool PROPERTIES OUTPUT_NAME Avalon_Home_Series_Firmware_Upgrade_Tool)
-	endif()
+# Set output name based on platform and target
+if(WIN32 AND TARGET_AVALON_NANO3)
+    set_target_properties(K230BurningTool 
+        PROPERTIES 
+            OUTPUT_NAME "Avalon_Home_Series_Firmware_Upgrade_Tool"
+    )
 else()
-	target_compile_definitions(K230BurningTool PRIVATE "IS_AVALON_NANO3=0")
-	set_target_properties(K230BurningTool PROPERTIES OUTPUT_NAME K230BurningTool)
+    set_target_properties(K230BurningTool 
+        PROPERTIES 
+            OUTPUT_NAME "K230BurningTool"
+    )
 endif()
+
+# Set compile definitions based on target
+target_compile_definitions(K230BurningTool 
+    PRIVATE 
+        IS_AVALON_NANO3=$<IF:$<TARGET_EXISTS:TARGET_AVALON_NANO3>,1,0>
+)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
 	target_compile_definitions(K230BurningTool PRIVATE "IS_DEBUG=0")
