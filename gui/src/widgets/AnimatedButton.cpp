@@ -1,3 +1,8 @@
+#include "AnimatedButton.h"
+#include <QGraphicsColorizeEffect>
+#include <QPainter>
+#include <QPropertyAnimation>
+
 AnimatedButton::AnimatedButton(QWidget *parent) : QPushButton(parent) 
 {
     // Initialize animation system
