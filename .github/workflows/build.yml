@@ -45,17 +45,10 @@ jobs:
             docker cp qt6:/home/user/build/dist ${{ github.workspace }}/build/
             docker rm qt6
 
-            # Use CMake-set name, so just package directly:
-            if [[ "${{ matrix.variant }}" == "avalon3" ]]; then
-              bin_name="Avalon_Home_Series_Firmware_Upgrade_Tool.exe"
-            else
-              bin_name="K230BurningTool.exe"
-            fi
-
             ls -alh ${{ github.workspace }}/build/
             ls -alh ${{ github.workspace }}/build/dist
 
-            zip -j "${{ github.workspace }}/build/K230BurningTool-Windows-${{ matrix.variant }}-${{ env.REVISION }}.zip" "${{ github.workspace }}/build/dist/${bin_name}"
+            zip -j "${{ github.workspace }}/build/K230BurningTool-Windows-${{ matrix.variant }}-${{ env.REVISION }}.zip" "${{ github.workspace }}/build/dist/bin"
           else
             docker run --name qt6 --privileged -v /dev/fuse:/dev/fuse -v "${PWD}:/home/user/project:ro" stateoftheartio/qt6:6.6-gcc-aqt /bin/bash -c '
               export CI=1
