@@ -13,8 +13,10 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        os: [windows, linux]
-        variant: [normal, avalon3]
+        # os: [windows, linux]
+        # variant: [normal, avalon3]
+        os: [windows]
+        variant: [normal]
     env:
       BUILD_FOR_AVALON_NANO3: ${{ matrix.variant == 'avalon3' && 'ON' || 'OFF' }}
       TARGET_SUFFIX: ${{ matrix.variant == 'avalon3' && 'Avalon3' || 'Normal' }}
@@ -82,7 +84,7 @@ jobs:
         with:
           name: K230BurningTool-${{ matrix.os }}-${{ matrix.variant }}-${{ env.REVISION }}
           path: |
-            ${{ github.workspace }}/build/K230BurningTool-Windows-*.zip
+            ${{ github.workspace }}/build/dist/bin/*
             ${{ github.workspace }}/build/build/K230BurningTool-*.AppImage
           if-no-files-found: error
           compression-level: 0
