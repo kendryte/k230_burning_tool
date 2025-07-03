@@ -13,10 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        # os: [windows, linux]
-        # variant: [normal, avalon3]
-        os: [windows]
-        variant: [normal]
+        os: [windows, linux]
+        variant: [normal, avalon3]
     env:
       BUILD_FOR_AVALON_NANO3: ${{ matrix.variant == 'avalon3' && 'ON' || 'OFF' }}
       TARGET_SUFFIX: ${{ matrix.variant == 'avalon3' && 'Avalon3' || 'Normal' }}
