@@ -130,11 +130,11 @@ else()
     )
 endif()
 
-# Set compile definitions based on target
-target_compile_definitions(K230BurningTool 
-    PRIVATE 
-        IS_AVALON_NANO3=$<IF:$<TARGET_EXISTS:TARGET_AVALON_NANO3>,1,0>
-)
+if(TARGET_AVALON_NANO3)
+	target_compile_definitions(K230BurningTool PRIVATE "IS_AVALON_NANO3=1")
+else()
+	target_compile_definitions(K230BurningTool PRIVATE "IS_AVALON_NANO3=0")
+endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
 	target_compile_definitions(K230BurningTool PRIVATE "IS_DEBUG=0")
