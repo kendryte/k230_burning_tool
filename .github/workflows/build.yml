@@ -9,6 +9,7 @@ on:
       - feat/**
 
 jobs:
+jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
@@ -18,35 +19,17 @@ jobs:
     env:
       BUILD_FOR_AVALON_NANO3: ${{ matrix.variant == 'avalon3' && 'ON' || 'OFF' }}
       TARGET_SUFFIX: ${{ matrix.variant == 'avalon3' && 'Avalon3' || 'Normal' }}
-    concurrency:
-      group: ${{ github.repository }}-${{ github.workflow }}-${{ matrix.os }}-${{ matrix.variant }}
-      cancel-in-progress: true
     steps:
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           submodules: recursive
-          # token: ${{ secrets.GIT_TOKEN }}
 
       - name: Get Git revision
         id: revision
         run: |
           revision=$(git describe --long --tag --dirty --always)
           echo "REVISION=$revision" >> $GITHUB_ENV
-
-      - name: Pull Docker image
-        run: |
-          if [[ "${{ matrix.os }}" == "windows" ]]; then
-            docker pull stateoftheartio/qt6:6.7-mingw-aqt
-          else
-            docker pull stateoftheartio/qt6:6.6-gcc-aqt
-          fi
 
       - name: Build project
         run: |
@@ -55,7 +38,7 @@ jobs:
           if [[ "${{ matrix.os }}" == "windows" ]]; then
             docker run --name qt6 -v "${PWD}:/home/user/project:ro" stateoftheartio/qt6:6.7-mingw-aqt /bin/bash -c '
               export CI=1
-              qt-cmake ./project -G Ninja -B ./build -DBUILD_FOR_AVALON_NANO3=${{ env.BUILD_FOR_AVALON_NANO3 }}
+              qt-cmake ./project -G Ninja -B ./build -DTARGET_AVALON_NANO3=${{ env.BUILD_FOR_AVALON_NANO3 }}
               cmake --build ./build
               cmake --install ./build
               ls -alh ./build
@@ -63,14 +46,14 @@ jobs:
             docker cp qt6:/home/user/build/dist ${{ github.workspace }}/build
             docker rm qt6
 
+            # Use CMake-set name, so just package directly:
             if [[ "${{ matrix.variant }}" == "avalon3" ]]; then
               bin_name="Avalon_Home_Series_Firmware_Upgrade_Tool.exe"
             else
               bin_name="K230BurningTool.exe"
             fi
 
-            cp "${{ github.workspace }}/build/dist/${bin_name}" "${{ github.workspace }}/build/${bin_name}"
-            zip -j "${{ github.workspace }}/build/K230BurningTool-Windows-${{ matrix.variant }}-${{ env.REVISION }}.zip" "${{ github.workspace }}/build/${bin_name}"
+            zip -j "${{ github.workspace }}/build/K230BurningTool-Windows-${{ matrix.variant }}-${{ env.REVISION }}.zip" "${{ github.workspace }}/build/dist/${bin_name}"
           else
             docker run --name qt6 --privileged -v /dev/fuse:/dev/fuse -v "${PWD}:/home/user/project:ro" stateoftheartio/qt6:6.6-gcc-aqt /bin/bash -c '
               export CI=1
@@ -78,7 +61,7 @@ jobs:
               sudo apt install -y libgl-dev libvulkan-dev libssl-dev libudev-dev fuse file
               sudo curl -L https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage -o /usr/bin/linuxdeployqt
               sudo chmod +x /usr/bin/linuxdeployqt
-              qt-cmake ./project -G Ninja -B ./build -DBUILD_FOR_AVALON_NANO3=${{ env.BUILD_FOR_AVALON_NANO3 }}
+              qt-cmake ./project -G Ninja -B ./build -DTARGET_AVALON_NANO3=${{ env.BUILD_FOR_AVALON_NANO3 }}
               cmake --build ./build
               cmake --install ./build
               ls -alh ./build
