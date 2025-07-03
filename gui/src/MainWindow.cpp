@@ -33,14 +33,16 @@ MainWindow::MainWindow(QWidget *parent)
 	QString getTitleVersion(void);
 
 #if IS_AVALON_NANO3
-	setWindowTitle(QString("Avalon Home Series Firmware Upgrade Tool") + getTitleVersion());
-
-	ui->burnControlWindow->setMinimumSize(QSize(0, 200));
-	ui->burnControlWindow->updateGeometry();
-
 	QIcon icon;
 	icon.addFile(QString::fromUtf8(":/icon_avalon.png"), QSize(), QIcon::Normal, QIcon::Off);
 	this->setWindowIcon(icon);
+
+	setWindowTitle(QString("Avalon Home Series Firmware Upgrade Tool") + getTitleVersion());
+
+	ui->burnControlWindow->setMinimumSize(QSize(800, 200));
+
+	ui->burnControlWindow->setMaximumHeight(200);
+	ui->burnControlWindow->updateGeometry();
 #else
 	setWindowTitle(QString("K230BurningTool") + getTitleVersion());
 #endif

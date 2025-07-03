@@ -58,14 +58,28 @@ BurningControlWindow::BurningControlWindow(QWidget *parent)
 	ui->groupBox_Util->setMaximumHeight(80);
 	ui->groupBox_Util->updateGeometry();
 
-	QLabel *label = new QLabel(ui->groupBox_Util);
-	label->setObjectName("label");
-	label->setMinimumSize(QSize(80, 0));
-	label->setAlignment(Qt::AlignLeft);
+	// Create "Tips:" label (left-aligned, bold)
+	QLabel *labelTips = new QLabel(ui->groupBox_Util);
+	labelTips->setObjectName("labelTips");
+	labelTips->setText("<b>Tips:</b>");  // Bold formatting
+	labelTips->setAlignment(Qt::AlignLeft | Qt::AlignTop);  // Align top to match content
 
-	ui->gridLayout->addWidget(label, 0, 1, 1, 1);
+	// Create content label (word-wrapped)
+	QLabel *labelContent = new QLabel(ui->groupBox_Util);
+	labelContent->setObjectName("labelContent");
+	labelContent->setWordWrap(true);  // Enable auto-wrapping
+	labelContent->setAlignment(Qt::AlignLeft);
+	labelContent->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
-	label->setText(QCoreApplication::translate("BurningControlWindow", "Tips: To prevent upgrade failures or device issues, \n      please confirm the firmware package is compatible with the product type prior to upgrade.", nullptr));
+	// Set content text
+	labelContent->setText(QCoreApplication::translate("BurningControlWindow", 
+		"To prevent upgrade failures or device issues, please confirm the firmware package is compatible with the product type prior to upgrade.", 
+		nullptr));
+
+	// Add both labels to the grid layout (same row, different columns)
+	ui->gridLayout->addWidget(labelTips, 0, 1, 1, 1);    // Column 1
+	ui->gridLayout->addWidget(labelContent, 0, 2, 1, 1);  // Column 2 (expands)
+	ui->gridLayout->setColumnStretch(2, 1);  // Allow column 2 to expand
 #endif
 
 	auto instance = BurnLibrary::instance();
