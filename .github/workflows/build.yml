@@ -68,6 +68,7 @@ jobs:
             docker cp qt6:/home/user/build ${{ github.workspace }}/build
             docker rm qt6
 
+            ls -alh ${{ github.workspace }}/build
             zip -j "${{ github.workspace }}/build/K230BurningTool-Linux-${{ matrix.variant }}-${{ env.REVISION }}.zip" "${{ github.workspace }}/build/K230BurningTool-x86_64.AppImage"
           fi
 
