@@ -119,7 +119,9 @@ target_compile_definitions(K230BurningTool PRIVATE "SETTINGS_CATEGORY=\"k230Burn
 
 if(TARGET_AVALON_NANO3)
 	target_compile_definitions(K230BurningTool PRIVATE "IS_AVALON_NANO3=1")
-	set_target_properties(K230BurningTool PROPERTIES OUTPUT_NAME Avalon_Home_Series_Firmware_Upgrade_Tool)
+	if(WIN32)
+		set_target_properties(K230BurningTool PROPERTIES OUTPUT_NAME Avalon_Home_Series_Firmware_Upgrade_Tool)
+	endif()
 else()
 	target_compile_definitions(K230BurningTool PRIVATE "IS_AVALON_NANO3=0")
 	set_target_properties(K230BurningTool PROPERTIES OUTPUT_NAME K230BurningTool)
