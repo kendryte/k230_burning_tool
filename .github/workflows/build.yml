@@ -132,6 +132,28 @@ jobs:
       - name: List artifacts
         run: ls -R ./release
 
+      - name: Package artifacts for release
+        shell: bash
+        run: |
+          # Create release directory
+          mkdir -p ./release_packages
+          
+          # Package Linux AppImages
+          for dir in ./release/K230BurningTool-linux-*/; do
+            base=$(basename "$dir")
+            if [ -f "$dir"/*.AppImage ]; then
+              cp "$dir"/*.AppImage "./release_packages/$base.AppImage"
+            fi
+          done
+          
+          # Package Windows binaries
+          for dir in ./release/K230BurningTool-windows-*/; do
+            base=$(basename "$dir")
+            if [ -d "$dir/bin" ]; then
+              (cd "$dir" && zip -r "../../release_packages/$base.zip" bin/)
+            fi
+          done
+
       - name: Upload GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -139,5 +161,5 @@ jobs:
           tag_name: ${{ github.ref_name }}
           files: |
             k230_burningtool_lastest.txt
-            ./release/*/K230BurningTool-*.zip
-            ./release/K230BurningTool-*.zip
+            ./release_packages/*.AppImage
+            ./release_packages/*.zip
