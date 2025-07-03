@@ -40,6 +40,48 @@ BurningControlWindow::BurningControlWindow(QWidget *parent)
 
 	GlobalSetting::flashTarget.connectCombobox(ui->inputTarget, true);
 
+#if IS_AVALON_NANO3
+	ui->inputTarget->hide();
+	ui->buttonStartAuto->hide();
+	ui->btnOpenSettings->hide();
+	ui->label_medium->hide();
+	ui->tableView->hide();
+
+	int taget_nand_index = ui->inputTarget->findText(QString("SPI NAND"));
+	ui->inputTarget->setCurrentIndex(taget_nand_index);
+
+	ui->groupBox_Image->setMinimumHeight(50);
+	ui->groupBox_Image->setMaximumHeight(80);
+	ui->groupBox_Image->updateGeometry();
+
+	ui->groupBox_Util->setMinimumHeight(80);
+	ui->groupBox_Util->setMaximumHeight(80);
+	ui->groupBox_Util->updateGeometry();
+
+	// Create "Tips:" label (left-aligned, bold)
+	QLabel *labelTips = new QLabel(ui->groupBox_Util);
+	labelTips->setObjectName("labelTips");
+	labelTips->setText("<b>Tips:</b>");  // Bold formatting
+	labelTips->setAlignment(Qt::AlignLeft | Qt::AlignTop);  // Align top to match content
+
+	// Create content label (word-wrapped)
+	QLabel *labelContent = new QLabel(ui->groupBox_Util);
+	labelContent->setObjectName("labelContent");
+	labelContent->setWordWrap(true);  // Enable auto-wrapping
+	labelContent->setAlignment(Qt::AlignLeft);
+	labelContent->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+
+	// Set content text
+	labelContent->setText(QCoreApplication::translate("BurningControlWindow", 
+		"To prevent upgrade failures or device issues, please confirm the firmware image is compatible with the product type prior to upgrade.", 
+		nullptr));
+
+	// Add both labels to the grid layout (same row, different columns)
+	ui->gridLayout->addWidget(labelTips, 0, 1, 1, 1);    // Column 1
+	ui->gridLayout->addWidget(labelContent, 0, 2, 1, 1);  // Column 2 (expands)
+	ui->gridLayout->setColumnStretch(2, 1);  // Allow column 2 to expand
+#endif
+
 	auto instance = BurnLibrary::instance();
 	connect(instance, &BurnLibrary::onBeforDeviceOpen, this, &BurningControlWindow::handleOpenDevice);
 	connect(instance, &BurnLibrary::jobListChanged, this, &BurningControlWindow::handleSettingsWindowButtonState);

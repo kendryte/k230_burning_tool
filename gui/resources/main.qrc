@@ -1,6 +1,7 @@
 <RCC>
     <qresource prefix="/">
         <file>icon.png</file>
+        <file>icon_avalon.png</file>
         <file>github-brands.svg</file>
         <file>power-off-solid.svg</file>
         <file>hand-holding-medical-solid.svg</file>

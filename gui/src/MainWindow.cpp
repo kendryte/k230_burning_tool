@@ -31,8 +31,18 @@ MainWindow::MainWindow(QWidget *parent)
 	ui->setupUi(this);
 
 	QString getTitleVersion(void);
+
 #if IS_AVALON_NANO3
-	setWindowTitle(QString("KendryteBurningTool-AvalonNano3") + getTitleVersion());
+	QIcon icon;
+	icon.addFile(QString::fromUtf8(":/icon_avalon.png"), QSize(), QIcon::Normal, QIcon::Off);
+	this->setWindowIcon(icon);
+
+	setWindowTitle(QString("Avalon Home Series Firmware Upgrade Tool") + getTitleVersion());
+
+	ui->burnControlWindow->setMinimumSize(QSize(800, 200));
+
+	ui->burnControlWindow->setMaximumHeight(200);
+	ui->burnControlWindow->updateGeometry();
 #else
 	setWindowTitle(QString("K230BurningTool") + getTitleVersion());
 #endif
@@ -128,7 +138,7 @@ void MainWindow::closeEvent(QCloseEvent *ev) {
 }
 
 void MainWindow::on_btnOpenWebsite_triggered() {
-	QDesktopServices::openUrl(QUrl("https://kendryte-download.canaan-creative.com/k230/downloads/burn_tool"));
+	QDesktopServices::openUrl(QUrl("https://kendryte-download.canaan-creative.com/developer/tools/k230_burningtool"));
 }
 
 void MainWindow::on_btnSaveLog_triggered() {

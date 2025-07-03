@@ -9,255 +9,135 @@ on:
       - feat/**
 
 jobs:
-  build-for-windows:
+  build:
     runs-on: ubuntu-latest
-    concurrency:
-      group: ${{ github.repository }}-${{ github.workflow }}-Windows
-      cancel-in-progress: true
+    strategy:
+      matrix:
+        os: [windows, linux]
+        variant: [normal, avalon]
+    env:
+      BUILD_FOR_AVALON_NANO3: ${{ matrix.variant == 'avalon' && 'ON' || 'OFF' }}
+      TARGET_SUFFIX: ${{ matrix.variant == 'avalon' && 'Avalon' || 'Normal' }}
     steps:
-    - name: Login to Docker Hub
-      uses: docker/login-action@v3
-      with:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        submodules: recursive
-        token: ${{ secrets.GIT_TOKEN }}
+      - name: Get Git revision
+        id: revision
+        run: |
+          revision=$(git describe --long --tag --dirty --always)
+          echo "REVISION=$revision" >> $GITHUB_ENV
 
-    - name: Get Git revision and set as environment variable
-      id: get_revision
-      run: |
-        revision=$(git describe --long --tag --dirty --always)
-        echo "REVISION=$revision" >> $GITHUB_ENV
+      - name: Build project
+        run: |
+          rm -rf ${{ github.workspace }}/build && mkdir -p ${{ github.workspace }}/build
 
-    - name: Pull Docker image
-      run: |
-        docker pull stateoftheartio/qt6:6.7-mingw-aqt
+          if [[ "${{ matrix.os }}" == "windows" ]]; then
+            docker run --name qt6 -v "${PWD}:/home/user/project:ro" stateoftheartio/qt6:6.7-mingw-aqt /bin/bash -c '
+              export CI=1
+              qt-cmake ./project -G Ninja -B ./build -DTARGET_AVALON_NANO3=${{ env.BUILD_FOR_AVALON_NANO3 }}
+              cmake --build ./build
+              cmake --install ./build
+              ls -alh ./build
+            '
+            docker cp qt6:/home/user/build/dist ${{ github.workspace }}/build/
+            docker rm qt6
 
-    - name: Build for Windows
-      run: |
-        rm -rf ${{ github.workspace }}/build && mkdir -p ${{ github.workspace }}/build
-        docker run --name qt6 -v "${PWD}:/home/user/project:ro" stateoftheartio/qt6:6.7-mingw-aqt /bin/bash -c 'export CI=1; qt-cmake ./project -G Ninja -B ./build; cmake --build ./build; cmake --install ./build; ls -alh ./build'
-        docker cp qt6:/home/user/build/dist ${{ github.workspace }}/build
-        docker rm qt6
-        ls -alh build
+            ls -alh ${{ github.workspace }}/build/
+            ls -alh ${{ github.workspace }}/build/dist
+            ls -alh ${{ github.workspace }}/build/dist/bin
 
-    - name: Compress artifacts
-      if: github.ref != 'refs/heads/dev'
-      run: |
-        cd ${{ github.workspace }}/build/dist
-        zip -r K230BurningTool-Windows-${{ env.REVISION }}.zip *
+            # cd ${{ github.workspace }}/build/dist/bin
+            # if [[ "${{ matrix.variant }}" == "avalon" ]]; then
+            #   zip -r "${{ github.workspace }}/build/K230BurningTool-Windows-avalon-${{ env.REVISION }}.zip" .
+            # else
+            #   zip -r "${{ github.workspace }}/build/K230BurningTool-Windows-${{ env.REVISION }}.zip" .
+            # fi
+          else
+            docker run --name qt6 --privileged -v /dev/fuse:/dev/fuse -v "${PWD}:/home/user/project:ro" stateoftheartio/qt6:6.6-gcc-aqt /bin/bash -c '
+              export CI=1
+              sudo apt update
+              sudo apt install -y libgl-dev libvulkan-dev libssl-dev libudev-dev fuse file
+              sudo curl -L https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage -o /usr/bin/linuxdeployqt
+              sudo chmod +x /usr/bin/linuxdeployqt
+              qt-cmake ./project -G Ninja -B ./build -DTARGET_AVALON_NANO3=${{ env.BUILD_FOR_AVALON_NANO3 }}
+              cmake --build ./build
+              cmake --install ./build
+              ls -alh ./build
+            '
+            docker cp qt6:/home/user/build ${{ github.workspace }}/build/
+            docker rm qt6
 
-    - uses: actions/upload-artifact@v4
-      if: github.ref != 'refs/heads/dev'
-      with:
-        name: "K230BurningTool-Windows-${{ env.REVISION }}"
-        path: ${{ github.workspace }}/build/dist/K230BurningTool-Windows-${{ env.REVISION }}.zip
-        if-no-files-found: error
-        compression-level: 0
+            cd ${{ github.workspace }}/build/build
 
-  build-for-linux:
-    runs-on: ubuntu-latest
-    concurrency:
-      group: ${{ github.repository }}-${{ github.workflow }}-Linux
-      cancel-in-progress: true
-    steps:
-    - name: Login to Docker Hub
-      uses: docker/login-action@v3
-      with:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
+            if [[ "${{ matrix.variant }}" == "avalon" ]]; then
+              mv K230BurningTool-x86_64.AppImage K230BurningTool-${{ env.REVISION }}-x86_64.AppImage
+            fi
+          fi
 
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        submodules: recursive
-        token: ${{ secrets.GIT_TOKEN }}
+      - name: Prepare artifacts
+        shell: bash
+        run: |
+          # Create output directory
+          mkdir -p ${{ github.workspace }}/artifact_output
 
-    - name: Get Git revision and set as environment variable
-      id: get_revision
-      run: |
-        revision=$(git describe --long --tag --dirty --always)
-        echo "REVISION=$revision" >> $GITHUB_ENV
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            if [ -d "${{ github.workspace }}/build/dist/bin" ]; then
+              cp -r ${{ github.workspace }}/build/dist/bin ${{ github.workspace }}/artifact_output/
+            fi
+          fi
 
-    - name: Pull Docker image
-      run: |
-        docker pull stateoftheartio/qt6:6.6-gcc-aqt
+          # For Linux: Copy AppImage if it exists
+          if [ "${{ matrix.os }}" = "linux" ]; then
+            if ls ${{ github.workspace }}/build/build/K230BurningTool-*.AppImage 1> /dev/null 2>&1; then
+              cp ${{ github.workspace }}/build/build/K230BurningTool-*.AppImage ${{ github.workspace }}/artifact_output/
+            fi
+          fi
 
-    - name: Build for Linux
-      run: |
-        rm -rf ${{ github.workspace }}/build && mkdir -p ${{ github.workspace }}/build
-        docker run --name qt6 --privileged -v /dev/fuse:/dev/fuse -v "${PWD}:/home/user/project:ro" stateoftheartio/qt6:6.6-gcc-aqt /bin/bash -c '
-          export CI=1
-          sudo apt update
-          sudo apt install -y libgl-dev libvulkan-dev libssl-dev libudev-dev fuse file
-          sudo curl -L https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage -o /usr/bin/linuxdeployqt
-          sudo chmod +x /usr/bin/linuxdeployqt
-          qt-cmake ./project -G Ninja -B ./build; cmake --build ./build; cmake --install ./build; ls -alh ./build
-        '
-        docker cp qt6:/home/user/build/K230BurningTool-x86_64.AppImage ${{ github.workspace }}/build
-        docker rm qt6
-        mv ${{ github.workspace }}/build/K230BurningTool-x86_64.AppImage ${{ github.workspace }}/build/K230BurningTool-Linux-x86_64-${{ env.REVISION }}.AppImage
-        ls -alh build
-
-    - uses: actions/upload-artifact@v4
-      if: github.ref != 'refs/heads/dev'
-      with:
-        name: "K230BurningTool-Linux-x86_64-${{ env.REVISION }}"
-        path: ${{ github.workspace }}/build/K230BurningTool-Linux-x86_64-${{ env.REVISION }}.AppImage
-        if-no-files-found: error
-        compression-level: 0
-
-  # build-for-macos:
-  #   runs-on: macos-13
-  #   if: github.ref != 'refs/heads/dev'
-  #   concurrency:
-  #     group: ${{ github.repository }}-${{ github.workflow }}-macOS
-  #     cancel-in-progress: true
-  #   steps:
-  #   - name: Checkout code
-  #     uses: actions/checkout@v4
-  #     with:
-  #       submodules: recursive
-  #       token: ${{ secrets.GIT_TOKEN }}
-
-  #   - name: Get Git revision and set as environment variable
-  #     id: get_revision
-  #     run: |
-  #       revision=$(git describe --long --tag --dirty --always)
-  #       echo "REVISION=$revision" >> $GITHUB_ENV
-
-  #   - name: Install Qt
-  #     uses: jurplel/install-qt-action@v4
-  #     with:
-  #       version: '6.7.2'
-  #       host: 'mac'
-  #       target: 'desktop'
-  #       arch: 'clang_64'
-  #       dir: '${{ github.workspace }}/qt/'
-  #       install-deps: 'true'
-  #       # modules: 'qtcharts qtwebengine'
-  #       archives: 'qttranslations qtbase qtsvg qttools'
-  #       cache: 'false'
-  #       cache-key-prefix: 'install-qt-action'
-  #       setup-python: 'true'
-  #       tools: 'tools_cmake tools_ninja'
-  #       set-env: 'true'
-  #       tools-only: 'false'
-  #       aqtversion: '==3.1.*'
-  #       py7zrversion: '==0.20.*'
-  #       # extra: '--external 7z'
-
-  #   - name: Build for macOS
-  #     run: |
-  #       export PATH="$PATH:$IQTA_TOOLS/Ninja:$IQTA_TOOLS/CMake/CMake.app/Contents/bin"
-  #       cc --version
-  #       rm -rf ${{ github.workspace }}/build && mkdir -p ${{ github.workspace }}/build
-  #       cd build
-  #       qt-cmake .. -G Ninja
-  #       ninja --verbose
-  #       ninja install
-  #       mv ${{ github.workspace }}/build/gui/K230BurningTool.dmg ${{ github.workspace }}/build/gui/K230BurningTool-macOS-${{ env.REVISION }}-unsigned.dmg
-
-  #   - uses: actions/upload-artifact@v4
-  #     with:
-  #       name: "K230BurningTool-macOS-${{ env.REVISION }}"
-  #       path: ${{ github.workspace }}/build/gui/*.dmg
-  #       if-no-files-found: error
-  #       compression-level: 0
-
-      # - name: Set up Developer ID certificate
-      #   run: |
-      #     # Decode the Developer ID certificate
-      #     echo "${{ secrets.DEVELOPER_ID_CERT }}" | base64 --decode > developer_id.p12
-
-      #     # Create a keychain and import the certificate
-      #     security create-keychain -p tempkeychain build.keychain
-      #     security default-keychain -s build.keychain
-      #     security unlock-keychain -p tempkeychain build.keychain
-      #     security import developer_id.p12 -k build.keychain -P "${{ secrets.DEVELOPER_ID_PASSWORD }}" -T /usr/bin/codesign
-      #     security set-key-partition-list -S apple-tool:,apple: -s -k tempkeychain build.keychain
-
-      # - name: Sign the DMG
-      #   run: |
-      #     # Sign the DMG file
-      #     codesign --deep --force --verify --verbose --sign "Developer ID Application: Your Name (TeamID)" ${{ github.workspace }}/build/gui/K230BurningTool-macOS-${{ env.REVISION }}-unsigned.dmg
-
-      # - name: Notarize the DMG
-      #   run: |
-      #     # Upload DMG for notarization
-      #     xcrun altool --notarize-app \
-      #       --primary-bundle-id "com.example.yourapp" \
-      #       --username "${{ secrets.APPLE_ID }}" \
-      #       --password "${{ secrets.APPLE_ID_PASSWORD }}" \
-      #       --file ${{ github.workspace }}/build/gui/K230BurningTool-macOS-${{ env.REVISION }}-unsigned.dmg
-
-      #     # Wait for notarization to complete
-      #     echo "Waiting for notarization to complete..."
-      #     sleep 120 # Adjust sleep time as needed
-      #     xcrun altool --notarization-history 0 -u "${{ secrets.APPLE_ID }}" -p "${{ secrets.APPLE_ID_PASSWORD }}"
-
-      # - name: Staple Notarization Ticket
-      #   run: |
-      #     # Staple the notarization ticket to the DMG
-      #     xcrun stapler staple ${{ github.workspace }}/build/gui/K230BurningTool-macOS-${{ env.REVISION }}-unsigned.dmg
-      #     mv ${{ github.workspace }}/build/gui/K230BurningTool-macOS-${{ env.REVISION }}-unsigned.dmg ${{ github.workspace }}/build/gui/K230BurningTool-macOS-${{ env.REVISION }}.dmg
-
-      # - name: Upload Signed DMG
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: "K230BurningTool-macOS-${{ env.REVISION }}"
-      #     path: ${{ github.workspace }}/build/gui/K230BurningTool-macOS-${{ env.REVISION }}.dmg
-      #     if-no-files-found: error
-      #     compression-level: 0
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: K230BurningTool-${{ matrix.os }}-${{ matrix.variant }}-${{ env.REVISION }}
+          path: ${{ github.workspace }}/artifact_output/*
+          if-no-files-found: error
+          compression-level: 9
 
   release:
     if: startsWith(github.ref, 'refs/tags/')
-    # needs: [build-for-windows, build-for-linux, build-for-macos]
-    needs: [build-for-windows, build-for-linux]
+    needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GIT_TOKEN }}
+        # with:
+          # token: ${{ secrets.GIT_TOKEN }}
 
       - name: Generate Version Info
         run: |
-          TAG_NAME="${GITHUB_REF##*/}"  # Get the tag name (e.g., 'v2.0.0')
-          VERSION_STR="${TAG_NAME#v}"  # Remove the 'v' prefix
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION_STR"  # Split into components
-
-          VERSION_VALUE=$((MAJOR * 1000 + MINOR * 100 + PATCH))  # Calculate version
-
-          # Get the current commit hash
+          TAG_NAME="${GITHUB_REF##*/}"
+          VERSION_STR="${TAG_NAME#v}"
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION_STR"
+          VERSION_VALUE=$((MAJOR * 1000 + MINOR * 100 + PATCH))
           HASH_VALUE="$(git rev-parse HEAD)"
-
-          # Create the JSON object
           echo "{\"version\": $VERSION_VALUE, \"hash\": \"$HASH_VALUE\"}" > k230_burningtool_lastest.txt
-
-          echo "Version info saved to k230_burningtool_lastest.txt"
 
       - uses: actions/download-artifact@v4
         with:
           path: ./release
 
-      - name: List Release Directory
+      - name: List artifacts
         run: ls -R ./release
 
-      - name: Upload Release Assets
+      - name: Upload GitHub Release
         uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
         with:
           generate_release_notes: true
           tag_name: ${{ github.ref_name }}
           files: |
             k230_burningtool_lastest.txt
-            ./release/**/*.zip
-            ./release/**/*.AppImage
-            # ./release/**/*.dmg
+            ./release/*/K230BurningTool-*.zip
+            ./release/K230BurningTool-*.zip
