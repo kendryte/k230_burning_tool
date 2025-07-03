@@ -36,6 +36,8 @@ BurningControlWindow::BurningControlWindow(QWidget *parent)
 	: QGroupBox(parent), ui(new Ui::BurningControlWindow), settings(QSettings::Scope::UserScope, SETTINGS_CATEGORY, "burning") {
 	ui->setupUi(this);
 
+	ui->buttonStartAuto->setStyleSheet("QPushButton { padding-left: 8px; }");
+
 	initTableView();
 
 	GlobalSetting::flashTarget.connectCombobox(ui->inputTarget, true);
@@ -73,7 +75,7 @@ BurningControlWindow::BurningControlWindow(QWidget *parent)
 
 	// Set content text
 	labelContent->setText(QCoreApplication::translate("BurningControlWindow", 
-		"To prevent upgrade failures or device issues, please confirm the firmware package is compatible with the product type prior to upgrade.", 
+		"To prevent upgrade failures or device issues, please confirm the firmware image is compatible with the product type prior to upgrade.", 
 		nullptr));
 
 	// Add both labels to the grid layout (same row, different columns)
