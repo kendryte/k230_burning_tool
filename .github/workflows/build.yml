@@ -49,7 +49,12 @@ jobs:
             ls -alh ${{ github.workspace }}/build/dist
             ls -alh ${{ github.workspace }}/build/dist/bin
 
-            zip -j "${{ github.workspace }}/build/K230BurningTool-Windows-${{ matrix.variant }}-${{ env.REVISION }}.zip" ${{ github.workspace }}/build/dist/bin/*
+            cd ${{ github.workspace }}/build/dist/bin
+            if [[ "${{ matrix.variant }}" == "avalon3" ]]; then
+              zip -r "${{ github.workspace }}/build/K230BurningTool-Windows-avalon3-${{ env.REVISION }}.zip" .
+            else
+              zip -r "${{ github.workspace }}/build/K230BurningTool-Windows-${{ env.REVISION }}.zip" .
+            fi
           else
             docker run --name qt6 --privileged -v /dev/fuse:/dev/fuse -v "${PWD}:/home/user/project:ro" stateoftheartio/qt6:6.6-gcc-aqt /bin/bash -c '
               export CI=1
@@ -65,7 +70,11 @@ jobs:
             docker cp qt6:/home/user/build ${{ github.workspace }}/build/
             docker rm qt6
 
-            zip -j "${{ github.workspace }}/build/K230BurningTool-Linux-${{ matrix.variant }}-${{ env.REVISION }}.zip" "${{ github.workspace }}/build/build/K230BurningTool-x86_64.AppImage"
+            cd ${{ github.workspace }}/build/build
+
+            if [[ "${{ matrix.variant }}" == "avalon3" ]]; then
+              mv K230BurningTool-x86_64.AppImage K230BurningTool-${{ env.REVISION }}-x86_64.AppImage
+            fi
           fi
 
       - name: Upload artifact
@@ -73,7 +82,8 @@ jobs:
         with:
           name: K230BurningTool-${{ matrix.os }}-${{ matrix.variant }}-${{ env.REVISION }}
           path: |
-            ${{ github.workspace }}/build/*.zip
+            ${{ github.workspace }}/build/K230BurningTool-Windows-*.zip
+            ${{ github.workspace }}/build/build/K230BurningTool-*.AppImage
           if-no-files-found: error
           compression-level: 0
 
