@@ -294,7 +294,7 @@ static QString getDefaultLoader(QString &target)
 		return QString(":/loader/loader_mmc.bin");
 	}
 	else if(target == QString("OTP")) {
-		return QString(":/loader/loader_mmc.bin");
+		return QString(":/loader/loader_spi_nor.bin");
 	}
 	else if(target == QString("SPI NAND")) {
 		return QString(":/loader/loader_spi_nand.bin");
