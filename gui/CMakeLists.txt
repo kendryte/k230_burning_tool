@@ -33,7 +33,7 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # when bump version, chane here
-project(K230BurningTool VERSION 2.2.2 LANGUAGES CXX)
+project(K230BurningTool VERSION 2.2.3 LANGUAGES CXX)
 
 set(MY_VERSION $DATE)
 string(TIMESTAMP MY_VERSION_STRING "%Y-%m-%d %H:%M")
