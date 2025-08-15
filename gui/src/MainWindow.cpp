@@ -15,6 +15,9 @@
 #include <QScrollBar>
 #include <QTimer>
 #include <QUrl>
+#include <QDragEnterEvent>
+#include <QDropEvent>
+#include <QMimeData>
 
 #define SETTING_SPLIT_STATE "splitter-sizes"
 
@@ -44,6 +47,7 @@ MainWindow::MainWindow(QWidget *parent)
 	ui->burnControlWindow->setMaximumHeight(200);
 	ui->burnControlWindow->updateGeometry();
 #else
+	this->setAcceptDrops(true);
 	setWindowTitle(QString("K230BurningTool") + getTitleVersion());
 #endif
 
@@ -216,4 +220,22 @@ void MainWindow::splitterMovedSlot(int pos, int index)
 		ui->action->setText(tr("Expand logging window"));
 		ui->action->setToolTip(tr("Expand logging window"));
 	}
+}
+
+void MainWindow::dragEnterEvent(QDragEnterEvent *event)
+{
+    if (event->mimeData()->hasUrls()) {
+        event->acceptProposedAction();
+    }
+}
+
+void MainWindow::dropEvent(QDropEvent *event)
+{
+    QList<QUrl> urls = event->mimeData()->urls();
+    if (!urls.isEmpty()) {
+        QString filePath = urls.first().toLocalFile();
+        qDebug() << "Dropped file:" << filePath;
+
+		ui->burnControlWindow->setImageFile(filePath);
+    }
 }

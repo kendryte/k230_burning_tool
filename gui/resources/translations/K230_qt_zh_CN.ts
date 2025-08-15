@@ -276,8 +276,8 @@
     </message>
     <message>
         <location filename="../../src/widgets/BurningControlWindow.cpp" line="122"/>
-        <source>Image(*.img *.kdimg);;All Files(*.*)</source>
-        <translation>镜像文件(*.img *.kdimg);;所有文件(*.*)</translation>
+        <source>Image(*.img *.kdimg *.bin);;All Files(*.*)</source>
+        <translation>镜像文件(*.img *.kdimg *.bin);;所有文件(*.*)</translation>
     </message>
     <message>
         <location filename="../../src/widgets/BurningControlWindow.cpp" line="322"/>

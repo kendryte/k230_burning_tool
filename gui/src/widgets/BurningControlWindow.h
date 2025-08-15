@@ -29,6 +29,8 @@ class BurningControlWindow : public QGroupBox {
 	// QList<struct BurnImageItem> getImageList() { return imageList; }
 	QList<struct BurnImageItem> getImageList() { return getImageListFromTableView(); }
 
+    void setImageFile(const QString &filePath);
+
 private:
 	Ui::BurningControlWindow *ui;
     TableHeaderView        	*tableHeader;

@@ -157,13 +157,22 @@ void BurningControlWindow::on_btnStartBurn_clicked() {
 }
 
 void BurningControlWindow::on_btnSelectImage_clicked() {
-	auto str = QFileDialog::getOpenFileName(this, tr("Open Image File"), ui->inputSysImage->text(), tr("Image(*.img *.kdimg);;All Files(*.*)"), nullptr, QFileDialog::ReadOnly);
+	auto str = QFileDialog::getOpenFileName(this, tr("Open Image File"), ui->inputSysImage->text(), tr("Image(*.img *.kdimg *.bin);;All Files(*.*)"), nullptr, QFileDialog::ReadOnly);
 	if (str.isEmpty()) {
 		return;
 	}
 	ui->inputSysImage->setText(str);
 
 	parseImage();
+}
+
+// BurningControlWindow.cpp
+void BurningControlWindow::setImageFile(const QString &filePath)
+{
+    if (filePath.isEmpty()) return;
+
+    ui->inputSysImage->setText(filePath);
+    parseImage();
 }
 
 void BurningControlWindow::handleSettingsWindowButtonState() {

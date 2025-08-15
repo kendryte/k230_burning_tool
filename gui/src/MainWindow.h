@@ -30,6 +30,8 @@ class MainWindow : public QMainWindow {
 	SettingsBool logBufferSetting{"debug", SETTING_LOG_BUFFER, false};
 
   protected:
+    void dragEnterEvent(QDragEnterEvent *event) override;
+    void dropEvent(QDropEvent *event) override;
   public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
