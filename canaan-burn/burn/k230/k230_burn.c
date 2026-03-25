@@ -352,7 +352,7 @@ kburn_t *kburn_create(kburnDeviceNode *node)
     if(kburn) {
         memset(kburn, 0, sizeof(*kburn));
         kburn->node = node;
-        kburn->medium_info.timeout_ms = 1000; // default 1s
+        kburn->medium_info.timeout_ms = 10000; // set a longer timeout for probe medium info
 
         if(LIBUSB_SUCCESS != __get_endpoint(kburn)) {
             debug_print(KBURN_LOG_ERROR, "kburn get ep failed");
