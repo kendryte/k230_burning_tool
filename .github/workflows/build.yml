@@ -117,14 +117,23 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Install build tools
+        run: brew install ninja python@3.12
+
+      - name: Prepare Python for Qt installer
+        shell: bash
+        run: |
+          python_bin="$(brew --prefix python@3.12)/bin/python3.12"
+          "$python_bin" -m venv "$RUNNER_TEMP/install-qt-python"
+          echo "$RUNNER_TEMP/install-qt-python/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/install-qt-python/bin/python3" --version
+
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
         with:
           version: "6.6.3"
           cache: true
-
-      - name: Install build tools
-        run: brew install ninja
+          setup-python: false
 
       - name: Build both variants as unsigned CI artifacts
         env:
