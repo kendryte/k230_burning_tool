@@ -163,6 +163,10 @@ void MainWindow::on_btnSaveLog_triggered() {
 // }
 
 void MainWindow::startNewBurnJob(BurningRequest *partialRequest) {
+	if (!partialRequest->isAutoCreate) {
+		clearFinishedBurnJobs();
+	}
+
 	// partialRequest->systemImageFile = ui->burnControlWindow->getFile();
 	partialRequest->imageList = ui->burnControlWindow->getImageList();
 
@@ -179,6 +183,15 @@ void MainWindow::startNewBurnJob(BurningRequest *partialRequest) {
 	});
 
 	display->show();
+}
+
+void MainWindow::clearFinishedBurnJobs() {
+	auto displays = findChildren<SingleBurnWindow *>();
+	for (auto *display : displays) {
+		if (display->hasFinished()) {
+			display->dismiss();
+		}
+	}
 }
 
 void MainWindow::on_action_triggered() {

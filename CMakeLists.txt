@@ -20,17 +20,27 @@ message(STATUS "CMAKE_BUILD_TYPE ${CMAKE_BUILD_TYPE}")
 
 project(K230BurningToolMeta)
 
-if(WIN32)
-	set(CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/dist")
-elseif(LINUX)
-	set(CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/dist/usr")
-elseif(APPLE)
-	set(CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/dist")
+set(K230_BURNING_MACOS_SIGN_IDENTITY "" CACHE STRING
+	"Developer ID Application identity used to sign the macOS application")
+set(K230_BURNING_MACOS_NOTARY_PROFILE "" CACHE STRING
+	"notarytool keychain profile used to notarize macOS artifacts")
+set(K230_BURNING_MACOS_DMG_PATH "" CACHE FILEPATH
+	"Optional output path for the packaged macOS DMG")
+
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+	if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+		set(_DEFAULT_INSTALL_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/dist/usr")
+	else()
+		set(_DEFAULT_INSTALL_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/dist")
+	endif()
+
+	set(CMAKE_INSTALL_PREFIX "${_DEFAULT_INSTALL_PREFIX}"
+		CACHE PATH "Install path prefix" FORCE)
 endif()
 
 set(_LIC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/Licenses")
 
-install(DIRECTORY ${_LIC_DIR} DESTINATION "${CMAKE_INSTALL_PREFIX}/bin")
+install(DIRECTORY ${_LIC_DIR} DESTINATION bin)
 
 # include(${CMAKE_TOOLCHAIN_FILE})
 

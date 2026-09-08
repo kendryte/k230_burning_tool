@@ -57,3 +57,31 @@
 ### 小技巧
 
 有些板子可能没有引出的 `BOOT` 按键，此时可以在上电前移除存储介质，待上电后再插入存储介质，这样也可以使板子进入 `BootROM` 模式。
+
+## 4. 发布构建
+
+三个桌面平台共用仓库根目录下的一个发布脚本：
+
+```bash
+./release.sh
+```
+
+脚本会分别构建普通版和 Avalon Nano 3 版，执行对应平台的 CMake
+安装检查，并为每个产物生成 `.sha256`。Linux 手工发布产物是包含完整
+Qt 运行库的 `.tar.gz`；GitHub Actions 还会收集安装阶段生成的
+AppImage。AppImage 在无法使用 FUSE 的环境中可以这样运行：
+
+```bash
+./K230BurningTool-x86_64.AppImage --appimage-extract-and-run
+```
+
+macOS 正式发布需要 Developer ID Application 签名：
+
+```bash
+MACOS_SIGN_IDENTITY="Developer ID Application: Example (TEAMID)" \
+  ./release.sh
+```
+
+如需同时公证，先用 `notarytool store-credentials` 创建钥匙串配置，再设置
+`MACOS_NOTARY_PROFILE`。CI 的 macOS 构建用于跨平台验证，文件名中带有
+`unsigned`；正式分发应使用本机签名后的 DMG。

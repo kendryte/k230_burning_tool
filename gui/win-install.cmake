@@ -1,82 +1,59 @@
-function(parse_cmake_cache CACHE_FILE)
-	file(STRINGS "${CACHE_FILE}" lines REGEX "=")
+cmake_minimum_required(VERSION 3.18)
 
-	foreach(line IN LISTS lines)
-		string(FIND "${line}" ":" start_of_type)
-		string(FIND "${line}" "=" start_of_assign)
-
-		if(start_of_type EQUAL -1)
-			set(start_of_type "${start_of_assign}")
-		endif()
-
-		string(SUBSTRING "${line}" 0 ${start_of_type} name)
-		math(EXPR start_of_value "${start_of_assign} + 1")
-		string(SUBSTRING "${line}" ${start_of_value} -1 value)
-
-		set(${name} "${value}" PARENT_SCOPE)
-	endforeach()
-endfunction()
-
-function(get_lib_path LIB_NAME LIB_VAR)
-    # Find the library
-
-    
-    if(NOT TEMP_VAR)
-        message(FATAL_ERROR "Cannot find ${LIB_NAME} in ${MINGW_PATH}/bin")
-    endif()
-
-    # Set the output variable
-    set(${LIB_VAR} ${TEMP_VAR} PARENT_SCOPE)
-endfunction()
-
-parse_cmake_cache("${CMAKE_CACHEFILE_DIR}/CMakeCache.txt")
-
-get_filename_component(DIST_DIR "." ABSOLUTE)
-message(VERBOSE "RUN windeployqt.exe ${EXECUTABLE_NAME} IN ${DIST_DIR}/bin")
-
-execute_process(
-	COMMAND "windeployqt.exe" "${EXECUTABLE_NAME}.exe"
-	WORKING_DIRECTORY "${DIST_DIR}/bin"
-	COMMAND_ECHO STDOUT
-	COMMAND_ERROR_IS_FATAL ANY
-)
-
-# Extract the path of the C++ compiler
-get_filename_component(COMPILER_PATH ${CMAKE_CXX_COMPILER} DIRECTORY)
-# Assume MinGW root directory is the parent directory of the compiler's directory
-get_filename_component(MINGW_PATH ${COMPILER_PATH} DIRECTORY)
-message(STATUS "MINGW_PATH ${MINGW_PATH}")
-
-find_file(LIBWINPTHREAD NAMES "libwinpthread-1.dll" PATHS
-	"${MINGW_PATH}/bin"
-	PATH_SUFFIXES bin
-	NO_DEFAULT_PATH
-)
-file(INSTALL ${LIBWINPTHREAD} DESTINATION "${DIST_DIR}/bin")
-
-find_file(LIB_GCC_SEH NAMES "libgcc_s_seh-1.dll" PATHS
-	"${MINGW_PATH}/bin"
-	PATH_SUFFIXES bin
-	NO_DEFAULT_PATH
-)
-file(INSTALL ${LIB_GCC_SEH} DESTINATION "${DIST_DIR}/bin")
-
-find_file(LIBSTDCPP6 NAMES "libstdc++-6.dll" PATHS
-	"${MINGW_PATH}/bin"
-	PATH_SUFFIXES bin
-	NO_DEFAULT_PATH
-)
-file(INSTALL ${LIBSTDCPP6} DESTINATION "${DIST_DIR}/bin")
-
-set(SYSTEM32_PATH "$ENV{SystemRoot}/system32")
-
-if(NOT EXISTS "${SYSTEM32_PATH}/notepad.exe")
-	message(FATAL_ERROR "invalid windows install: system32 \"${SYSTEM32_PATH}\" not valid")
+if(NOT DEFINED INSTALL_PREFIX OR INSTALL_PREFIX STREQUAL "")
+	message(FATAL_ERROR "INSTALL_PREFIX is required")
+endif()
+if(NOT DEFINED EXECUTABLE_NAME OR EXECUTABLE_NAME STREQUAL "")
+	message(FATAL_ERROR "EXECUTABLE_NAME is required")
 endif()
 
-foreach(i vcruntime140.dll ucrtbase.dll)
-	file(INSTALL "${SYSTEM32_PATH}/${i}" DESTINATION "${DIST_DIR}/bin")
-endforeach()
+set(BIN_DIR "${INSTALL_PREFIX}/bin")
+set(EXECUTABLE_PATH "${BIN_DIR}/${EXECUTABLE_NAME}.exe")
+if(NOT EXISTS "${EXECUTABLE_PATH}")
+	message(FATAL_ERROR "Installed executable not found: ${EXECUTABLE_PATH}")
+endif()
 
-file(REMOVE_RECURSE "${DIST_DIR}/include")
-file(REMOVE_RECURSE "${DIST_DIR}/lib")
+if(DEFINED QT_QMAKE_PATH AND NOT QT_QMAKE_PATH STREQUAL "")
+	get_filename_component(QT_BIN_DIR "${QT_QMAKE_PATH}" DIRECTORY)
+endif()
+find_program(WINDEPLOYQT_EXECUTABLE
+	NAMES windeployqt.exe windeployqt
+	HINTS "${QT_BIN_DIR}"
+	REQUIRED
+)
+
+execute_process(
+	COMMAND "${WINDEPLOYQT_EXECUTABLE}"
+		--release
+		--compiler-runtime
+		--no-translations
+		"${EXECUTABLE_PATH}"
+	WORKING_DIRECTORY "${BIN_DIR}"
+	RESULT_VARIABLE deploy_result
+	COMMAND_ECHO STDOUT
+)
+if(NOT deploy_result STREQUAL "0")
+	message(FATAL_ERROR "windeployqt failed: ${deploy_result}")
+endif()
+
+file(GLOB KBURN_DLLS LIST_DIRECTORIES FALSE "${BIN_DIR}/*kburn*.dll")
+file(GLOB LIBUSB_DLLS LIST_DIRECTORIES FALSE "${BIN_DIR}/*usb*.dll")
+file(GLOB QT_CORE_DLLS LIST_DIRECTORIES FALSE "${BIN_DIR}/Qt6Core*.dll")
+file(GLOB QT_WIDGET_DLLS LIST_DIRECTORIES FALSE "${BIN_DIR}/Qt6Widgets*.dll")
+if(NOT KBURN_DLLS)
+	message(FATAL_ERROR "Installed kburn DLL was not found under ${BIN_DIR}")
+endif()
+if(NOT LIBUSB_DLLS)
+	message(FATAL_ERROR "Installed libusb DLL was not found under ${BIN_DIR}")
+endif()
+if(NOT QT_CORE_DLLS OR NOT QT_WIDGET_DLLS)
+	message(FATAL_ERROR "windeployqt did not install the required Qt runtime DLLs")
+endif()
+if(NOT EXISTS "${BIN_DIR}/platforms/qwindows.dll")
+	message(FATAL_ERROR "windeployqt did not install platforms/qwindows.dll")
+endif()
+
+# Release archives contain runtime files only.
+file(REMOVE_RECURSE "${INSTALL_PREFIX}/include")
+file(REMOVE_RECURSE "${INSTALL_PREFIX}/lib")
+message(STATUS "Prepared Windows runtime layout in ${BIN_DIR}")

@@ -1,165 +1,183 @@
-name: Build and Release
+name: Build and release
 
 on:
   push:
-    tags: [ "v*" ]
-    branches:
-      - main
-      - dev
-      - feat/**
+    tags: ["v*"]
+    branches: ["main", "dev", "feat/**"]
+  pull_request:
+    branches: ["main", "dev"]
+
+concurrency:
+  group: k230-burning-tool-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        os: [windows, linux]
-        variant: [normal, avalon]
-    env:
-      BUILD_FOR_AVALON_NANO3: ${{ matrix.variant == 'avalon' && 'ON' || 'OFF' }}
-      TARGET_SUFFIX: ${{ matrix.variant == 'avalon' && 'Avalon' || 'Normal' }}
+  approve_pr:
+    name: Approve pull request build
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-22.04
+    # Configure this environment with required reviewers in repository settings.
+    environment: pull-request-approval
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - run: echo "Pull request build approved"
+
+  build-linux:
+    name: Linux x86_64
+    needs: approve_pr
+    if: ${{ !cancelled() && (github.event_name != 'pull_request' || needs.approve_pr.result == 'success') }}
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Get Git revision
-        id: revision
+      - name: Get revision
         run: |
-          revision=$(git describe --long --tag --dirty --always)
-          echo "REVISION=$revision" >> $GITHUB_ENV
+          revision=$(git describe --long --tags --always)
+          echo "REVISION=$revision" >> "$GITHUB_ENV"
+          echo "SAFE_REVISION=${revision//\//-}" >> "$GITHUB_ENV"
 
-      - name: Build project
+      - name: Build both variants
         run: |
-          rm -rf ${{ github.workspace }}/build && mkdir -p ${{ github.workspace }}/build
-
-          if [[ "${{ matrix.os }}" == "windows" ]]; then
-            docker run --name qt6 -v "${PWD}:/home/user/project:ro" stateoftheartio/qt6:6.7-mingw-aqt /bin/bash -c '
-              export CI=1
-              qt-cmake ./project -G Ninja -B ./build -DTARGET_AVALON_NANO3=${{ env.BUILD_FOR_AVALON_NANO3 }}
-              cmake --build ./build
-              cmake --install ./build
-              ls -alh ./build
+          docker run --name qt6-linux \
+            -v "${{ github.workspace }}:/home/user/project:ro" \
+            stateoftheartio/qt6:6.6-gcc-aqt /bin/bash -euc '
+              sudo apt-get update
+              sudo apt-get install -y libgl-dev libvulkan-dev libssl-dev libudev-dev file
+              sudo curl -fsSL \
+                https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage \
+                -o /usr/local/bin/linuxdeployqt
+              sudo chmod +x /usr/local/bin/linuxdeployqt
+              K230_BURNING_BUILD_DIR=/home/user/build \
+                /home/user/project/release.sh
             '
-            docker cp qt6:/home/user/build/dist ${{ github.workspace }}/build/
-            docker rm qt6
+          docker cp qt6-linux:/home/user/build "${{ github.workspace }}/build"
+          docker rm qt6-linux
 
-            ls -alh ${{ github.workspace }}/build/
-            ls -alh ${{ github.workspace }}/build/dist
-            ls -alh ${{ github.workspace }}/build/dist/bin
-
-            # cd ${{ github.workspace }}/build/dist/bin
-            # if [[ "${{ matrix.variant }}" == "avalon" ]]; then
-            #   zip -r "${{ github.workspace }}/build/K230BurningTool-Windows-avalon-${{ env.REVISION }}.zip" .
-            # else
-            #   zip -r "${{ github.workspace }}/build/K230BurningTool-Windows-${{ env.REVISION }}.zip" .
-            # fi
-          else
-            docker run --name qt6 --privileged -v /dev/fuse:/dev/fuse -v "${PWD}:/home/user/project:ro" stateoftheartio/qt6:6.6-gcc-aqt /bin/bash -c '
-              export CI=1
-              sudo apt update
-              sudo apt install -y libgl-dev libvulkan-dev libssl-dev libudev-dev fuse file
-              sudo curl -L https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage -o /usr/bin/linuxdeployqt
-              sudo chmod +x /usr/bin/linuxdeployqt
-              qt-cmake ./project -G Ninja -B ./build -DTARGET_AVALON_NANO3=${{ env.BUILD_FOR_AVALON_NANO3 }}
-              cmake --build ./build
-              cmake --install ./build
-              ls -alh ./build
-            '
-            docker cp qt6:/home/user/build ${{ github.workspace }}/build/
-            docker rm qt6
-
-            cd ${{ github.workspace }}/build/build
-
-            if [[ "${{ matrix.variant }}" == "avalon" ]]; then
-              mv K230BurningTool-x86_64.AppImage K230BurningTool-${{ env.REVISION }}-x86_64.AppImage
-            fi
-          fi
-
-      - name: Prepare artifacts
-        shell: bash
+      - name: Collect artifacts
         run: |
-          # Create output directory
-          mkdir -p ${{ github.workspace }}/artifact_output
+          mkdir -p artifact_output
+          cp build/*.tar.gz build/*.sha256 artifact_output/
+          cp build/normal/K230BurningTool-*.AppImage \
+            "artifact_output/K230BurningTool_linux_normal_${SAFE_REVISION}_x86_64.AppImage"
+          cp build/avalon3/K230BurningTool-*.AppImage \
+            "artifact_output/K230BurningTool_linux_avalon_${SAFE_REVISION}_x86_64.AppImage"
+          (cd artifact_output && sha256sum *.AppImage > K230BurningTool_linux_AppImage.sha256)
 
-          if [ "${{ matrix.os }}" = "windows" ]; then
-            if [ -d "${{ github.workspace }}/build/dist/bin" ]; then
-              cp -r ${{ github.workspace }}/build/dist/bin ${{ github.workspace }}/artifact_output/
-            fi
-          fi
-
-          # For Linux: Copy AppImage if it exists
-          if [ "${{ matrix.os }}" = "linux" ]; then
-            if ls ${{ github.workspace }}/build/build/K230BurningTool-*.AppImage 1> /dev/null 2>&1; then
-              cp ${{ github.workspace }}/build/build/K230BurningTool-*.AppImage ${{ github.workspace }}/artifact_output/
-            fi
-          fi
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: K230BurningTool-${{ matrix.os }}-${{ matrix.variant }}-${{ env.REVISION }}
-          path: ${{ github.workspace }}/artifact_output/*
+          name: K230BurningTool-linux
+          path: artifact_output/*
           if-no-files-found: error
-          compression-level: 9
+          compression-level: 0
+
+  build-windows:
+    name: Windows x86_64
+    needs: approve_pr
+    if: ${{ !cancelled() && (github.event_name != 'pull_request' || needs.approve_pr.result == 'success') }}
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build both variants
+        run: |
+          docker run --name qt6-windows \
+            -v "${{ github.workspace }}:/home/user/project:ro" \
+            stateoftheartio/qt6:6.7-mingw-aqt /bin/bash -euc '
+              sudo apt-get update
+              sudo apt-get install -y zip
+              CMAKE_BUILD_PARALLEL_LEVEL=4 \
+              K230_BURNING_TARGET_OS=windows \
+              K230_BURNING_BUILD_DIR=/home/user/build \
+                /home/user/project/release.sh
+            '
+          docker cp qt6-windows:/home/user/build "${{ github.workspace }}/build"
+          docker rm qt6-windows
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: K230BurningTool-windows
+          path: |
+            build/*.zip
+            build/*.sha256
+          if-no-files-found: error
+
+  build-macos:
+    name: macOS ARM64 (M4)
+    needs: approve_pr
+    if: ${{ !cancelled() && (github.event_name != 'pull_request' || needs.approve_pr.result == 'success') }}
+    runs-on: [self-hosted, macOS, ARM64, shenzhen_mac]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: "6.6.3"
+          cache: true
+
+      - name: Install build tools
+        run: brew install ninja
+
+      - name: Build both variants as unsigned CI artifacts
+        env:
+          K230_BURNING_BUILD_DIR: ${{ github.workspace }}/build
+          MACOS_ALLOW_UNSIGNED: "1"
+          MACOS_ARCHITECTURES: arm64
+        run: ./release.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: K230BurningTool-macos-arm64
+          path: |
+            build/*.dmg
+            build/*.sha256
+          if-no-files-found: error
+          compression-level: 0
 
   release:
     if: startsWith(github.ref, 'refs/tags/')
-    needs: build
+    needs: [build-linux, build-windows, build-macos]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        # with:
-          # token: ${{ secrets.GIT_TOKEN }}
+      - uses: actions/checkout@v4
 
-      - name: Generate Version Info
+      - name: Generate version info
         run: |
-          TAG_NAME="${GITHUB_REF##*/}"
-          VERSION_STR="${TAG_NAME#v}"
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION_STR"
-          VERSION_VALUE=$((MAJOR * 1000 + MINOR * 100 + PATCH))
-          HASH_VALUE="$(git rev-parse HEAD)"
-          echo "{\"version\": $VERSION_VALUE, \"hash\": \"$HASH_VALUE\"}" > k230_burningtool_lastest.txt
+          tag_name="${GITHUB_REF##*/}"
+          version_string="${tag_name#v}"
+          if [[ "$version_string" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            version_value=$((BASH_REMATCH[1] * 1000 + BASH_REMATCH[2] * 100 + BASH_REMATCH[3]))
+          else
+            echo "Tag must use vMAJOR.MINOR.PATCH: $tag_name" >&2
+            exit 1
+          fi
+          hash_value=$(git rev-parse HEAD)
+          printf '{"version": %d, "hash": "%s"}\n' "$version_value" "$hash_value" \
+            > k230_burningtool_lastest.txt
 
       - uses: actions/download-artifact@v4
         with:
-          path: ./release
+          path: release
 
-      - name: List artifacts
-        run: ls -R ./release
-
-      - name: Package artifacts for release
-        shell: bash
-        run: |
-          # Create release directory
-          mkdir -p ./release_packages
-          
-          # Package Linux AppImages
-          for dir in ./release/K230BurningTool-linux-*/; do
-            base=$(basename "$dir")
-            if [ -f "$dir"/*.AppImage ]; then
-              cp "$dir"/*.AppImage "./release_packages/$base.AppImage"
-            fi
-          done
-          
-          # Package Windows binaries
-          for dir in ./release/K230BurningTool-windows-*/; do
-            base=$(basename "$dir")
-            if [ -d "$dir/bin" ]; then
-              (cd "$dir" && zip -r "../../release_packages/$base.zip" bin/)
-            fi
-          done
-
-      - name: Upload GitHub Release
+      - name: Upload release assets
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
           tag_name: ${{ github.ref_name }}
           files: |
             k230_burningtool_lastest.txt
-            ./release_packages/*.AppImage
-            ./release_packages/*.zip
+            release/**/*.AppImage
+            release/**/*.tar.gz
+            release/**/*.zip
+            release/**/*.dmg
+            release/**/*.sha256

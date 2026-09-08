@@ -152,20 +152,36 @@ install(
 
 get_target_property(EXECUTABLE_NAME K230BurningTool OUTPUT_NAME)
 
+if(APPLE)
+	# Keep the application self-contained before macdeployqt adds the Qt
+	# frameworks. libkburn resolves libusb next to itself in Frameworks.
+	set_target_properties(K230BurningTool PROPERTIES
+		INSTALL_RPATH "@executable_path/../Frameworks"
+		BUILD_WITH_INSTALL_RPATH TRUE
+	)
+	set_target_properties(canaan_burn usb-1.0 PROPERTIES
+		INSTALL_RPATH "@loader_path"
+		BUILD_WITH_INSTALL_RPATH TRUE
+	)
+	install(TARGETS canaan_burn usb-1.0
+		LIBRARY DESTINATION "bin/${EXECUTABLE_NAME}.app/Contents/Frameworks"
+	)
+endif()
+
 if(WIN32)
 	install(CODE "
-		execute_process(
-			COMMAND \"${CMAKE_COMMAND}\"
-			\"-DQT_QMAKE_PATH=${QT_QMAKE_PATH}\"
-			\"-DCMAKE_CACHEFILE_DIR=${CMAKE_BINARY_DIR}\"
-			\"-DEXECUTABLE_NAME=${EXECUTABLE_NAME}\"
+			execute_process(
+				COMMAND \"${CMAKE_COMMAND}\"
+				\"-DQT_QMAKE_PATH=${QT_QMAKE_PATH}\"
+				\"-DINSTALL_PREFIX=\${CMAKE_INSTALL_PREFIX}\"
+				\"-DEXECUTABLE_NAME=${EXECUTABLE_NAME}\"
 			-P \"${CMAKE_CURRENT_LIST_DIR}/win-install.cmake\"
 			WORKING_DIRECTORY \"\${CMAKE_INSTALL_PREFIX}\"
 			COMMAND_ECHO STDOUT
 			COMMAND_ERROR_IS_FATAL ANY
 		)
 	")
-elseif(LINUX)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 	find_package(OpenSSL)
 
 	if(NOT OPENSSL_FOUND)
@@ -193,7 +209,11 @@ elseif(APPLE)
 		COMMAND \"${CMAKE_COMMAND}\"
 		\"-DQT_QMAKE_PATH=${QT_QMAKE_PATH}\"
 		\"-DCMAKE_CACHEFILE_DIR=${CMAKE_BINARY_DIR}\"
+		\"-DINSTALL_PREFIX=\${CMAKE_INSTALL_PREFIX}\"
 		\"-DEXECUTABLE_NAME=${EXECUTABLE_NAME}\"
+		\"-DSIGN_IDENTITY=${K230_BURNING_MACOS_SIGN_IDENTITY}\"
+		\"-DNOTARY_PROFILE=${K230_BURNING_MACOS_NOTARY_PROFILE}\"
+		\"-DDMG_PATH=${K230_BURNING_MACOS_DMG_PATH}\"
 		-P \"${CMAKE_CURRENT_LIST_DIR}/mac-install.cmake\"
 		WORKING_DIRECTORY \"\${CMAKE_INSTALL_PREFIX}\"
 		COMMAND_ECHO STDOUT

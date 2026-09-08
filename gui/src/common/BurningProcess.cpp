@@ -13,6 +13,16 @@
 
 #include "AppGlobalSetting.h"
 
+static QString formatTransferSpeed(double bytesPerSecond) {
+	if (bytesPerSecond >= 1024.0 * 1024.0) {
+		return QString::number(bytesPerSecond / (1024.0 * 1024.0), 'f', 2) + " MiB/s";
+	}
+	if (bytesPerSecond >= 1024.0) {
+		return QString::number(bytesPerSecond / 1024.0, 'f', 2) + " KiB/s";
+	}
+	return QString::number(bytesPerSecond, 'f', 0) + " B/s";
+}
+
 BurningProcess::BurningProcess(KBMonCTX scope, const BurningRequest *request)
 	: scope(scope), imageList(request->imageList), isAutoCreate(request->isAutoCreate) {
 	// imageFile(request->systemImageFile), imageSize(imageFile.size()) {
@@ -69,6 +79,7 @@ void BurningProcess::_run() {
 
 	QElapsedTimer timer;
 	timer.start();
+	qint64 lastSpeedUpdate = 0;
 
 	buffer = new QByteArray(chunk_size, 0);
 
@@ -100,8 +111,11 @@ void BurningProcess::_run() {
 
 			BurnLibrary::instance()->localLog(QStringLiteral("Flag: flag %1, val1 %2, val2 %3").arg(flag_flag).arg(flag_val1).arg(flag_val2));
 
-			if((KBURN_USB_ISP_SPI_NAND == isp_target) && (KBURN_FLAG_SPI_NAND_WRITE_WITH_OOB == flag_flag)) {
-				quint32 page_size_with_oob = flag_val1 + flag_val2;
+				if((KBURN_USB_ISP_SPI_NAND == isp_target) && (KBURN_FLAG_SPI_NAND_WRITE_WITH_OOB == flag_flag)) {
+					quint64 page_size_with_oob =
+						static_cast<quint64>(flag_val1) + flag_val2;
+					if (!page_size_with_oob || chunk_size <= page_size_with_oob)
+						throw KBurnException(tr("Invalid SPI NAND OOB chunk layout"));
 
 				block_size_bak = block_size;
 				chunk_size_bak = chunk_size;
@@ -131,19 +145,31 @@ void BurningProcess::_run() {
 		while (!imageStream->atEnd()) {
 			throwIfCancel();
 
-			int bytesRead = imageStream->readRawData(buffer->data(), buffer->size());
+				int bytesRead = imageStream->readRawData(buffer->data(), buffer->size());
+				if (bytesRead <= 0) {
+					throw KBurnException(tr("Read image file failed") +
+							     " (" + item.fileName + ")");
+				}
 
 			if ((bytesRead > 0) && (bytesRead % block_size != 0)) {
 				memset(buffer->data() + bytesRead, 0, block_size - (bytesRead % block_size));
 				bytesRead += (block_size - (bytesRead % block_size)); // Update bytesRead to reflect the padded size
 			}
 
-			if (step(address, *buffer, bytesRead)) {
-				address += bytesRead;
+				if (step(address, *buffer, bytesRead)) {
+					address += bytesRead;
 
-				burned_size += bytesRead;
-				setProgress(burned_size);
-			} else {
+					burned_size += bytesRead;
+					setProgress(burned_size);
+
+					qint64 elapsed = timer.elapsed();
+					if (elapsed > 0 &&
+						(elapsed - lastSpeedUpdate >= 250 || burned_size >= total_size)) {
+						double bytesPerSecond = burned_size * 1000.0 / elapsed;
+						emit speedChanged(formatTransferSpeed(bytesPerSecond));
+						lastSpeedUpdate = elapsed;
+					}
+				} else {
 				throw KBurnException(tr("Write File to Device failed") + tr(" at 0x") + QString::number(address, 16) + tr(", Message: ") + errormsg());
 			}
 		}
@@ -152,19 +178,32 @@ void BurningProcess::_run() {
 		delete imageStream;
 		imageStream = nullptr;
 
-        end(address);
-	}
+			if (!end(address)) {
+				throw KBurnException(tr("Finish writing file to device failed") +
+						     " (" + item.fileName + "), " + errormsg());
+			}
+
+			if (block_size_bak) {
+				block_size = block_size_bak;
+				block_size_bak = 0;
+			}
+			if (chunk_size_bak) {
+				chunk_size = chunk_size_bak;
+				buffer->resize(chunk_size);
+				chunk_size_bak = 0;
+			}
+		}
 
 	qint64 elapsedTime = timer.elapsed();
-	double speed = 0.0f;
- 	if (elapsedTime > 0) {
-        speed = (total_size / 1024.0) / (elapsedTime / 1000.0);
+	double bytesPerSecond = elapsedTime > 0
+		? total_size * 1000.0 / elapsedTime
+		: 0.0;
+	QString speedStr = formatTransferSpeed(bytesPerSecond);
+	BurnLibrary::instance()->localLog(
+		QStringLiteral("Total bytes written: %1, elapsed time (ms): %2, speed: %3")
+			.arg(total_size).arg(elapsedTime).arg(speedStr));
 
-		BurnLibrary::instance()->localLog(QStringLiteral("Total bytes write: %1, Elapsed time (ms): %2, Speed: %3 KB/s").arg(total_size).arg(elapsedTime).arg(speed));
-    }
-	QString speedStr = QString::number(speed, 'f', 2); // Format to 2 decimal places
-
-	setStage(::tr("Download complete, Speed: ") + speedStr + ::tr("KB/s"), 100);
+	setStage(::tr("Download complete, Speed: ") + speedStr, 100);
 
 	bool auto_reset_chip = GlobalSetting::autoResetChipAfterBurn.getValue();
 	if(auto_reset_chip) {
@@ -189,14 +228,15 @@ void BurningProcess::run() Q_DECL_NOTHROW {
 		cleanup(false);
 	}
 	_isCompleted = true;
+	emit finished();
 }
 
-void BurningProcess::setProgress(int value) {
+void BurningProcess::setProgress(quint64 value) {
 	throwIfCancel();
 	emit progressChanged(value);
 }
 
-void BurningProcess::setStage(const QString &title, int bytes) {
+void BurningProcess::setStage(const QString &title, quint64 bytes) {
 	throwIfCancel();
 	emit progressChanged(0);
 	emit bytesChanged(bytes);

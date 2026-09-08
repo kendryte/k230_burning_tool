@@ -49,6 +49,7 @@ class MainWindow : public QMainWindow {
     void splitterMovedSlot(int pos, int index);
 
   private:
+    void clearFinishedBurnJobs();
     void closeEvent(QCloseEvent *ev);
     Ui::MainWindow *ui;
 };
