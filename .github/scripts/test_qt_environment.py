@@ -87,6 +87,18 @@ class QtEnvironmentTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(Path(self.env["GITHUB_ENV"]).read_text(), "")
 
+    def test_interrupted_installation_is_not_reused(self):
+        self.install_fixture()
+        self.assertEqual(self.invoke("prepare-install").returncode, 0)
+        self.assert_available("false")
+        self.assertEqual(self.invoke("activate").returncode, 0)
+        self.assert_available("true")
+
+    def test_failed_activation_keeps_pending_marker(self):
+        self.assertEqual(self.invoke("prepare-install").returncode, 0)
+        self.assertNotEqual(self.invoke("activate").returncode, 0)
+        self.assertTrue((self.root / "qt-6.6.3/.installation-pending").exists())
+
 
 if __name__ == "__main__":
     unittest.main()

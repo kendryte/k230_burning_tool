@@ -99,6 +99,7 @@ jobs:
     runs-on: [self-hosted, macOS, ARM64, shenzhen_mac]
     env:
       QT_VERSION: "6.6.3"
+      AQT_CONFIG: ${{ github.workspace }}/.github/aqt.ini
     environment:
       name: ${{ startsWith(github.ref, 'refs/tags/') && 'macos-signing' || 'macos-validation' }}
     steps:
@@ -128,8 +129,31 @@ jobs:
           echo "$RUNNER_TEMP/install-qt-python/bin" >> "$GITHUB_PATH"
           "$RUNNER_TEMP/install-qt-python/bin/python3" --version
 
-      - name: Install Qt
+      - name: Mark Qt installation in progress
         if: steps.qt-cache.outputs.available != 'true'
+        shell: bash
+        run: bash .github/scripts/qt-environment.sh prepare-install
+
+      - name: Install Qt
+        id: qt-install
+        if: steps.qt-cache.outputs.available != 'true'
+        continue-on-error: true
+        timeout-minutes: 30
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          dir: ${{ runner.tool_cache }}/qt-${{ env.QT_VERSION }}
+          cache: true
+          setup-python: false
+          set-env: false
+
+      - name: Wait before retrying Qt installation
+        if: steps.qt-install.outcome == 'failure'
+        run: sleep 15
+
+      - name: Retry Qt installation
+        if: steps.qt-install.outcome == 'failure'
+        timeout-minutes: 30
         uses: jurplel/install-qt-action@v4
         with:
           version: ${{ env.QT_VERSION }}

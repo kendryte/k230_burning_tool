@@ -78,6 +78,13 @@ Change the macOS job's `QT_VERSION` to select a new version-specific directory.
 No job cleanup removes this Qt installation; to force reinstallation, remove
 only its version-specific directory on the runner before the next job.
 
+Qt downloads use `.github/aqt.ini` to limit concurrent downloads, increase
+network timeouts, and exclude the JAIST mirror after truncated downloads.
+The workflow retries a failed installer once after 15 seconds; a second failure
+stops the job. An installation-in-progress marker prevents future jobs from
+reusing a partially installed tree. Successful installation and validation clear
+the marker. Archive checksum verification remains enabled.
+
 Automated release configuration is maintained in
 `.github/workflows/build.yml`. Keep workflow changes under maintainer review.
 

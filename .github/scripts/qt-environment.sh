@@ -6,6 +6,7 @@ set -euo pipefail
 
 # install-qt-action appends Qt to its dir input.
 qt_root="$RUNNER_TOOL_CACHE/qt-$QT_VERSION/Qt/$QT_VERSION/macos"
+qt_pending="$RUNNER_TOOL_CACHE/qt-$QT_VERSION/.installation-pending"
 
 qt_is_ready() {
     local tool module version
@@ -22,7 +23,7 @@ qt_is_ready() {
 
 case "${1:-}" in
     check)
-        if qt_is_ready; then
+        if [[ ! -e "$qt_pending" ]] && qt_is_ready; then
             echo "available=true" >> "${GITHUB_OUTPUT:?GITHUB_OUTPUT is required}"
             echo "Reusing Qt $QT_VERSION from $qt_root"
         else
@@ -30,10 +31,17 @@ case "${1:-}" in
             echo "Qt $QT_VERSION is missing or incomplete; installation is required"
         fi
         ;;
+    prepare-install)
+        mkdir -p "${qt_pending%/*}"
+        touch "$qt_pending"
+        ;;
     activate)
         if ! qt_is_ready; then
             echo "Qt validation failed at $qt_root" >&2
             exit 1
+        fi
+        if [[ -f "$qt_pending" ]]; then
+            rm "$qt_pending"
         fi
         echo "$qt_root/bin" >> "${GITHUB_PATH:?GITHUB_PATH is required}"
         {
@@ -46,7 +54,7 @@ case "${1:-}" in
         echo "Activated Qt $QT_VERSION from $qt_root"
         ;;
     *)
-        echo "Usage: $0 check|activate" >&2
+        echo "Usage: $0 check|prepare-install|activate" >&2
         exit 2
         ;;
 esac
