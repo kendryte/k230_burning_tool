@@ -24,6 +24,8 @@ set(K230_BURNING_MACOS_SIGN_IDENTITY "" CACHE STRING
 	"Developer ID Application identity used to sign the macOS application")
 set(K230_BURNING_MACOS_NOTARY_PROFILE "" CACHE STRING
 	"notarytool keychain profile used to notarize macOS artifacts")
+set(K230_BURNING_MACOS_KEYCHAIN "" CACHE FILEPATH
+	"Optional keychain used for macOS signing and notarization")
 set(K230_BURNING_MACOS_DMG_PATH "" CACHE FILEPATH
 	"Optional output path for the packaged macOS DMG")
 
@@ -46,7 +48,4 @@ install(DIRECTORY ${_LIC_DIR} DESTINATION bin)
 
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/canaan-burn")
 
-# add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/cli")
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/gui")
-
-# add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/test-binary")

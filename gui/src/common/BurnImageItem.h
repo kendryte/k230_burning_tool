@@ -18,11 +18,11 @@ struct BurnImageItem
     }
 
 	QString partName;
-	uint32_t partOffset;
-	uint32_t partSize;
-	uint32_t partEraseSize;
-	uint64_t partFlag;
+	uint32_t partOffset = 0;
+	uint32_t partSize = 0;
+	uint32_t partEraseSize = 0;
+	uint64_t partFlag = 0;
 
 	QString fileName; 
-	uint32_t fileSize;
+	uint32_t fileSize = 0;
 };

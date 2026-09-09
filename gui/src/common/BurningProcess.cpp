@@ -219,10 +219,12 @@ void BurningProcess::run() Q_DECL_NOTHROW {
 		_run();
 		cleanup(true);
 	} catch (KBurnException &e) {
+		BurnLibrary::instance()->localLog(QStringLiteral("Burn failed: %1").arg(e.errorMessage));
 		setResult(e); // may get result after return
 		emit failed(_result);
 		cleanup(false);
 	} catch (...) {
+		BurnLibrary::instance()->localLog(QStringLiteral("Burn failed: unexpected exception"));
 		setResult(KBurnException("Unknown Error"));
 		emit failed(_result);
 		cleanup(false);

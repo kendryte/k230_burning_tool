@@ -1,5 +1,7 @@
 # K230 Burning Tool 使用说明
 
+[English](README_en.md) | 简体中文
+
 ## 1. 驱动安装
 
 如果烧录工具无法识别设备，请检查设备管理器中是否有未识别的 `K230 USB Boot Device`。如图所示：
@@ -58,30 +60,10 @@
 
 有些板子可能没有引出的 `BOOT` 按键，此时可以在上电前移除存储介质，待上电后再插入存储介质，这样也可以使板子进入 `BootROM` 模式。
 
-## 4. 发布构建
+## 4. 发布包
 
-三个桌面平台共用仓库根目录下的一个发布脚本：
+正式发布包按平台提供，并为每个产物生成对应的 `.sha256` 校验文件。普通
+用户直接使用适合自己平台的发布包即可。
 
-```bash
-./release.sh
-```
-
-脚本会分别构建普通版和 Avalon Nano 3 版，执行对应平台的 CMake
-安装检查，并为每个产物生成 `.sha256`。Linux 手工发布产物是包含完整
-Qt 运行库的 `.tar.gz`；GitHub Actions 还会收集安装阶段生成的
-AppImage。AppImage 在无法使用 FUSE 的环境中可以这样运行：
-
-```bash
-./K230BurningTool-x86_64.AppImage --appimage-extract-and-run
-```
-
-macOS 正式发布需要 Developer ID Application 签名：
-
-```bash
-MACOS_SIGN_IDENTITY="Developer ID Application: Example (TEAMID)" \
-  ./release.sh
-```
-
-如需同时公证，先用 `notarytool store-credentials` 创建钥匙串配置，再设置
-`MACOS_NOTARY_PROFILE`。CI 的 macOS 构建用于跨平台验证，文件名中带有
-`unsigned`；正式分发应使用本机签名后的 DMG。
+需要从源码构建或发布版本的开发者请阅读
+[构建与发布指南](BUILD.md)。

@@ -18,6 +18,7 @@ macOS release variables:
   MACOS_ARCHITECTURES          architecture list (default: current machine)
   MACOS_DEPLOYMENT_TARGET      optional deployment target
   MACOS_NOTARY_PROFILE         optional notarytool keychain profile
+  MACOS_KEYCHAIN               optional dedicated signing/notarization keychain
   MACOS_ALLOW_UNSIGNED=1       CI validation only; marks artifacts as unsigned
 EOF
 }
@@ -83,6 +84,13 @@ fi
 
 MACOS_SIGN_IDENTITY=${MACOS_SIGN_IDENTITY:-}
 MACOS_NOTARY_PROFILE=${MACOS_NOTARY_PROFILE:-}
+MACOS_KEYCHAIN=${MACOS_KEYCHAIN:-}
+if [[ "$OS" == "macos" ]]; then
+  MACOS_SIGN_IDENTITY=$(printf '%s' "$MACOS_SIGN_IDENTITY" | tr -d '\r\n')
+  MACOS_NOTARY_PROFILE=$(printf '%s' "$MACOS_NOTARY_PROFILE" | tr -d '\r\n')
+  MACOS_KEYCHAIN=$(printf '%s' "$MACOS_KEYCHAIN" | tr -d '\r\n')
+  export MACOS_SIGN_IDENTITY MACOS_NOTARY_PROFILE MACOS_KEYCHAIN
+fi
 if [[ "$OS" == "macos" ]]; then
   if [[ -z "$MACOS_SIGN_IDENTITY" && "${MACOS_ALLOW_UNSIGNED:-0}" != "1" ]]; then
     echo "MACOS_SIGN_IDENTITY is required for a macOS release." >&2
@@ -93,11 +101,17 @@ if [[ "$OS" == "macos" ]]; then
     echo "Apple's security command is required for a macOS release." >&2
     exit 1
   fi
-  if [[ -n "$MACOS_SIGN_IDENTITY" ]] &&
-     ! security find-identity -v -p codesigning | grep -F -- "$MACOS_SIGN_IDENTITY" >/dev/null; then
-    echo "Signing identity was not found: $MACOS_SIGN_IDENTITY" >&2
-    security find-identity -v -p codesigning >&2
-    exit 1
+  if [[ -n "$MACOS_SIGN_IDENTITY" ]]; then
+    if [[ -n "$MACOS_KEYCHAIN" ]]; then
+      identities=$(security find-identity -v -p codesigning "$MACOS_KEYCHAIN")
+    else
+      identities=$(security find-identity -v -p codesigning)
+    fi
+    if ! grep -F -- "$MACOS_SIGN_IDENTITY" <<<"$identities" >/dev/null; then
+      echo "Signing identity was not found: $MACOS_SIGN_IDENTITY" >&2
+      printf '%s\n' "$identities" >&2
+      exit 1
+    fi
   fi
 fi
 
@@ -168,6 +182,7 @@ build_variant() {
         CMAKE_EXTRA_ARGS+=(
             "-DK230_BURNING_MACOS_SIGN_IDENTITY=$MACOS_SIGN_IDENTITY"
             "-DK230_BURNING_MACOS_NOTARY_PROFILE=$MACOS_NOTARY_PROFILE"
+            "-DK230_BURNING_MACOS_KEYCHAIN=$MACOS_KEYCHAIN"
             "-DK230_BURNING_MACOS_DMG_PATH=$ARTIFACT_PATH"
             "-DCMAKE_OSX_ARCHITECTURES=${MACOS_ARCHITECTURES:-$(uname -m)}"
         )

@@ -3,8 +3,6 @@ name: Build and release
 on:
   push:
     tags: ["v*"]
-    branches: ["main", "dev", "feat/**"]
-  pull_request:
     branches: ["main", "dev"]
 
 concurrency:
@@ -15,24 +13,14 @@ permissions:
   contents: read
 
 jobs:
-  approve_pr:
-    name: Approve pull request build
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-22.04
-    # Configure this environment with required reviewers in repository settings.
-    environment: pull-request-approval
-    steps:
-      - run: echo "Pull request build approved"
-
   build-linux:
     name: Linux x86_64
-    needs: approve_pr
-    if: ${{ !cancelled() && (github.event_name != 'pull_request' || needs.approve_pr.result == 'success') }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+          persist-credentials: false
 
       - name: Get revision
         run: |
@@ -76,13 +64,12 @@ jobs:
 
   build-windows:
     name: Windows x86_64
-    needs: approve_pr
-    if: ${{ !cancelled() && (github.event_name != 'pull_request' || needs.approve_pr.result == 'success') }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+          persist-credentials: false
 
       - name: Build both variants
         run: |
@@ -108,29 +95,75 @@ jobs:
           if-no-files-found: error
 
   build-macos:
-    name: macOS ARM64 (M4)
-    needs: approve_pr
-    if: ${{ !cancelled() && (github.event_name != 'pull_request' || needs.approve_pr.result == 'success') }}
+    name: macOS ARM64 validation/release
     runs-on: [self-hosted, macOS, ARM64, shenzhen_mac]
+    environment:
+      name: ${{ startsWith(github.ref, 'refs/tags/') && 'macos-signing' || 'macos-validation' }}
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+          persist-credentials: false
+
+      - name: Install build tools
+        run: brew install ninja python@3.12
+
+      - name: Prepare Python for Qt installer
+        shell: bash
+        run: |
+          python_bin="$(brew --prefix python@3.12)/bin/python3.12"
+          "$python_bin" -m venv "$RUNNER_TEMP/install-qt-python"
+          echo "$RUNNER_TEMP/install-qt-python/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/install-qt-python/bin/python3" --version
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
         with:
           version: "6.6.3"
           cache: true
+          setup-python: false
 
-      - name: Install build tools
-        run: brew install ninja
+      - name: Verify installed signing identity
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
+        shell: bash
+        env:
+          MACOS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+          MACOS_KEYCHAIN: ${{ secrets.MACOS_KEYCHAIN }}
+          MACOS_KEYCHAIN_PASSWORD: ${{ secrets.MACOS_KEYCHAIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          : "${MACOS_SIGN_IDENTITY:?Set MACOS_SIGN_IDENTITY in the macos-signing environment}"
+          : "${MACOS_KEYCHAIN_PASSWORD:?Set MACOS_KEYCHAIN_PASSWORD in the macos-signing environment}"
+          MACOS_SIGN_IDENTITY="${MACOS_SIGN_IDENTITY//$'\r'/}"
+          MACOS_SIGN_IDENTITY="${MACOS_SIGN_IDENTITY//$'\n'/}"
+          MACOS_KEYCHAIN="${MACOS_KEYCHAIN//$'\r'/}"
+          MACOS_KEYCHAIN="${MACOS_KEYCHAIN//$'\n'/}"
+          if [[ -n "${MACOS_KEYCHAIN:-}" ]]; then
+            signing_keychain="$MACOS_KEYCHAIN"
+          else
+            signing_keychain=$(security default-keychain -d user | sed \
+              -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' \
+              -e 's/^"//' -e 's/"$//')
+          fi
+          security unlock-keychain -p "$MACOS_KEYCHAIN_PASSWORD" "$signing_keychain" >/dev/null
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: \
+            -s -k "$MACOS_KEYCHAIN_PASSWORD" "$signing_keychain" >/dev/null
+          identities=$(security find-identity -v -p codesigning "$signing_keychain" 2>/dev/null)
+          if ! grep -F -- "$MACOS_SIGN_IDENTITY" <<<"$identities" >/dev/null; then
+            echo "Installed signing identity was not found: $MACOS_SIGN_IDENTITY" >&2
+            exit 1
+          fi
 
-      - name: Build both variants as unsigned CI artifacts
+      - name: Build and sign both variants
         env:
           K230_BURNING_BUILD_DIR: ${{ github.workspace }}/build
-          MACOS_ALLOW_UNSIGNED: "1"
           MACOS_ARCHITECTURES: arm64
+          MACOS_SIGN_IDENTITY: ${{ startsWith(github.ref, 'refs/tags/') && secrets.MACOS_SIGN_IDENTITY || '' }}
+          MACOS_KEYCHAIN: ${{ startsWith(github.ref, 'refs/tags/') && secrets.MACOS_KEYCHAIN || '' }}
+          MACOS_KEYCHAIN_PASSWORD: ${{ startsWith(github.ref, 'refs/tags/') && secrets.MACOS_KEYCHAIN_PASSWORD || '' }}
+          MACOS_NOTARY_PROFILE: ${{ startsWith(github.ref, 'refs/tags/') && secrets.MACOS_NOTARY_PROFILE || '' }}
+          MACOS_ALLOW_UNSIGNED: ${{ startsWith(github.ref, 'refs/tags/') && '0' || '1' }}
         run: ./release.sh
 
       - uses: actions/upload-artifact@v4
@@ -150,6 +183,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Generate version info
         run: |

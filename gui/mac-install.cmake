@@ -88,9 +88,14 @@ endif()
 
 if(DEFINED SIGN_IDENTITY AND NOT SIGN_IDENTITY STREQUAL "")
 	find_program(CODESIGN_EXECUTABLE codesign REQUIRED)
+	set(CODESIGN_KEYCHAIN_ARGS)
+	if(DEFINED KEYCHAIN_PATH AND NOT KEYCHAIN_PATH STREQUAL "")
+		list(APPEND CODESIGN_KEYCHAIN_ARGS --keychain "${KEYCHAIN_PATH}")
+	endif()
 	execute_process(
 		COMMAND "${CODESIGN_EXECUTABLE}"
 			--deep --force --timestamp --options runtime
+			${CODESIGN_KEYCHAIN_ARGS}
 			--sign "${SIGN_IDENTITY}" "${APP_PATH}"
 		RESULT_VARIABLE sign_result
 		COMMAND_ECHO STDOUT
@@ -114,6 +119,10 @@ endif()
 if(DEFINED NOTARY_PROFILE AND NOT NOTARY_PROFILE STREQUAL "")
 	find_program(XCRUN_EXECUTABLE xcrun REQUIRED)
 	find_program(DITTO_EXECUTABLE ditto REQUIRED)
+	set(NOTARY_KEYCHAIN_ARGS)
+	if(DEFINED KEYCHAIN_PATH AND NOT KEYCHAIN_PATH STREQUAL "")
+		list(APPEND NOTARY_KEYCHAIN_ARGS --keychain "${KEYCHAIN_PATH}")
+	endif()
 	set(NOTARY_ZIP "${CMAKE_CACHEFILE_DIR}/${EXECUTABLE_NAME}-notary.zip")
 	file(REMOVE "${NOTARY_ZIP}")
 	execute_process(
@@ -127,7 +136,9 @@ if(DEFINED NOTARY_PROFILE AND NOT NOTARY_PROFILE STREQUAL "")
 	endif()
 	execute_process(
 		COMMAND "${XCRUN_EXECUTABLE}" notarytool submit "${NOTARY_ZIP}"
-			--keychain-profile "${NOTARY_PROFILE}" --wait
+			--keychain-profile "${NOTARY_PROFILE}"
+			${NOTARY_KEYCHAIN_ARGS}
+			--wait
 		RESULT_VARIABLE notary_result
 		COMMAND_ECHO STDOUT
 	)
@@ -151,21 +162,35 @@ endif()
 get_filename_component(DMG_DIRECTORY "${DMG_PATH}" DIRECTORY)
 file(MAKE_DIRECTORY "${DMG_DIRECTORY}")
 file(REMOVE "${DMG_PATH}")
+
+# Build a Finder-friendly DMG root. Passing APP_PATH directly to hdiutil
+# creates an image containing the app bundle's contents and leaves no
+# Applications shortcut for drag-and-drop installation.
+set(DMG_STAGING_DIRECTORY "${CMAKE_CACHEFILE_DIR}/${EXECUTABLE_NAME}-dmg-staging")
+file(REMOVE_RECURSE "${DMG_STAGING_DIRECTORY}")
+file(MAKE_DIRECTORY "${DMG_STAGING_DIRECTORY}")
+file(COPY "${APP_PATH}" DESTINATION "${DMG_STAGING_DIRECTORY}")
+file(CREATE_LINK "/Applications"
+	"${DMG_STAGING_DIRECTORY}/Applications" SYMBOLIC)
+
 execute_process(
 	COMMAND "${HDIUTIL_EXECUTABLE}" create
 		-volname "${EXECUTABLE_NAME}"
-		-srcfolder "${APP_PATH}"
+		-srcfolder "${DMG_STAGING_DIRECTORY}"
 		-ov -format UDZO "${DMG_PATH}"
 	RESULT_VARIABLE dmg_result
 	COMMAND_ECHO STDOUT
 )
 if(NOT dmg_result STREQUAL "0" OR NOT EXISTS "${DMG_PATH}")
+	file(REMOVE_RECURSE "${DMG_STAGING_DIRECTORY}")
 	message(FATAL_ERROR "Failed to create ${DMG_PATH}")
 endif()
+file(REMOVE_RECURSE "${DMG_STAGING_DIRECTORY}")
 
 if(DEFINED SIGN_IDENTITY AND NOT SIGN_IDENTITY STREQUAL "")
 	execute_process(
 		COMMAND "${CODESIGN_EXECUTABLE}" --force --timestamp
+			${CODESIGN_KEYCHAIN_ARGS}
 			--sign "${SIGN_IDENTITY}" "${DMG_PATH}"
 		RESULT_VARIABLE dmg_sign_result
 		COMMAND_ECHO STDOUT
@@ -178,7 +203,9 @@ endif()
 if(DEFINED NOTARY_PROFILE AND NOT NOTARY_PROFILE STREQUAL "")
 	execute_process(
 		COMMAND "${XCRUN_EXECUTABLE}" notarytool submit "${DMG_PATH}"
-			--keychain-profile "${NOTARY_PROFILE}" --wait
+			--keychain-profile "${NOTARY_PROFILE}"
+			${NOTARY_KEYCHAIN_ARGS}
+			--wait
 		RESULT_VARIABLE dmg_notary_result
 		COMMAND_ECHO STDOUT
 	)
