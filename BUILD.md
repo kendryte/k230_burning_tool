@@ -65,10 +65,18 @@ Do not use unsigned artifacts for distribution.
 
 ## Qt on macOS
 
-The macOS workflow installs Homebrew `python@3.12`, creates an isolated virtual
-environment, and runs `jurplel/install-qt-action@v4` with `setup-python: false`.
-Keep this setup when updating the workflow because it avoids Qt installer
-failures caused by the default Python version.
+The macOS workflow keeps Qt outside the checkout, at
+`$RUNNER_TOOL_CACHE/qt-6.6.3/Qt/6.6.3/macos`. It checks the installed version,
+required tools, CMake package files, and platform plugin before reusing it.
+When these checks pass, the Qt installer and its Python setup are skipped.
+The Qt environment is activated on both installation and reuse paths.
+
+On a missing or incomplete installation, the workflow installs Homebrew
+`python@3.12`, creates an isolated virtual environment, and runs
+`jurplel/install-qt-action@v4` with `setup-python: false` and `cache: true`.
+Change the macOS job's `QT_VERSION` to select a new version-specific directory.
+No job cleanup removes this Qt installation; to force reinstallation, remove
+only its version-specific directory on the runner before the next job.
 
 Automated release configuration is maintained in
 `.github/workflows/build.yml`. Keep workflow changes under maintainer review.
