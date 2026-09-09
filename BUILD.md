@@ -22,6 +22,19 @@ archives and produce AppImages. An AppImage can run without FUSE with:
 ./K230BurningTool-x86_64.AppImage --appimage-extract-and-run
 ```
 
+## Windows builds
+
+The Windows CI job uses the Qt MinGW container, whose Windows compiler runs
+under Wine. It sets `CMAKE_BUILD_PARALLEL_LEVEL=1` to limit simultaneous
+compiler launches. `release.sh` passes a configured parallel level explicitly
+to CMake; other builds retain the native default when it is unset or empty.
+
+Wine process-start failures (such as `failed to map the shared user data`)
+are separate from compiler diagnostics. Serial compilation is a mitigation,
+not a guaranteed fix for Wine address-space conflicts. If these failures
+persist, use a native Windows runner or investigate the container's Wine
+runtime rather than changing the C source named in the failed command.
+
 ## macOS signing
 
 macOS release artifacts require a Developer ID Application identity. The

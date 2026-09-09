@@ -217,7 +217,11 @@ build_variant() {
     fi
 
     # Build
-    cmake --build "$VARIANT_BUILD_DIR" --parallel
+    if [[ -n "${CMAKE_BUILD_PARALLEL_LEVEL:-}" ]]; then
+        cmake --build "$VARIANT_BUILD_DIR" --parallel "$CMAKE_BUILD_PARALLEL_LEVEL"
+    else
+        cmake --build "$VARIANT_BUILD_DIR" --parallel
+    fi
 
     # Install
     cmake --install "$VARIANT_BUILD_DIR"

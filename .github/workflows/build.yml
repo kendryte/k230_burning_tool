@@ -78,7 +78,7 @@ jobs:
             stateoftheartio/qt6:6.7-mingw-aqt /bin/bash -euc '
               sudo apt-get update
               sudo apt-get install -y zip
-              CMAKE_BUILD_PARALLEL_LEVEL=4 \
+              CMAKE_BUILD_PARALLEL_LEVEL=1 \
               K230_BURNING_TARGET_OS=windows \
               K230_BURNING_BUILD_DIR=/home/user/build \
                 /home/user/project/release.sh
