@@ -28,10 +28,10 @@ endforeach()
 
 # copy desktop and icon
 set(_SRC_DIR "${CMAKE_CURRENT_LIST_DIR}/resources")
-set(_ICON "${_SRC_DIR}/icon.png")
+set(_ICON "${_SRC_DIR}/icons/icon_256x256.png")
 set(_DESKTOP "${_SRC_DIR}/K230BurningTool.desktop")
 
-file(INSTALL ${_ICON} DESTINATION "${DIST_DIR}/share/icons/hicolor/256x256")
+file(INSTALL ${_ICON} DESTINATION "${DIST_DIR}/share/icons/hicolor/256x256" RENAME icon.png)
 file(INSTALL ${_DESKTOP} DESTINATION "${DIST_DIR}/share/applications")
 
 # Keep the existing x86_64 deployer; linuxdeploy also provides native ARM64 tools.

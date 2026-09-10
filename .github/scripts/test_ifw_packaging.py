@@ -45,6 +45,9 @@ class IfwPackagingTests(unittest.TestCase):
                     self.assertEqual(marker, info)
                     self.assertTrue((component / "data" / info["executable"]).is_file())
                     self.assertEqual((component / "data/app/lib/runtime-library").read_bytes(), b"runtime fixture")
+                    icon = "icon_avalon.png" if variant == "avalon" else "icons/icon_256x256.png"
+                    self.assertEqual((component / "data/app-icon.png").read_bytes(),
+                                     (ROOT / "gui/resources" / icon).read_bytes())
                     self.assertIn("addStopProcessForUpdateRequest", (component / "meta/installscript.qs").read_text())
         self.assertFalse((self.source / "ifw-installation.json").exists())
 

@@ -1,6 +1,15 @@
 <RCC>
     <qresource prefix="/">
-        <file>icon.png</file>
+        <file>icons/icon_16x16.png</file>
+        <file>icons/icon_16x16@2x.png</file>
+        <file>icons/icon_32x32.png</file>
+        <file>icons/icon_32x32@2x.png</file>
+        <file>icons/icon_128x128.png</file>
+        <file>icons/icon_128x128@2x.png</file>
+        <file>icons/icon_256x256.png</file>
+        <file>icons/icon_256x256@2x.png</file>
+        <file>icons/icon_512x512.png</file>
+        <file>icons/icon_512x512@2x.png</file>
         <file>icon_avalon.png</file>
         <file>github-brands.svg</file>
         <file>power-off-solid.svg</file>

@@ -75,7 +75,7 @@ def prepare(source, work, platform, arch, variant, version, repository_base=""):
     data.mkdir()
     config_dir.mkdir()
     shutil.copytree(source, data / "app", symlinks=True)
-    shutil.copyfile(ROOT / "gui/resources" / ("icon_avalon.png" if avalon else "icon.png"), data / "app-icon.png")
+    shutil.copyfile(ROOT / "gui/resources" / ("icon_avalon.png" if avalon else "icons/icon_256x256.png"), data / "app-icon.png")
     details = {"schema": 1, "id": app_id, "name": name, "platform": platform,
                "arch": arch, "variant": variant, "version": version,
                "repository": repository, "executable": "app/bin/" + executable,

@@ -49,6 +49,11 @@ MainWindow::MainWindow(QWidget *parent)
 	ui->burnControlWindow->setMaximumHeight(200);
 	ui->burnControlWindow->updateGeometry();
 #else
+	QIcon icon;
+	for (int size : {16, 32, 128, 256, 512}) {
+		icon.addFile(QString(":/icons/icon_%1x%1.png").arg(size), QSize(size, size));
+	}
+	setWindowIcon(icon);
 	this->setAcceptDrops(true);
 	setWindowTitle(QString("K230BurningTool") + getTitleVersion());
 #endif

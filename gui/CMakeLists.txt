@@ -87,7 +87,7 @@ elseif(APPLE)
 	if(TARGET_AVALON_NANO3)
 		set(K230BurningTool_ICON "${CMAKE_CURRENT_LIST_DIR}/resources/icon_avalon.icns")
 	else()
-		set(K230BurningTool_ICON "${CMAKE_CURRENT_LIST_DIR}/resources/icon.icns")
+		set(K230BurningTool_ICON "${CMAKE_CURRENT_LIST_DIR}/resources/icons/icon.icns")
 	endif()
 
 	add_custom_command(TARGET K230BurningTool POST_BUILD

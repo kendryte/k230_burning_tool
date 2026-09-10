@@ -1,2 +1,2 @@
 #include <windows.h>
-IDI_ICON1 ICON "application.ico"
+IDI_ICON1 ICON "icons/icon.ico"
