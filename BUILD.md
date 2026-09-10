@@ -168,8 +168,10 @@ MACOS_NOTARY_PROFILE="K230Notary" \
 
 Do not put Apple credentials, certificates, or private keys in the repository.
 
-For validation-only unsigned builds, explicitly set `MACOS_ALLOW_UNSIGNED=1`.
-Do not use unsigned artifacts for distribution.
+For local validation without a Developer ID identity, explicitly set
+`MACOS_ALLOW_UNSIGNED=1`. The resulting app receives an ad-hoc signature after
+deployment so its bundle is internally consistent, but Gatekeeper does not trust
+it for distribution. Do not publish these local artifacts.
 
 ## Split macOS CI
 
@@ -179,14 +181,15 @@ self-hosted Mac (`self-hosted`, `macOS`, `ARM64`, `shenzhen_mac`) to reduce
 hosted runner costs. Both architectures target macOS 13.0; the build runner
 does not need to run that older OS. Build jobs have no signing secrets.
 
-For tags, `MACOS_BUILD_ONLY=1` deploys Qt into the apps and archives the install
-trees as unsigned ZIP inputs. The self-hosted signing job verifies their
-checksums and app architectures, then uses `SKIP_DEPLOYMENT=ON` to sign and
-package them without running macdeployqt or compiling anything. It notarizes
-and staples both the app and final DMG and validates both tickets. The final
-checksums are generated after stapling. Release upload selects only the two
-signed DMGs, plus final Linux/Windows artifacts; unsigned ZIP inputs are excluded.
-Branch runs produce explicitly unsigned validation DMGs, not release assets.
+For branch and tag builds, `MACOS_BUILD_ONLY=1` deploys Qt into the apps and
+archives the install trees as unsigned ZIP inputs. The self-hosted signing job
+verifies their checksums and app architectures, then uses `SKIP_DEPLOYMENT=ON`
+to sign and package them without running macdeployqt or compiling anything. It
+notarizes and staples both the app and final DMG, validates both tickets, and
+requires Gatekeeper assessment to accept both artifacts. The final checksums
+are generated after stapling. Branch runs publish the signed/notarized DMGs as
+workflow artifacts. Tag release upload selects those two DMGs plus final
+Linux/Windows artifacts; unsigned ZIP inputs are excluded.
 
 Configure all four secrets in this repository's `macos-signing` environment:
 `MACOS_SIGN_IDENTITY`, `MACOS_KEYCHAIN` (explicit absolute path),

@@ -44,6 +44,7 @@ jobs:
               cmake --build /home/user/ifw-tests
               ctest --test-dir /home/user/ifw-tests --output-on-failure
               python3 /home/user/project/.github/scripts/test_ifw_packaging.py
+              python3 /home/user/project/.github/scripts/test_macos_distribution.py
               K230_TEST_IFW_TOOLS="$K230_IFW_TOOLS_DIR" python3 /home/user/project/.github/scripts/test_ifw_installer.py
               sudo curl -fsSL \
                 https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage \
@@ -357,7 +358,7 @@ jobs:
         run: |
           echo "K230_BURNING_REVISION=$(bash .github/scripts/release-revision.sh)" >> "$GITHUB_ENV"
 
-      - name: Build and deploy unsigned apps
+      - name: Build and deploy apps for signing
         env:
           K230_BURNING_TARGET_OS: macos
           K230_BURNING_BUILD_DIR: ${{ github.workspace }}/build
@@ -367,7 +368,7 @@ jobs:
           MACOS_SIGN_IDENTITY: ""
           MACOS_KEYCHAIN: ""
           MACOS_NOTARY_PROFILE: ""
-          MACOS_BUILD_ONLY: ${{ startsWith(github.ref, 'refs/tags/') && '1' || '0' }}
+          MACOS_BUILD_ONLY: "1"
         run: ./release.sh
 
       - name: Check native app architectures
@@ -377,8 +378,7 @@ jobs:
           lipo build/normal/install/bin/K230BurningTool.app/Contents/MacOS/K230BurningTool \
             -verify_arch "$TARGET_ARCH"
 
-      - name: Upload unsigned signing inputs
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Upload macOS signing inputs
         uses: actions/upload-artifact@v4
         with:
           name: macos-unsigned-${{ matrix.arch }}
@@ -388,25 +388,9 @@ jobs:
           if-no-files-found: error
           compression-level: 0
 
-      - name: Collect unsigned validation DMG
-        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
-        run: |
-          python3 .github/scripts/release_artifacts.py collect --build-dir build \
-            --output artifact_output --platform macos --arch "${{ matrix.arch }}" --allow-unsigned
-
-      - name: Upload unsigned validation DMGs
-        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: K230BurningTool-macos-${{ matrix.arch }}-unsigned
-          path: artifact_output/*
-          if-no-files-found: error
-          compression-level: 0
-
   sign-macos:
     name: Sign and notarize macOS apps and DMGs
     needs: build-macos
-    if: startsWith(github.ref, 'refs/tags/')
     runs-on: [self-hosted, macOS, ARM64, shenzhen_mac]
     environment: macos-signing
     concurrency:

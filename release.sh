@@ -24,7 +24,7 @@ macOS release variables:
   MACOS_DEPLOYMENT_TARGET      deployment target (default: 13.0)
   MACOS_NOTARY_PROFILE         optional notarytool keychain profile
   MACOS_KEYCHAIN               optional dedicated signing/notarization keychain
-  MACOS_ALLOW_UNSIGNED=1       CI validation only; marks artifacts as unsigned
+  MACOS_ALLOW_UNSIGNED=1       local/build-only validation; not trusted for distribution
   MACOS_BUILD_ONLY=1           archive deployed unsigned apps for a signing runner
 EOF
 }
@@ -114,7 +114,7 @@ if [[ "$OS" == "macos" ]]; then
   fi
   if [[ -z "$MACOS_SIGN_IDENTITY" && "${MACOS_ALLOW_UNSIGNED:-0}" != "1" ]]; then
     echo "MACOS_SIGN_IDENTITY is required for a macOS release." >&2
-    echo "For CI-only validation, explicitly set MACOS_ALLOW_UNSIGNED=1." >&2
+    echo "For local or build-only validation, explicitly set MACOS_ALLOW_UNSIGNED=1." >&2
     exit 1
   fi
   if [[ -n "$MACOS_SIGN_IDENTITY" ]] && ! command -v security >/dev/null 2>&1; then

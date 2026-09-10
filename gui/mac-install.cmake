@@ -92,6 +92,7 @@ endif()
 
 find_program(HDIUTIL_EXECUTABLE hdiutil REQUIRED)
 find_program(DITTO_EXECUTABLE ditto REQUIRED)
+find_program(CODESIGN_EXECUTABLE codesign REQUIRED)
 
 function(notarize_artifact artifact)
 	execute_process(
@@ -124,12 +125,12 @@ if(DEFINED NOTARY_PROFILE AND NOT NOTARY_PROFILE STREQUAL ""
 	message(FATAL_ERROR "Notarization requires a signing identity")
 endif()
 
+set(CODESIGN_KEYCHAIN_ARGS)
+if(DEFINED KEYCHAIN_PATH AND NOT KEYCHAIN_PATH STREQUAL "")
+	list(APPEND CODESIGN_KEYCHAIN_ARGS --keychain "${KEYCHAIN_PATH}")
+endif()
+
 if(DEFINED SIGN_IDENTITY AND NOT SIGN_IDENTITY STREQUAL "")
-	find_program(CODESIGN_EXECUTABLE codesign REQUIRED)
-	set(CODESIGN_KEYCHAIN_ARGS)
-	if(DEFINED KEYCHAIN_PATH AND NOT KEYCHAIN_PATH STREQUAL "")
-		list(APPEND CODESIGN_KEYCHAIN_ARGS --keychain "${KEYCHAIN_PATH}")
-	endif()
 	execute_process(
 		COMMAND "${CODESIGN_EXECUTABLE}"
 			--deep --force --timestamp --options runtime
@@ -141,22 +142,32 @@ if(DEFINED SIGN_IDENTITY AND NOT SIGN_IDENTITY STREQUAL "")
 	if(NOT sign_result STREQUAL "0")
 		message(FATAL_ERROR "Failed to sign ${APP_PATH}: ${sign_result}")
 	endif()
+else()
+	message(STATUS "Signing ${APP_PATH} with an ad-hoc development signature")
 	execute_process(
-		COMMAND "${CODESIGN_EXECUTABLE}" --verify --deep --strict --verbose=2
-			"${APP_PATH}"
-		RESULT_VARIABLE verify_result
+		COMMAND "${CODESIGN_EXECUTABLE}" --deep --force --sign - "${APP_PATH}"
+		RESULT_VARIABLE sign_result
 		COMMAND_ECHO STDOUT
 	)
-	if(NOT verify_result STREQUAL "0")
-		message(FATAL_ERROR "Signature verification failed for ${APP_PATH}")
+	if(NOT sign_result STREQUAL "0")
+		message(FATAL_ERROR "Failed to ad-hoc sign ${APP_PATH}: ${sign_result}")
 	endif()
-else()
-	message(STATUS "K230_BURNING_MACOS_SIGN_IDENTITY is empty; packaging an unsigned app")
+endif()
+
+execute_process(
+	COMMAND "${CODESIGN_EXECUTABLE}" --verify --deep --strict --verbose=2
+		"${APP_PATH}"
+	RESULT_VARIABLE verify_result
+	COMMAND_ECHO STDOUT
+)
+if(NOT verify_result STREQUAL "0")
+	message(FATAL_ERROR "Signature verification failed for ${APP_PATH}")
 endif()
 
 if(DEFINED NOTARY_PROFILE AND NOT NOTARY_PROFILE STREQUAL "")
 	find_program(XCRUN_EXECUTABLE xcrun REQUIRED)
 	find_program(DITTO_EXECUTABLE ditto REQUIRED)
+	find_program(SPCTL_EXECUTABLE spctl REQUIRED)
 	set(NOTARY_KEYCHAIN_ARGS)
 	if(DEFINED KEYCHAIN_PATH AND NOT KEYCHAIN_PATH STREQUAL "")
 		list(APPEND NOTARY_KEYCHAIN_ARGS --keychain "${KEYCHAIN_PATH}")
@@ -186,6 +197,14 @@ if(DEFINED NOTARY_PROFILE AND NOT NOTARY_PROFILE STREQUAL "")
 		RESULT_VARIABLE validate_result)
 	if(NOT validate_result STREQUAL "0")
 		message(FATAL_ERROR "App notarization ticket validation failed")
+	endif()
+	execute_process(
+		COMMAND "${SPCTL_EXECUTABLE}" --assess --type execute --verbose=4 "${APP_PATH}"
+		RESULT_VARIABLE assess_result
+		COMMAND_ECHO STDOUT
+	)
+	if(NOT assess_result STREQUAL "0")
+		message(FATAL_ERROR "Gatekeeper rejected ${APP_PATH}")
 	endif()
 endif()
 
@@ -237,6 +256,14 @@ if(DEFINED SIGN_IDENTITY AND NOT SIGN_IDENTITY STREQUAL "")
 	if(NOT dmg_sign_result STREQUAL "0")
 		message(FATAL_ERROR "Failed to sign ${DMG_PATH}")
 	endif()
+	execute_process(
+		COMMAND "${CODESIGN_EXECUTABLE}" --verify --strict --verbose=2 "${DMG_PATH}"
+		RESULT_VARIABLE dmg_verify_result
+		COMMAND_ECHO STDOUT
+	)
+	if(NOT dmg_verify_result STREQUAL "0")
+		message(FATAL_ERROR "Signature verification failed for ${DMG_PATH}")
+	endif()
 endif()
 
 if(DEFINED NOTARY_PROFILE AND NOT NOTARY_PROFILE STREQUAL "")
@@ -253,6 +280,15 @@ if(DEFINED NOTARY_PROFILE AND NOT NOTARY_PROFILE STREQUAL "")
 		RESULT_VARIABLE validate_result)
 	if(NOT validate_result STREQUAL "0")
 		message(FATAL_ERROR "DMG notarization ticket validation failed")
+	endif()
+	execute_process(
+		COMMAND "${SPCTL_EXECUTABLE}" --assess --type open
+			--context context:primary-signature --verbose=4 "${DMG_PATH}"
+		RESULT_VARIABLE dmg_assess_result
+		COMMAND_ECHO STDOUT
+	)
+	if(NOT dmg_assess_result STREQUAL "0")
+		message(FATAL_ERROR "Gatekeeper rejected ${DMG_PATH}")
 	endif()
 endif()
 
