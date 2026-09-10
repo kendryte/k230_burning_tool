@@ -28,21 +28,38 @@ endforeach()
 
 # copy desktop and icon
 set(_SRC_DIR "${CMAKE_CURRENT_LIST_DIR}/resources")
-set(_ICON "${_SRC_DIR}/icon.png")
+set(_ICON "${_SRC_DIR}/icons/icon_256x256.png")
 set(_DESKTOP "${_SRC_DIR}/K230BurningTool.desktop")
-set(_APPRUN "${_SRC_DIR}/AppRun")
 
-file(INSTALL ${_ICON} DESTINATION "${DIST_DIR}/share/icons/hicolor/256x256")
+file(INSTALL ${_ICON} DESTINATION "${DIST_DIR}/share/icons/hicolor/256x256" RENAME icon.png)
 file(INSTALL ${_DESKTOP} DESTINATION "${DIST_DIR}/share/applications")
-file(INSTALL ${_APPRUN} DESTINATION "${DIST_DIR}/../" PERMISSIONS OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 
-# deploy.
-find_program(LINUXDEPLOY "linuxdeployqt" REQUIRED)
-message("RUN ${LINUXDEPLOY} K230BurningTool IN ${DIST_DIR}/bin")
+# Keep the existing x86_64 deployer; linuxdeploy also provides native ARM64 tools.
+if(K230_BURNING_LINUX_DEPLOY_TOOL STREQUAL "linuxdeploy")
+	find_program(LINUXDEPLOY linuxdeploy REQUIRED)
+	execute_process(
+		COMMAND "${CMAKE_COMMAND}" -E env
+			"QMAKE=${QT_QMAKE_PATH}"
+			"LD_LIBRARY_PATH=${DIST_DIR}/lib:$ENV{LD_LIBRARY_PATH}"
+			"${LINUXDEPLOY}" --appdir "${DIST_DIR}/.."
+			--executable "${DIST_DIR}/bin/K230BurningTool"
+			--desktop-file "${DIST_DIR}/share/applications/K230BurningTool.desktop"
+			--icon-file "${DIST_DIR}/share/icons/hicolor/256x256/icon.png"
+			--plugin qt
+		WORKING_DIRECTORY "${CMAKE_CACHEFILE_DIR}"
+		COMMAND_ECHO STDOUT
+		COMMAND_ERROR_IS_FATAL ANY
+	)
+else()
+	find_program(LINUXDEPLOY linuxdeployqt REQUIRED)
+	execute_process(
+		COMMAND "${LINUXDEPLOY}" "${DIST_DIR}/share/applications/K230BurningTool.desktop" -qmake="${QT_QMAKE_PATH}" -bundle-non-qt-libs
+		WORKING_DIRECTORY "${CMAKE_CACHEFILE_DIR}"
+		COMMAND_ECHO STDOUT
+		COMMAND_ERROR_IS_FATAL ANY
+	)
+endif()
 
-execute_process(
-	COMMAND ${LINUXDEPLOY} "${DIST_DIR}/share/applications/K230BurningTool.desktop" -qmake="${QT_QMAKE_PATH}" -appimage
-	WORKING_DIRECTORY "${CMAKE_CACHEFILE_DIR}"
-	COMMAND_ECHO STDOUT
-	COMMAND_ERROR_IS_FATAL ANY
-)
+# The desktop file is deployer input only. IFW owns desktop integration;
+# portable ZIPs do not include a launcher intended for system registration.
+file(REMOVE "${DIST_DIR}/share/applications/K230BurningTool.desktop")

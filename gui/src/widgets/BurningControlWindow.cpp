@@ -453,7 +453,7 @@ bool BurningControlWindow::parseImage() {
 
 		item.partName = QString("image");
 		item.partOffset = 0x00;
-		item.partSize = imageFile.size();
+		item.partSize = 0; // Raw images have no declared partition limit.
         item.partEraseSize = 0x00;
 		item.fileName = imageFile.fileName();
 		item.fileSize = imageFile.size();

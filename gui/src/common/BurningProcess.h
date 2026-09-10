@@ -33,8 +33,8 @@ class BurningProcess : public QObject, public QRunnable {
 	void setResult(const KBurnException &reason);
 	void throwIfCancel();
 
-	void setStage(const QString &title, int bytesToWrite = 0);
-	void setProgress(int writtenBytes);
+	void setStage(const QString &title, quint64 bytesToWrite = 0);
+	void setProgress(quint64 writtenBytes);
 
 	virtual int prepare(QList<struct BurnImageItem>	&imageList, quint64 *total_size, quint64 *chunk_size, quint64 *blk_size) = 0;
 	virtual bool begin(struct BurnImageItem& item) = 0;
@@ -73,11 +73,13 @@ class BurningProcess : public QObject, public QRunnable {
     void deviceStateNotify();
 
 	void stageChanged(const QString &title);
-	void bytesChanged(int maximumBytes);
-	void progressChanged(int writtenBytes);
+	void bytesChanged(quint64 maximumBytes);
+	void progressChanged(quint64 writtenBytes);
+	void speedChanged(const QString &speed);
 
 	void cancelRequested();
 	void completed(const QString &speed);
 	void failed(const KBurnException &reason);
+	void finished();
 	void updateTitle();
 };

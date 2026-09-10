@@ -21,7 +21,7 @@ static inline int64_t __kburn_err_t_unchange(int64_t t) {
 		if (0)                                                                                        \
 			(void)0;                                                                                  \
 		__VaridicMacro_Helper3(                                                                       \
-			, ##__VA_ARGS__, _IfErrorReturn3(__VA_ARGS__), _IfErrorReturn3(__VA_ARGS__, default_log), \
+			__VA_OPT__(,) __VA_ARGS__, _IfErrorReturn3(__VA_ARGS__), _IfErrorReturn3(__VA_ARGS__, default_log), \
 			_IfErrorReturn3(kburn_not_error, __VA_ARGS__, default_log), );                            \
 	})
 

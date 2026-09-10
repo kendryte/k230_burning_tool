@@ -3,19 +3,36 @@
 #include <QAction>
 #include <QContextMenuEvent>
 #include <QCoreApplication>
+#include <QDir>
 #include <QMenu>
 #include <QScrollBar>
+#include <QStandardPaths>
 #include <QString>
-#include <QDir>
 
 #define STRINGIZE(x) STRINGIZE2(x)
 #define STRINGIZE2(x) #x
 
+namespace {
+QString defaultLogFilePath() {
+#ifdef Q_OS_MACOS
+	const QString dataDirectory =
+		QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
+	if (!dataDirectory.isEmpty() && QDir().mkpath(dataDirectory)) {
+		return QDir(dataDirectory).filePath(QStringLiteral("burning_tool.html"));
+	}
+#else
+	return QDir(QCoreApplication::applicationDirPath())
+		.filePath(QStringLiteral("burning_tool.html"));
+#endif
+	return QDir(QDir::tempPath()).filePath(QStringLiteral("burning_tool.html"));
+}
+} // namespace
+
 LoggerWindow::LoggerWindow(QWidget *parent) : QTextEdit(parent) {
-	logfile.setFileName(QCoreApplication::applicationDirPath() + "/burning_tool.html");
+	logfile.setFileName(defaultLogFilePath());
 	
 	if(false == logfile.open(QIODeviceBase::Unbuffered | QIODeviceBase::Truncate | QIODeviceBase::WriteOnly)) {
-		logfile.setFileName(QDir::tempPath() + "/burning_tool.html");
+		logfile.setFileName(QDir(QDir::tempPath()).filePath(QStringLiteral("burning_tool.html")));
 		logfile.open(QIODeviceBase::Unbuffered | QIODeviceBase::Truncate | QIODeviceBase::WriteOnly);
 	}
 

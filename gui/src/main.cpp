@@ -8,6 +8,7 @@
 
 #include <QPalette>
 #include <QStyleFactory>
+#include "common/IfwInstallation.h"
 
 #define SETTING_WINDOW_SIZE "window-size"
 
@@ -16,6 +17,11 @@ static QTranslator translator;
 static MainWindow *w;
 int main(int argc, char *argv[]) {
 	a = new QApplication(argc, argv);
+#ifdef Q_OS_LINUX
+	if (IfwInstallation::detect(QCoreApplication::applicationFilePath()).isManaged()) {
+		a->setDesktopFileName(IS_AVALON_NANO3 ? "AvalonHomeSeriesFirmwareUpgradeTool-Installed" : "K230BurningTool-Installed");
+	}
+#endif
 
 #if IS_AVALON_NANO3
 	// Avalon Nano3 not load translate

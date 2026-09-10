@@ -33,12 +33,13 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # when bump version, chane here
-project(K230BurningTool VERSION 2.2.4 LANGUAGES CXX)
+project(K230BurningTool VERSION 2.2.5 LANGUAGES CXX)
 
 set(MY_VERSION $DATE)
 string(TIMESTAMP MY_VERSION_STRING "%Y-%m-%d %H:%M")
 # set(GITHUB_VERSION "$ENV{GITHUB_SHA}")
 configure_file("${CMAKE_CURRENT_LIST_DIR}/src/config.h.in" "${CMAKE_CURRENT_BINARY_DIR}/autogen/config.h")
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/autogen/version.txt" "${PROJECT_VERSION}\n")
 
 find_package(
 	Qt6
@@ -80,13 +81,13 @@ elseif(APPLE)
 		MACOSX_BUNDLE_ICON_FILE icon.icns
 		MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_LIST_DIR}/resources/Info.plist
 		MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
-		MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
+		MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION}
 	)
 
 	if(TARGET_AVALON_NANO3)
 		set(K230BurningTool_ICON "${CMAKE_CURRENT_LIST_DIR}/resources/icon_avalon.icns")
 	else()
-		set(K230BurningTool_ICON "${CMAKE_CURRENT_LIST_DIR}/resources/icon.icns")
+		set(K230BurningTool_ICON "${CMAKE_CURRENT_LIST_DIR}/resources/icons/icon.icns")
 	endif()
 
 	add_custom_command(TARGET K230BurningTool POST_BUILD
@@ -152,20 +153,38 @@ install(
 
 get_target_property(EXECUTABLE_NAME K230BurningTool OUTPUT_NAME)
 
+if(APPLE)
+	# Keep the application self-contained before macdeployqt adds the Qt
+	# frameworks. libkburn resolves libusb next to itself in Frameworks.
+	set_target_properties(K230BurningTool PROPERTIES
+		INSTALL_RPATH "@executable_path/../Frameworks"
+		BUILD_WITH_INSTALL_RPATH TRUE
+	)
+	set_target_properties(canaan_burn usb-1.0 PROPERTIES
+		INSTALL_RPATH "@loader_path"
+		BUILD_WITH_INSTALL_RPATH TRUE
+	)
+	install(TARGETS canaan_burn usb-1.0
+		LIBRARY DESTINATION "bin/${EXECUTABLE_NAME}.app/Contents/Frameworks"
+	)
+endif()
+
 if(WIN32)
+	get_filename_component(TOOLCHAIN_RUNTIME_DIR "${CMAKE_CXX_COMPILER}" DIRECTORY)
 	install(CODE "
-		execute_process(
-			COMMAND \"${CMAKE_COMMAND}\"
-			\"-DQT_QMAKE_PATH=${QT_QMAKE_PATH}\"
-			\"-DCMAKE_CACHEFILE_DIR=${CMAKE_BINARY_DIR}\"
-			\"-DEXECUTABLE_NAME=${EXECUTABLE_NAME}\"
+			execute_process(
+				COMMAND \"${CMAKE_COMMAND}\"
+				\"-DQT_QMAKE_PATH=${QT_QMAKE_PATH}\"
+				\"-DTOOLCHAIN_RUNTIME_DIR=${TOOLCHAIN_RUNTIME_DIR}\"
+				\"-DINSTALL_PREFIX=\${CMAKE_INSTALL_PREFIX}\"
+				\"-DEXECUTABLE_NAME=${EXECUTABLE_NAME}\"
 			-P \"${CMAKE_CURRENT_LIST_DIR}/win-install.cmake\"
 			WORKING_DIRECTORY \"\${CMAKE_INSTALL_PREFIX}\"
 			COMMAND_ECHO STDOUT
 			COMMAND_ERROR_IS_FATAL ANY
 		)
 	")
-elseif(LINUX)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 	find_package(OpenSSL)
 
 	if(NOT OPENSSL_FOUND)
@@ -193,7 +212,13 @@ elseif(APPLE)
 		COMMAND \"${CMAKE_COMMAND}\"
 		\"-DQT_QMAKE_PATH=${QT_QMAKE_PATH}\"
 		\"-DCMAKE_CACHEFILE_DIR=${CMAKE_BINARY_DIR}\"
+		\"-DINSTALL_PREFIX=\${CMAKE_INSTALL_PREFIX}\"
 		\"-DEXECUTABLE_NAME=${EXECUTABLE_NAME}\"
+		\"-DSIGN_IDENTITY=${K230_BURNING_MACOS_SIGN_IDENTITY}\"
+		\"-DNOTARY_PROFILE=${K230_BURNING_MACOS_NOTARY_PROFILE}\"
+		\"-DKEYCHAIN_PATH=${K230_BURNING_MACOS_KEYCHAIN}\"
+		\"-DDMG_PATH=${K230_BURNING_MACOS_DMG_PATH}\"
+		\"-DDEPLOY_ONLY=${K230_BURNING_MACOS_DEPLOY_ONLY}\"
 		-P \"${CMAKE_CURRENT_LIST_DIR}/mac-install.cmake\"
 		WORKING_DIRECTORY \"\${CMAKE_INSTALL_PREFIX}\"
 		COMMAND_ECHO STDOUT

@@ -1,67 +1,72 @@
 #include "UpdateChecker.h"
-#include "BurnLibrary.h"
-#include "config.h"
-#include "main.h"
-#include <QEventLoop>
-#include <QException>
+#include "IfwInstallation.h"
+#include <QAction>
+#include <QCoreApplication>
+#include <QDesktopServices>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QMenu>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
-#include <QNetworkRequest>
-#include <QThreadPool>
 #include <QTimer>
 
-UpdateChecker::UpdateChecker(UpdateButton *button) : button(button) {
-	setAutoDelete(false);
-	connect(this, &UpdateChecker::giveTip, button, &UpdateButton::changeTitle);
-	QTimer::singleShot(10000, [=] { QThreadPool::globalInstance()->start(this); });
-}
-
-void UpdateChecker::run() {
-	try {
-		_run();
-	} catch (QException e) {
-		emit giveTip(::tr("Check Update Failed"));
-	}
-}
-
-void UpdateChecker::_run() {
-	emit giveTip(::tr("Checking Update..."));
-
-	QNetworkAccessManager mgr;
-	QNetworkRequest request{QUrl("https://kendryte-download.canaan-creative.com/developer/tools/k230_burningtool/k230_burningtool_lastest.txt")};
-
-	QNetworkReply *reply = mgr.get(request);
-
-	QEventLoop eventLoop;
-	QObject::connect(reply, &QNetworkReply::finished, &eventLoop, &QEventLoop::quit);
-	eventLoop.exec();
-
-	if (reply->error() != QNetworkReply::NoError) {
-		BurnLibrary::instance()->onDebugLog(false, ::tr("Can't Checking Update: ") + reply->errorString());
-		emit giveTip(::tr("Can't Checking Update: ") + QString::number(reply->error()));
+UpdateChecker::UpdateChecker(QMenu *menu, const QVersionNumber &version, const QString &executable, bool automaticChecks)
+	: QObject(menu), currentVersion(version) {
+	const auto installed = IfwInstallation::detect(executable.isEmpty() ? QCoreApplication::applicationFilePath() : executable);
+	if (installed.isManaged()) {
+		auto *update = menu->addAction(tr("Update Application..."));
+		update->setEnabled(installed.canUpdate());
+		connect(update, &QAction::triggered, this, [this] { emit maintenanceRequested(true); });
+		auto *manage = menu->addAction(tr("Manage Installation..."));
+		manage->setEnabled(!installed.maintenanceTool.isEmpty());
+		connect(manage, &QAction::triggered, this, [this] { emit maintenanceRequested(false); });
+		if (!installed.canUpdate()) {
+			auto *status = menu->addAction(installed.maintenanceTool.isEmpty()
+				? tr("Maintenance Tool not found") : tr("Online updates not configured"));
+			status->setEnabled(false);
+		}
 		return;
 	}
+	network = new QNetworkAccessManager(this);
+	checkAction = menu->addAction(tr("Check for Updates..."));
+	connect(checkAction, &QAction::triggered, this, &UpdateChecker::check);
+	connect(menu->addAction(tr("Download Releases...")), &QAction::triggered, this, [] {
+		QDesktopServices::openUrl(QUrl("https://github.com/kendryte/k230_burning_tool/releases"));
+	});
+	statusAction = menu->addAction(QString());
+	statusAction->setEnabled(false);
+	statusAction->setVisible(false);
+	if (automaticChecks) QTimer::singleShot(10000, this, &UpdateChecker::check);
+}
 
-	QJsonDocument jsonResponse = QJsonDocument::fromJson(reply->readAll());
-
-	int new_ver = jsonResponse.object().value("version").toInt();
-	QString new_hash = jsonResponse.object().value("hash").toString().toLower();
-
-	int now_ver = CURRENT_VERSION_MAJOR * 1000 + CURRENT_VERSION_MINOR * 100 + CURRENT_VERSION_PATCH;
-	QString now_hash = QString::fromLatin1(VERSION_HASH).toLower();
-
-	BurnLibrary::instance()->localLog(QStringLiteral("newest version is: %1").arg(new_ver));
-	BurnLibrary::instance()->localLog(QStringLiteral("my     version is: %1").arg(now_ver));
-
-	BurnLibrary::instance()->localLog(QStringLiteral("newest hash is: ") + new_hash);
-	BurnLibrary::instance()->localLog(QStringLiteral("my     hash is: ") + now_hash);
-
-	if(new_ver > now_ver) {
-		emit giveTip(::tr("New Version"));
-	} else {
-		emit giveTip(::tr("Latest"));
-	}
+void UpdateChecker::check() {
+	if (reply || !network) return;
+	statusAction->setText(tr("Checking for updates..."));
+	statusAction->setVisible(true);
+	checkAction->setEnabled(false);
+	QNetworkRequest request(QUrl("https://download.kendryte.com/developer/tools/k230_burningtool/k230_burningtool_lastest.txt"));
+	request.setTransferTimeout(15000);
+	reply = network->get(request);
+	auto *requestReply = reply.data();
+	QTimer::singleShot(20000, requestReply, [requestReply] {
+		if (requestReply->isRunning()) requestReply->abort();
+	});
+	connect(requestReply, &QNetworkReply::readyRead, this, [requestReply] {
+		if (requestReply->bytesAvailable() > 65536) requestReply->abort();
+	});
+	connect(requestReply, &QNetworkReply::finished, this, [this, requestReply] {
+		QString status = tr("Could not check for updates");
+		if (requestReply->error() == QNetworkReply::NoError && requestReply->bytesAvailable() <= 65536) {
+			const auto document = QJsonDocument::fromJson(requestReply->readAll());
+			const auto value = document.object().value("version");
+			const int latest = value.toInt(-1);
+			if (document.isObject() && value.isDouble() && latest >= 0 && value.toDouble() == latest) {
+				const qint64 current = qint64(currentVersion.majorVersion()) * 1000 + currentVersion.minorVersion() * 100 + currentVersion.microVersion();
+				status = latest > current ? tr("A new version is available") : tr("You are up to date");
+			}
+		}
+		statusAction->setText(status);
+		checkAction->setEnabled(true);
+		reply.clear();
+		requestReply->deleteLater();
+	});
 }

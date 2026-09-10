@@ -16,9 +16,9 @@
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0</string>
+    <string>${MACOSX_BUNDLE_SHORT_VERSION_STRING}</string>
     <key>CFBundleVersion</key>
-    <string>1</string>
+    <string>${MACOSX_BUNDLE_BUNDLE_VERSION}</string>
 
     <!-- Application Appearance -->
     <key>NSRequiresAquaSystemAppearance</key>
@@ -30,7 +30,7 @@
 
     <!-- macOS Specific Settings -->
     <key>LSMinimumSystemVersion</key>
-    <string>${MACOSX_DEPLOYMENT_TARGET}</string>
+    <string>${CMAKE_OSX_DEPLOYMENT_TARGET}</string>
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2025 Canaan Inc. All rights reserved.</string>
     <key>NSPrincipalClass</key>

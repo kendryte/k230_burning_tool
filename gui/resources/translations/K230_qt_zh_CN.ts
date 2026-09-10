@@ -558,6 +558,22 @@
 <context>
     <name>MainWindow</name>
     <message>
+        <source>Installation</source>
+        <translation>安装管理</translation>
+    </message>
+    <message>
+        <source>Finish or cancel all burning jobs before opening the Maintenance Tool.</source>
+        <translation>请先完成或取消所有烧录任务，再打开维护工具。</translation>
+    </message>
+    <message>
+        <source>Close the application and open the Maintenance Tool?</source>
+        <translation>是否关闭应用并打开维护工具？</translation>
+    </message>
+    <message>
+        <source>Could not start the Maintenance Tool. The application will remain open.</source>
+        <translation>无法启动维护工具，应用将保持运行。</translation>
+    </message>
+    <message>
         <location filename="../../src/MainWindow.ui" line="196"/>
         <source>Quit</source>
         <translation>退出</translation>
@@ -568,9 +584,8 @@
         <translation>选项(&amp;O)</translation>
     </message>
     <message>
-        <location filename="../../src/MainWindow.ui" line="168"/>
-        <source>Check Update</source>
-        <translation>检查更新</translation>
+        <source>Updates(&amp;U)</source>
+        <translation>更新(&amp;U)</translation>
     </message>
     <message>
         <location filename="../../src/MainWindow.cpp" line="62"/>
@@ -593,11 +608,6 @@
         <translation>展开日志窗口</translation>
     </message>
     <message>
-        <location filename="../../src/MainWindow.ui" line="181"/>
-        <source>Download Update</source>
-        <translation>下载更新</translation>
-    </message>
-    <message>
         <location filename="../../src/MainWindow.ui" line="199"/>
         <source>Ctrl+Q</source>
         <translation>Ctrl+Q</translation>
@@ -612,11 +622,6 @@
         <location filename="../../src/MainWindow.ui" line="241"/>
         <source>More Detailed Logs</source>
         <translation>更详细显示日志</translation>
-    </message>
-    <message>
-        <location filename="../../src/MainWindow.ui" line="159"/>
-        <source>About(&amp;A)</source>
-        <translation>关于(&amp;A)</translation>
     </message>
     <message>
         <location filename="../../src/MainWindow.cpp" line="138"/>
@@ -769,24 +774,48 @@
 <context>
     <name>UpdateChecker</name>
     <message>
-        <source>Check Update Failed</source>
-        <translation type="vanished">检查更新失败</translation>
+        <source>Update Application...</source>
+        <translation>更新应用程序...</translation>
     </message>
     <message>
-        <source>Checking Update...</source>
-        <translation type="vanished">检查更新中...</translation>
+        <source>Check for Updates...</source>
+        <translation>检查更新...</translation>
+    </message>
+    <message>
+        <source>Online updates not configured</source>
+        <translation>尚未配置在线更新</translation>
+    </message>
+    <message>
+        <source>Manage Installation...</source>
+        <translation>管理安装...</translation>
+    </message>
+    <message>
+        <source>Maintenance Tool not found</source>
+        <translation>未找到维护工具</translation>
+    </message>
+    <message>
+        <source>Download Releases...</source>
+        <translation>下载发布版本...</translation>
+    </message>
+    <message>
+        <source>Could not check for updates</source>
+        <translation>无法检查更新</translation>
+    </message>
+    <message>
+        <source>Checking for updates...</source>
+        <translation>正在检查更新...</translation>
     </message>
     <message>
         <source>Can&apos;t Checking Update: </source>
         <translation type="vanished">无法检查更新： </translation>
     </message>
     <message>
-        <source>New Version</source>
-        <translation type="vanished">新版本</translation>
+        <source>A new version is available</source>
+        <translation>有新版本可用</translation>
     </message>
     <message>
-        <source>Latest</source>
-        <translation type="vanished">最新版</translation>
+        <source>You are up to date</source>
+        <translation>已是最新版本</translation>
     </message>
 </context>
 <context>

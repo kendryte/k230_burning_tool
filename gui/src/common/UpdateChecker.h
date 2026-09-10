@@ -2,29 +2,26 @@
 
 #include <QMenu>
 #include <QObject>
-#include <QRunnable>
+#include <QPointer>
+#include <QVersionNumber>
 
-class UpdateButton : public QMenu {
-    Q_OBJECT
+class QNetworkAccessManager;
+class QNetworkReply;
+class QAction;
 
-  public:
-    UpdateButton(QWidget *parent = nullptr) : QMenu(parent){};
-
-  public slots:
-    void changeTitle(QString newTitle) { setTitle(newTitle); };
-};
-
-class UpdateChecker : public QObject, public QRunnable {
+class UpdateChecker : public QObject {
 	Q_OBJECT
 
-	UpdateButton *button;
-	void _run();
+	QNetworkAccessManager *network = nullptr;
+	QPointer<QNetworkReply> reply;
+	QAction *checkAction = nullptr;
+	QAction *statusAction = nullptr;
+	QVersionNumber currentVersion;
+	void check();
 
   signals:
-    void giveTip(QString tip);
+	void maintenanceRequested(bool update);
 
   public:
-    explicit UpdateChecker(UpdateButton *button);
-
-    void run();
+	explicit UpdateChecker(QMenu *menu, const QVersionNumber &version, const QString &executable = QString(), bool automaticChecks = true);
 };

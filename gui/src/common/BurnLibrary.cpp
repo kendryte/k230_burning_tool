@@ -171,7 +171,8 @@ bool BurnLibrary::deleteBurning(BurningProcess *task) {
 	emit jobListChanged();
 	if (task->isStarted() && !task->isCompleted()) {
 		// TODO: 有些情况需要cancel()而不是等结束
-		connect(task, &BurningProcess::completed, task, &BurningProcess::deleteLater);
+		connect(task, &BurningProcess::finished, task,
+			&BurningProcess::deleteLater);
 	} else {
 		task->deleteLater();
 	}

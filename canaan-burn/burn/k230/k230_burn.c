@@ -5,10 +5,15 @@
 #include "private/monitor/usb_types.h"
 
 #include <inttypes.h>
+#include <limits.h>
 
 #define RETRY_MAX                   (5)
 #define USB_TIMEOUT                 (2000)
 #define CMD_FLAG_DEV_TO_HOST        (0x8000)
+#define KBURN_FLAG_SPI_NAND_WRITE_WITH_OOB (1024)
+#define KBURN_FLAG_FLAG(flag) (((flag) >> 48) & 0xffff)
+#define KBURN_FLAG_VAL1(flag) (((flag) >> 16) & 0xffffffff)
+#define KBURN_FLAG_VAL2(flag) ((flag) & 0xffff)
 
 enum kburn_pkt_cmd {
     KBURN_CMD_NONE = 0,
@@ -53,6 +58,11 @@ struct kburn_usb_pkt_wrap {
 
 #pragma pack(pop)
 
+_Static_assert(sizeof(struct kburn_usb_pkt) == 6,
+	       "KBURN packet header ABI changed");
+_Static_assert(sizeof(struct kburn_usb_pkt_wrap) == KBUNR_USB_PKT_SIZE,
+	       "KBURN command packet ABI changed");
+
 struct kburn_medium_info {
     uint64_t capacity;
     uint64_t blk_size;
@@ -62,6 +72,9 @@ struct kburn_medium_info {
     uint64_t type:7;
     uint64_t valid:1;
 };
+
+_Static_assert(sizeof(struct kburn_medium_info) == 32,
+	       "KBURN medium-info ABI changed");
 
 struct kburn_t {
     kburnDeviceNode *node;
@@ -75,8 +88,31 @@ struct kburn_t {
     int ep_in, ep_out;
     uint16_t ep_out_mps;
     uint64_t capacity;
+	uint64_t out_chunk_size;
     uint64_t dl_total, dl_size, dl_offset;
 };
+
+static bool kburn_copy_error_message(const struct kburn_usb_pkt_wrap *packet,
+                                     kburn_t *kburn)
+{
+    size_t message_size;
+
+    if (packet->hdr.data_size > sizeof(packet->data)) {
+        debug_print(KBURN_LOG_ERROR, "invalid response data size %u",
+                    packet->hdr.data_size);
+        strncpy(kburn->error_msg, "invalid response data size",
+                sizeof(kburn->error_msg));
+        kburn->error_msg[sizeof(kburn->error_msg) - 1] = '\0';
+        return false;
+    }
+
+    message_size = packet->hdr.data_size;
+    if (message_size >= sizeof(kburn->error_msg))
+        message_size = sizeof(kburn->error_msg) - 1;
+    memcpy(kburn->error_msg, packet->data, message_size);
+    kburn->error_msg[message_size] = '\0';
+    return true;
+}
 
 static int __get_endpoint(kburn_t *kburn)
 {
@@ -121,6 +157,8 @@ static int __get_endpoint(kburn_t *kburn)
 	}
 
 	libusb_free_config_descriptor(config);
+	if (!kburn->ep_in || !kburn->ep_out || !kburn->ep_out_mps)
+		return LIBUSB_ERROR_NOT_FOUND;
 
 	return LIBUSB_SUCCESS;
 }
@@ -141,7 +179,7 @@ static int kburn_probe_loader_version(kburn_t *kburn)
                                 /* wLength       */ sizeof(version),
                                 /* timeout       */ USB_TIMEOUT);
 
-    if (rc < LIBUSB_SUCCESS) {
+    if (rc != sizeof(version)) {
         debug_print(KBURN_LOG_ERROR, "Error - can't issue a control transfer, error %s", libusb_strerror((enum libusb_error)rc));
         return 0; // version 0 not support this request.
     }
@@ -154,6 +192,9 @@ static int kburn_probe_loader_version(kburn_t *kburn)
 static int kburn_write_data(kburn_t *kburn, void *data, int length)
 {
     int rc = -1, size = 0;
+
+	if (!kburn || length < 0 || (length && !data))
+		return KBrunUsbCommError;
 
     kburnDeviceNode *node = kburn->node;
 
@@ -174,18 +215,31 @@ static int kburn_write_data(kburn_t *kburn, void *data, int length)
         return KBrunUsbCommError;
     }
 
-    if(0x00 == (length % kburn->ep_out_mps)) {
-        if(LIBUSB_SUCCESS != (rc = libusb_bulk_transfer(node->usb->handle, kburn->ep_out, data, 0, &size, kburn->medium_info.timeout_ms))) {
-            debug_print(KBURN_LOG_ERROR, "Error - can't write bulk data ZLP, error %s", libusb_strerror((enum libusb_error)rc));
-        }
-    }
-
     return KBurnNoErr;
+}
+
+static int kburn_write_zlp(kburn_t *kburn)
+{
+	int rc, size = 0;
+	kburnDeviceNode *node = kburn->node;
+
+	rc = libusb_bulk_transfer(node->usb->handle, kburn->ep_out, NULL, 0,
+				 &size, kburn->medium_info.timeout_ms);
+	if (rc != LIBUSB_SUCCESS) {
+		debug_print(KBURN_LOG_ERROR,
+			    "Error - can't write bulk data ZLP, error %s",
+			    libusb_strerror((enum libusb_error)rc));
+		return KBrunUsbCommError;
+	}
+	return KBurnNoErr;
 }
 
 static int kburn_read_data(kburn_t *kburn, void *data, int length, int *is_timeout)
 {
     int rc = -1, size = 0;
+
+	if (!kburn || length < 0 || (length && !data))
+		return KBrunUsbCommError;
 
     kburnDeviceNode *node = kburn->node;
 
@@ -215,6 +269,15 @@ static int kburn_read_data(kburn_t *kburn, void *data, int length, int *is_timeo
 
 static int kburn_parse_resp(struct kburn_usb_pkt_wrap *csw, kburn_t *kburn, enum kburn_pkt_cmd cmd, void *result, int *result_size)
 {
+    if (csw->hdr.data_size > sizeof(csw->data)) {
+        debug_print(KBURN_LOG_ERROR, "invalid response data size %u",
+                    csw->hdr.data_size);
+        strncpy(kburn->error_msg, "invalid response data size",
+                sizeof(kburn->error_msg));
+        kburn->error_msg[sizeof(kburn->error_msg) - 1] = '\0';
+        return KBrunUsbCommError;
+    }
+
     if(csw->hdr.cmd != (cmd | CMD_FLAG_DEV_TO_HOST)) {
         debug_print(KBURN_LOG_ERROR, "command recv error resp cmd");
         strncpy(kburn->error_msg, "cmd recv resp error", sizeof(kburn->error_msg));
@@ -226,10 +289,8 @@ static int kburn_parse_resp(struct kburn_usb_pkt_wrap *csw, kburn_t *kburn, enum
         strncpy(kburn->error_msg, "cmd recv resp error", sizeof(kburn->error_msg));
 
         if(KBURN_RESULT_ERROR_MSG == csw->hdr.result) {
-            csw->data[csw->hdr.data_size] = 0;
-
-            debug_print(KBURN_LOG_ERROR, "command recv error resp, error msg %s", csw->data);
-            strncpy(kburn->error_msg, (char *)csw->data, sizeof(kburn->error_msg));
+            kburn_copy_error_message(csw, kburn);
+            debug_print(KBURN_LOG_ERROR, "command recv error resp, error msg %s", kburn->error_msg);
         }
 
         return KBrunUsbCommError;
@@ -244,7 +305,10 @@ static int kburn_parse_resp(struct kburn_usb_pkt_wrap *csw, kburn_t *kburn, enum
     if(csw->hdr.data_size > *result_size) {
         debug_print(KBURN_LOG_ERROR, "command result buffer too small, %d > %d", csw->hdr.data_size, *result_size);
 
-        csw->hdr.data_size = *result_size;
+        strncpy(kburn->error_msg, "response buffer too small",
+                sizeof(kburn->error_msg));
+        kburn->error_msg[sizeof(kburn->error_msg) - 1] = '\0';
+        return KBrunUsbCommError;
     }
 
     *result_size = csw->hdr.data_size;
@@ -260,7 +324,7 @@ static int kburn_send_cmd(kburn_t *kburn, enum kburn_pkt_cmd cmd, void *data, in
     memset(&cbw, 0, sizeof(cbw));
     memset(&csw, 0, sizeof(csw));
 
-    if(size > (int)sizeof(cbw.data)) {
+    if(size < 0 || size > (int)sizeof(cbw.data) || (size && !data)) {
         debug_print(KBURN_LOG_ERROR, "command data size too large %d", size);
         return KBurnWiredError;
     }
@@ -327,17 +391,30 @@ uint64_t kburn_get_medium_blk_size(struct kburn_t *kburn)
 
 bool kburn_parse_erase_config(struct kburn_t *kburn, uint64_t *offset, uint64_t *size)
 {
-    uint64_t o, s;
+	uint64_t o, s, end, erase_size;
+
+	if (!kburn || !offset || !size || !kburn->medium_info.erase_size)
+		return false;
     
     o = *offset;
     s = *size;
 
-    if((o + s) > kburn->medium_info.capacity) {
-        return false;
-    }
+	if (o > kburn->medium_info.capacity ||
+	    s > (kburn->medium_info.capacity - o)) {
+		return false;
+	}
+	end = o + s;
+	erase_size = kburn->medium_info.erase_size;
 
-    o = round_up(o, kburn->medium_info.erase_size);
-    s = round_down(s, kburn->medium_info.erase_size);
+	o = round_down(o, erase_size);
+	if (end % erase_size) {
+		if (end > UINT64_MAX - (erase_size - end % erase_size))
+			return false;
+		end += erase_size - end % erase_size;
+	}
+	if (end > kburn->medium_info.capacity)
+		return false;
+	s = end - o;
 
     *offset = o;
     *size = s;
@@ -354,14 +431,14 @@ kburn_t *kburn_create(kburnDeviceNode *node)
         kburn->node = node;
         kburn->medium_info.timeout_ms = 10000; // set a longer timeout for probe medium info
 
-        if(LIBUSB_SUCCESS != __get_endpoint(kburn)) {
-            debug_print(KBURN_LOG_ERROR, "kburn get ep failed");
+		if(LIBUSB_SUCCESS != __get_endpoint(kburn)) {
+			debug_print(KBURN_LOG_ERROR, "kburn get ep failed");
 
-            free(kburn);
-            kburn = NULL;
-        }
+			free(kburn);
+			return NULL;
+		}
 
-        kburn->loader_version = kburn_probe_loader_version(kburn);
+		kburn->loader_version = kburn_probe_loader_version(kburn);
     }
 
     return kburn;
@@ -386,6 +463,7 @@ void kburn_reset_chip(kburn_t *kburn)
     struct kburn_usb_pkt_wrap cbw;
     const uint64_t reboot_mark = REBOOT_MARK;
 
+    memset(&cbw, 0, sizeof(cbw));
     cbw.hdr.cmd = KBURN_CMD_REBOOT;
     cbw.hdr.data_size = sizeof(uint64_t);
 
@@ -417,12 +495,17 @@ bool kburn_probe(kburn_t *kburn, kburnUsbIspCommandTaget target, uint64_t *chunk
         debug_print(KBURN_LOG_ERROR, "kburn probe medium failed, get result size error");
         return false;
     }
+	if (!result[0] || result[0] > INT_MAX) {
+		debug_print(KBURN_LOG_ERROR, "loader returned invalid chunk size");
+		return false;
+	}
 
     debug_print(KBURN_LOG_INFO, "kburn probe, out chunksize %" PRId64 ", in chunksize %" PRId64 "\n", result[0], result[1]);
 
     if(chunk_size) {
         *chunk_size = result[0];
     }
+	kburn->out_chunk_size = result[0];
 
     return true;
 }
@@ -460,7 +543,8 @@ bool kburn_erase(struct kburn_t *kburn, uint64_t offset, uint64_t size, int max_
 
     debug_print(KBURN_LOG_INFO, "kburn erase medium, offset %" PRId64 ", size %" PRId64 "\n", offset, size);
 
-    if((offset + size) > kburn->medium_info.capacity) {
+    if(offset > kburn->medium_info.capacity ||
+       size > (kburn->medium_info.capacity - offset)) {
         debug_print(KBURN_LOG_ERROR, "kburn erase medium exceed");
         strncpy(kburn->error_msg, "kburn erase medium exceed", sizeof(kburn->error_msg));
         return false;
@@ -500,7 +584,6 @@ bool kburn_erase(struct kburn_t *kburn, uint64_t offset, uint64_t size, int max_
             return false;
         }
 
-        do_sleep(5000);
     } while((retry_times++) < max_retry);
 
     return KBurnNoErr == kburn_parse_resp(&csw, kburn, KBURN_CMD_ERASE_LBA, NULL, NULL);
@@ -510,8 +593,35 @@ bool kburn_write_start(struct kburn_t *kburn, uint64_t part_offset, uint64_t par
 {
     int cfg_size = sizeof(uint64_t) * 3;
     uint64_t cfg[4] = {part_offset, file_size, part_size, part_flag};
+	uint64_t medium_size = file_size;
 
-    if((part_offset + part_size) > kburn->medium_info.capacity) {
+	if (part_flag && kburn->loader_version < 1) {
+		debug_print(KBURN_LOG_ERROR,
+			    "loader protocol does not support partition flags");
+		strncpy(kburn->error_msg,
+			"loader protocol does not support partition flags",
+			sizeof(kburn->error_msg));
+		kburn->error_msg[sizeof(kburn->error_msg) - 1] = '\0';
+		return false;
+	}
+
+	if (KBURN_FLAG_SPI_NAND_WRITE_WITH_OOB == KBURN_FLAG_FLAG(part_flag)) {
+		uint64_t page_size = KBURN_FLAG_VAL1(part_flag);
+		uint64_t oob_size = KBURN_FLAG_VAL2(part_flag);
+
+		if (kburn->medium_info.type != KBURN_USB_ISP_SPI_NAND || !page_size ||
+		    !oob_size || page_size + oob_size < page_size ||
+		    file_size % (page_size + oob_size)) {
+			debug_print(KBURN_LOG_ERROR, "invalid SPI NAND OOB layout");
+			return false;
+		}
+		medium_size = (file_size / (page_size + oob_size)) * page_size;
+	}
+
+	if (!file_size || part_offset > kburn->medium_info.capacity ||
+	    medium_size > (kburn->medium_info.capacity - part_offset) ||
+	    (part_size && (part_size > (kburn->medium_info.capacity - part_offset) ||
+			 medium_size > part_size))) {
         debug_print(KBURN_LOG_ERROR, "kburn write medium exceed");
         strncpy(kburn->error_msg, "kburn write medium exceed", sizeof(kburn->error_msg));
         return false;
@@ -533,6 +643,8 @@ bool kburn_write_start(struct kburn_t *kburn, uint64_t part_offset, uint64_t par
     }
 
     debug_print(KBURN_LOG_INFO, "kburn write medium cfg succ");
+	kburn->dl_total = file_size;
+	kburn->dl_size = 0;
 
     return true;
 }
@@ -540,9 +652,24 @@ bool kburn_write_start(struct kburn_t *kburn, uint64_t part_offset, uint64_t par
 bool kburn_write_chunk(struct kburn_t *kburn, void *data, uint64_t size)
 {
     struct kburn_usb_pkt_wrap csw;
+	uint64_t remaining, expected;
 
-    if(KBurnNoErr == kburn_write_data(kburn, data, size)) {
-        return true;
+	if (!kburn || !data || !size || size > INT_MAX ||
+	    !kburn->out_chunk_size || kburn->dl_size > kburn->dl_total)
+		return false;
+
+	remaining = kburn->dl_total - kburn->dl_size;
+	expected = remaining < kburn->out_chunk_size ? remaining : kburn->out_chunk_size;
+	if (size > expected)
+		return false;
+
+	if(KBurnNoErr == kburn_write_data(kburn, data, (int)size)) {
+		if (size < expected && kburn->ep_out_mps &&
+		    !(size % kburn->ep_out_mps) &&
+		    KBurnNoErr != kburn_write_zlp(kburn))
+			return false;
+		kburn->dl_size += size;
+		return true;
     }
 
     debug_print(KBURN_LOG_ERROR, "kburn write medium chunk failed,");
@@ -553,19 +680,22 @@ bool kburn_write_chunk(struct kburn_t *kburn, void *data, uint64_t size)
         return false;
     }
 
-    if(KBURN_RESULT_ERROR_MSG == csw.hdr.result) {
-        csw.data[csw.hdr.data_size] = 0;
+	(void)kburn_parse_resp(&csw, kburn, KBURN_CMD_WRITE_LBA, NULL, NULL);
 
-        debug_print(KBURN_LOG_ERROR, "command recv error resp, error msg %s", csw.data);
-        strncpy(kburn->error_msg, (char *)csw.data, sizeof(kburn->error_msg));
-    }
-
-    return false;
+	return false;
 }
 
 bool kbrun_write_end(struct kburn_t *kburn)
 {
     struct kburn_usb_pkt_wrap csw;
+	if (!kburn || kburn->dl_size != kburn->dl_total) {
+		if (kburn) {
+			strncpy(kburn->error_msg, "incomplete write transfer",
+				sizeof(kburn->error_msg));
+			kburn->error_msg[sizeof(kburn->error_msg) - 1] = '\0';
+		}
+		return false;
+	}
 
     if(KBurnNoErr != kburn_read_data(kburn, &csw, sizeof(csw), NULL)) {
         debug_print(KBURN_LOG_ERROR, "kburn write medium end, recv error msg failed.");
@@ -573,30 +703,13 @@ bool kbrun_write_end(struct kburn_t *kburn)
         return false;
     }
 
-    if(csw.hdr.cmd != (KBURN_CMD_WRITE_LBA | CMD_FLAG_DEV_TO_HOST)) {
-        debug_print(KBURN_LOG_ERROR, "kburn write medium end, resp cmd error.");
-        strncpy(kburn->error_msg, "kburn write medium end, resp cmd error.", sizeof(kburn->error_msg));
+	if (KBurnNoErr != kburn_parse_resp(&csw, kburn, KBURN_CMD_WRITE_LBA,
+					  NULL, NULL))
+		return false;
 
-        return false;
-    }
-
-    if(KBURN_RESULT_OK != csw.hdr.result) {
-        debug_print(KBURN_LOG_ERROR, "command recv error resp result");
-        strncpy(kburn->error_msg, "cmd recv resp error", sizeof(kburn->error_msg));
-
-        if(KBURN_RESULT_ERROR_MSG == csw.hdr.result) {
-            csw.data[csw.hdr.data_size] = 0;
-
-            debug_print(KBURN_LOG_ERROR, "command recv error resp, error msg %s", csw.data);
-            strncpy(kburn->error_msg, (char *)csw.data, sizeof(kburn->error_msg));
-        }
-
-        return false;
-    }
-
-    debug_print(KBURN_LOG_INFO, "write end, resp msg %s", csw.data);
-
-    kburn_nop(kburn);
+	kburn_nop(kburn);
+	kburn->dl_total = 0;
+	kburn->dl_size = 0;
 
     return true;
 }

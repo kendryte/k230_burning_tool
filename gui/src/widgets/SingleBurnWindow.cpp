@@ -5,6 +5,9 @@
 #include "common/BurnLibrary.h"
 #include "common/MyException.h"
 #include "ui_SingleBurnWindow.h"
+#include <algorithm>
+#include <limits>
+#include <QTimer>
 
 SingleBurnWindow::SingleBurnWindow(QWidget *parent, BurningRequest *request)
 	: QWidget(parent), ui(new Ui::SingleBurnWindow), request(request), isAutoCreate(request->isAutoCreate) {
@@ -29,10 +32,12 @@ SingleBurnWindow::SingleBurnWindow(QWidget *parent, BurningRequest *request)
 	stateConnections << connect(work, &BurningProcess::stageChanged, this, &SingleBurnWindow::setProgressText);
 	stateConnections << connect(work, &BurningProcess::bytesChanged, this, &SingleBurnWindow::bytesChanged);
 	stateConnections << connect(work, &BurningProcess::progressChanged, this, &SingleBurnWindow::progressChanged);
+	stateConnections << connect(work, &BurningProcess::speedChanged, this, &SingleBurnWindow::setWriteSpeed);
 
 	connect(work, &BurningProcess::updateTitle, this, &SingleBurnWindow::updateTitle);
 	connect(work, &BurningProcess::completed, this, &SingleBurnWindow::setCompleteState);
 	connect(work, &BurningProcess::failed, this, &SingleBurnWindow::setErrorState);
+	connect(work, &BurningProcess::finished, this, &SingleBurnWindow::releaseWork);
 	connect(work, &BurningProcess::cancelRequested, this, &SingleBurnWindow::setCancellingState);
 	connect(work, &BurningProcess::destroyed, this, &QWidget::deleteLater);
 }
@@ -49,15 +54,29 @@ SingleBurnWindow::~SingleBurnWindow() {
 	delete ui;
 }
 
-void SingleBurnWindow::bytesChanged(int maximumBytes) {
-	ui->progressBar->setMaximum(maximumBytes);
+void SingleBurnWindow::bytesChanged(quint64 maximumBytes) {
+	progressMaximum = maximumBytes;
+	if (maximumBytes <= static_cast<quint64>(std::numeric_limits<int>::max())) {
+		ui->progressBar->setMaximum(static_cast<int>(maximumBytes));
+	} else {
+		ui->progressBar->setMaximum(10000);
+	}
 }
 
-void SingleBurnWindow::progressChanged(int writtenBytes) {
-	ui->progressBar->setValue(writtenBytes);
+void SingleBurnWindow::progressChanged(quint64 writtenBytes) {
+	if (progressMaximum <= static_cast<quint64>(std::numeric_limits<int>::max())) {
+		ui->progressBar->setValue(static_cast<int>(std::min(writtenBytes,
+								 progressMaximum)));
+	} else {
+		int scaled = progressMaximum
+			? static_cast<int>(std::min<long double>(
+				  10000.0L, writtenBytes * 10000.0L / progressMaximum))
+			: 0;
+		ui->progressBar->setValue(scaled);
+	}
 }
 
-void SingleBurnWindow::deleteWork(bool preserveRequest) {
+void SingleBurnWindow::releaseWork() {
 	if (work) {
 		work->disconnect();
 		auto instance = BurnLibrary::instance();
@@ -66,6 +85,10 @@ void SingleBurnWindow::deleteWork(bool preserveRequest) {
 		}
 		work = nullptr;
 	}
+}
+
+void SingleBurnWindow::deleteWork(bool preserveRequest) {
+	releaseWork();
 	if (request && !preserveRequest) {
 		delete request;
 	}
@@ -84,7 +107,8 @@ void SingleBurnWindow::setStartState() {
 }
 
 void SingleBurnWindow::setCompleteState(const QString &speed) {
-	ui->textStatus->success(tr("Downloading Completed, Speed: ") + speed + tr("KB/s"));
+	isDone = true;
+	ui->textStatus->success(tr("Downloading Completed, Speed: ") + speed);
 
 	ui->progressBar->hide();
 	ui->textStatus->show();
@@ -96,6 +120,7 @@ void SingleBurnWindow::setCompleteState(const QString &speed) {
 }
 
 void SingleBurnWindow::setErrorState(const KBurnException &reason) {
+	isDone = true;
 	auto e = kburnSplitErrorCode(reason.errorCode);
 	ui->textStatus->failed(tr("Error: ") + QString::number(e.kind >> 32) + " - (" + QString::number(e.code, 16) + "), " + reason.errorMessage);
 
@@ -118,11 +143,24 @@ void SingleBurnWindow::setCancellingState() {
 }
 
 void SingleBurnWindow::setProgressText(const QString &progressText) {
-	if (progressText.isEmpty()) {
-		ui->progressBar->setFormat("%p%");
-	} else {
-		ui->progressBar->setFormat(progressText + ": %p%");
+	this->progressText = progressText;
+	if (progressText != tr("Downloading...") && progressText != tr("Start Downloading...")) {
+		writeSpeed.clear();
 	}
+	updateProgressFormat();
+}
+
+void SingleBurnWindow::setWriteSpeed(const QString &speed) {
+	writeSpeed = speed;
+	updateProgressFormat();
+}
+
+void SingleBurnWindow::updateProgressFormat() {
+	QString format = progressText.isEmpty() ? QString("%p%") : progressText + ": %p%";
+	if (!writeSpeed.isEmpty()) {
+		format += "  ·  " + writeSpeed;
+	}
+	ui->progressBar->setFormat(format);
 }
 
 void SingleBurnWindow::updateTitle()
@@ -149,6 +187,12 @@ void SingleBurnWindow::on_btnRetry_clicked() {
 }
 
 void SingleBurnWindow::on_btnDismiss_clicked() {
+	dismiss();
+}
+
+void SingleBurnWindow::dismiss() {
+	deleteWork();
+	hide();
 	deleteLater();
 }
 
@@ -169,8 +213,6 @@ void SingleBurnWindow::autoDismiss(bool success) {
 	}
 
 	ui->btnDismiss->show();
-	ui->btnDismiss->setDisabled(true);
-	ui->btnRetry->hide();
 
 	uint timeout;
 	if (success) {
@@ -180,7 +222,7 @@ void SingleBurnWindow::autoDismiss(bool success) {
 			timeout = GlobalSetting::autoConfirmManualJobTimeout.getValue();
 		}
 	} else {
-		timeout = GlobalSetting::autoConfirmEvenError.getValue();
+		timeout = GlobalSetting::autoConfirmEvenErrorTimeout.getValue();
 	}
 
 	if (timeout == 0) {
@@ -188,21 +230,21 @@ void SingleBurnWindow::autoDismiss(bool success) {
 		return;
 	}
 
-	auto tmr = new QTimer(this);
+	auto *tmr = new QTimer(this);
 	tmr->setInterval(1000);
-	int *i = new int(timeout);
-	auto cb = [=] {
-		ui->btnDismiss->setText(tr("Confirm") + " (" + QString::number(*i) + ")");
-		if (*i == 0) {
+	uint remaining = timeout;
+	ui->btnDismiss->setText(tr("Confirm") + " (" +
+				    QString::number(remaining) + ")");
+	connect(tmr, &QTimer::timeout, this, [this, tmr, remaining]() mutable {
+		if (remaining <= 1) {
 			tmr->stop();
 			deleteLater();
+			return;
 		}
-		(*i)--;
-	};
-	connect(tmr, &QTimer::timeout, this, cb);
-	cb();
-	tmr->start();
 
-	connect(tmr, &QTimer::destroyed, [=] { delete i; });
-	connect(this, &SingleBurnWindow::destroyed, tmr, &QTimer::deleteLater);
+		--remaining;
+		ui->btnDismiss->setText(tr("Confirm") + " (" +
+					    QString::number(remaining) + ")");
+	});
+	tmr->start();
 }
