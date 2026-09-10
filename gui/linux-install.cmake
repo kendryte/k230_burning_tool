@@ -63,3 +63,18 @@ else()
 		COMMAND_ERROR_IS_FATAL ANY
 	)
 endif()
+
+# The deployers' default runtime requires FUSE. Replace only the launcher so
+# ordinary execution also works on desktops without a usable FUSE setup.
+file(GLOB _APPIMAGES "${CMAKE_CACHEFILE_DIR}/K230BurningTool-*.AppImage")
+list(LENGTH _APPIMAGES _APPIMAGE_COUNT)
+if(NOT _APPIMAGE_COUNT EQUAL 1)
+	message(FATAL_ERROR "Expected exactly one deployed K230BurningTool AppImage")
+endif()
+list(GET _APPIMAGES 0 _APPIMAGE)
+execute_process(
+	COMMAND bash "${CMAKE_CURRENT_LIST_DIR}/repack-appimage.sh"
+		"${_APPIMAGE}" "${K230_BURNING_TARGET_ARCH}"
+	COMMAND_ECHO STDOUT
+	COMMAND_ERROR_IS_FATAL ANY
+)

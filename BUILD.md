@@ -16,7 +16,31 @@ git submodule update --init --recursive
 
 The script runs the platform CMake install checks and generates a `.sha256`
 checksum for every artifact. Linux releases include the Qt runtime in `.tar.gz`
-archives and produce AppImages. An AppImage can run without FUSE with:
+archives and produce AppImages. Newly built AppImages use a SHA-256-verified,
+pinned uruntime launcher (v0.7.1) on x86_64 and ARM64. It tries FUSE first and
+automatically extracts and runs when mounting is unavailable, without requiring
+users to install FUSE or pass special flags. Extraction needs a writable,
+executable temporary directory with enough free space and can slow startup;
+temporary files are cleaned up after exit.
+
+The Linux install hook needs `curl` and GNU coreutils to download and verify
+the launcher. `gui/repack-appimage.sh` preserves the deployer's SquashFS payload
+unchanged and replaces only its runtime, before release checksums are generated.
+When updating the runtime, review its release and update both architecture
+checksums in that script. The bundled runtime's license is in
+`Licenses/LICENSE.uruntime`.
+
+CI tests both x86_64 variant launchers inside the build container without
+`/dev/fuse`. To repeat the runtime tests locally (requires `mksquashfs` and Docker):
+
+```bash
+docker pull python:3.12-slim
+K230_TEST_APPIMAGE=/absolute/path/to/K230BurningTool-x86_64.AppImage \
+K230_TEST_DOCKER_IMAGE=python:3.12-slim \
+  python3 .github/scripts/test_appimage_runtime.py
+```
+
+Older AppImages can run without FUSE with:
 
 ```bash
 ./K230BurningTool-x86_64.AppImage --appimage-extract-and-run

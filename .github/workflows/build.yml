@@ -34,7 +34,7 @@ jobs:
             -v "${{ github.workspace }}:/home/user/project:ro" \
             stateoftheartio/qt6:6.6-gcc-aqt /bin/bash -euc '
               sudo apt-get update
-              sudo apt-get install -y libgl-dev libvulkan-dev libssl-dev libudev-dev file
+              sudo apt-get install -y libgl-dev libvulkan-dev libssl-dev libudev-dev file python3 squashfs-tools
               sudo curl -fsSL \
                 https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage \
                 -o /usr/local/bin/linuxdeployqt
@@ -42,6 +42,10 @@ jobs:
               K230_BURNING_TARGET_ARCH=x86_64 \
               K230_BURNING_BUILD_DIR=/home/user/build \
                 /home/user/project/release.sh
+              for image in /home/user/build/{normal,avalon3}/K230BurningTool-*.AppImage; do
+                K230_TEST_APPIMAGE="$image" python3 \
+                  /home/user/project/.github/scripts/test_appimage_runtime.py
+              done
             '
           docker cp qt6-linux:/home/user/build "${{ github.workspace }}/build"
           docker rm qt6-linux

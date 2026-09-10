@@ -78,5 +78,17 @@ Official packages are provided for each desktop platform with a matching
 `.sha256` checksum file. End users can download and run the package for their
 platform.
 
+On Linux, make the downloaded AppImage executable and launch it:
+
+```bash
+chmod +x ./K230BurningTool_linux_normal_*.AppImage
+./K230BurningTool_linux_normal_*.AppImage
+```
+
+New builds automatically extract and run if FUSE is unavailable; no FUSE
+installation or special launch flags are needed. Keep enough free space in
+your temporary directory. Older releases may still require
+`--appimage-extract-and-run`.
+
 Developers who need to build or publish a release should read the
 [build and release guide](BUILD.md).
