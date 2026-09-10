@@ -15,6 +15,50 @@ import unittest
 ROOT = Path(__file__).resolve().parents[2]
 
 
+def find_installer(output, host):
+    extension = {"linux": "run", "windows": "exe"}[host]
+    candidates = [path for path in output.glob("*_setup." + extension) if path.is_file()]
+    if len(candidates) != 1:
+        raise ValueError("Expected exactly one ." + extension + " installer in " + str(output))
+    return candidates[0]
+
+
+class InstallerSelectionTests(unittest.TestCase):
+    def test_selects_platform_binary_not_checksum(self):
+        for host, extension in (("linux", "run"), ("windows", "exe")):
+            with self.subTest(host=host), tempfile.TemporaryDirectory() as temporary:
+                output = Path(temporary)
+                installer = output / ("package_setup." + extension)
+                installer.with_name(installer.name + ".sha256").write_text("checksum")
+                installer.write_bytes(b"installer fixture")
+                other = "exe" if extension == "run" else "run"
+                (output / ("package_setup." + other)).write_bytes(b"other platform")
+                self.assertEqual(find_installer(output, host), installer)
+
+    def test_checksum_without_binary_is_rejected(self):
+        for host, extension in (("linux", "run"), ("windows", "exe")):
+            with self.subTest(host=host), tempfile.TemporaryDirectory() as temporary:
+                output = Path(temporary)
+                (output / ("package_setup." + extension + ".sha256")).write_text("checksum")
+                with self.assertRaisesRegex(ValueError, "Expected exactly one"):
+                    find_installer(output, host)
+
+    def test_multiple_installers_are_rejected(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary)
+            (output / "first_setup.run").touch()
+            (output / "second_setup.run").touch()
+            with self.assertRaisesRegex(ValueError, "Expected exactly one"):
+                find_installer(output, "linux")
+
+    def test_matching_directory_is_not_an_installer(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary)
+            (output / "package_setup.run").mkdir()
+            with self.assertRaisesRegex(ValueError, "Expected exactly one"):
+                find_installer(output, "linux")
+
+
 @unittest.skipUnless(os.environ.get("K230_TEST_IFW_TOOLS"), "Set K230_TEST_IFW_TOOLS for native IFW tests")
 class IfwInstallerTests(unittest.TestCase):
     def test_install_update_and_uninstall(self):
@@ -56,7 +100,7 @@ class IfwInstallerTests(unittest.TestCase):
                         archive.extractall(repository)
                 repositories.append(repository)
                 if version == "1.0.0":
-                    installer = next(output.glob("*_setup.*"))
+                    installer = find_installer(output, host)
                     installer.chmod(0o755)
                     result = subprocess.run([str(installer), "--root", str(installed),
                                              "--accept-licenses", "--default-answer", "--confirm-command",
