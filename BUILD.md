@@ -126,9 +126,12 @@ required tools, CMake package files, and platform plugin before reusing it.
 When these checks pass, the Qt installer and its Python setup are skipped.
 The Qt environment is activated on both installation and reuse paths.
 
-On a missing or incomplete installation, the workflow installs Homebrew
-`python@3.12`, creates an isolated virtual environment, and runs
-`jurplel/install-qt-action@v4` with `setup-python: false` and `cache: true`.
+On a missing or incomplete Qt installation, the hosted Intel runner uses
+`actions/setup-python@v5` to select Python 3.12. This avoids Homebrew symlink
+conflicts with the runner's existing python.org installation. The self-hosted
+ARM64 runner continues to use Homebrew `python@3.12`. Both paths create an
+isolated virtual environment and run `jurplel/install-qt-action@v4` with
+`setup-python: false` and `cache: true`.
 Change the macOS job's `QT_VERSION` to select a new version-specific directory.
 No job cleanup removes this Qt installation; to force reinstallation, remove
 only its version-specific directory on the runner before the next job.

@@ -158,6 +158,17 @@ jobs:
             ${{ matrix.prefix }}-qt6-tools
             ${{ matrix.prefix }}-qt6-svg
 
+      - name: Test C macro portability
+        run: |
+          set -euo pipefail
+          test_dir=$(mktemp -d)
+          trap 'rm -rf "$test_dir"' EXIT
+          clang -std=gnu2x -Wall -Wextra -pedantic -Werror \
+            -Werror=gnu-zero-variadic-macro-arguments \
+            -I canaan-burn/include tests/test_variadic_macros.c \
+            -o "$test_dir/test_variadic_macros.exe"
+          "$test_dir/test_variadic_macros.exe"
+
       - name: Build both variants natively
         env:
           TARGET_ARCH: ${{ matrix.arch }}
@@ -218,15 +229,30 @@ jobs:
       - name: Install build tools
         run: brew install ninja
 
-      - name: Install Python for Qt installer
-        if: steps.qt-cache.outputs.available != 'true'
+      - name: Set up Python for Qt installer (Intel)
+        id: qt-python
+        if: steps.qt-cache.outputs.available != 'true' && matrix.arch == 'x86_64'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: x64
+
+      - name: Install Python for Qt installer (ARM64)
+        if: steps.qt-cache.outputs.available != 'true' && matrix.arch == 'arm64'
         run: brew install python@3.12
 
       - name: Prepare Python for Qt installer
         if: steps.qt-cache.outputs.available != 'true'
         shell: bash
+        env:
+          BUILD_ARCH: ${{ matrix.arch }}
+          HOSTED_PYTHON: ${{ steps.qt-python.outputs.python-path }}
         run: |
-          python_bin="$(brew --prefix python@3.12)/bin/python3.12"
+          if [[ "$BUILD_ARCH" == x86_64 ]]; then
+            python_bin="${HOSTED_PYTHON:?The Intel Python setup step did not provide an interpreter}"
+          else
+            python_bin="$(brew --prefix python@3.12)/bin/python3.12"
+          fi
           "$python_bin" -m venv "$RUNNER_TEMP/install-qt-python"
           echo "$RUNNER_TEMP/install-qt-python/bin" >> "$GITHUB_PATH"
           "$RUNNER_TEMP/install-qt-python/bin/python3" --version
