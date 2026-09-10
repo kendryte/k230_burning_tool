@@ -18,6 +18,8 @@ Component.prototype.createOperations = function() {
         throw new Error("The installation path contains control characters.");
     }
     component.createOperations();
+    // The application creates this log after installation.
+    component.registerPathForUninstallation(target + "/app/bin/burning_tool.html");
     if (installer.value("CreateShortcuts", "true") === "false") {
         return;
     }

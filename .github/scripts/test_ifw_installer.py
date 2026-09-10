@@ -81,6 +81,35 @@ class IfwInstallerTests(unittest.TestCase):
                            capture_output=True, timeout=180)
             installer = find_installer(output, host)
             self.assertEqual({path.name for path in output.iterdir()}, {installer.name, installer.name + ".sha256"})
+            installer.chmod(0o755)
+            env = dict(os.environ, QT_QPA_PLATFORM="offscreen", HOME=str(root / "home"),
+                       XDG_DATA_HOME=str(root / "data"), XDG_CONFIG_HOME=str(root / "config"))
+            for with_log in (False, True):
+                with self.subTest(with_log=with_log):
+                    installed = root / ("installed-with-log" if with_log else "installed-without-log")
+                    result = subprocess.run([str(installer), "--root", str(installed),
+                                             "--accept-licenses", "--default-answer", "--confirm-command",
+                                             "install", "CreateShortcuts=false"],
+                                            env=env, capture_output=True, text=True, timeout=90)
+                    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                    log = installed / "app/bin/burning_tool.html"
+                    self.assertFalse(log.exists())
+                    if with_log:
+                        log.write_text("generated runtime log")
+                    saved_log = installed / "app/bin/saved-log.html"
+                    saved_log.write_text("user-saved log")
+                    tool = installed / ("MaintenanceTool.exe" if host == "windows" else "MaintenanceTool")
+                    result = subprocess.run([str(tool), "--default-answer", "--confirm-command", "purge"],
+                                            env=env, capture_output=True, text=True, timeout=90)
+                    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                    self.assertFalse(log.exists())
+                    self.assertEqual(saved_log.read_text(), "user-saved log")
+                    self.assertFalse((installed / "app/bin" / executable.name).exists())
+                    for _ in range(200):
+                        if not tool.exists():
+                            break
+                        time.sleep(0.05)
+                    self.assertFalse(tool.exists())
 
     def test_install_update_and_uninstall(self):
         with tempfile.TemporaryDirectory(prefix="ifw smoke ") as temporary:
@@ -150,11 +179,17 @@ class IfwInstallerTests(unittest.TestCase):
                         break
                     time.sleep(0.05)
                 self.assertEqual(Path(env["K230_TEST_APP_OUTPUT"]).read_text(), "1.0.1")
+            log = installed / "app/bin/burning_tool.html"
+            log.write_text("generated runtime log after update")
+            saved_log = installed / "app/bin/saved-log.html"
+            saved_log.write_text("user-saved log")
             result = subprocess.run([str(tool), "--default-answer", "--confirm-command", "purge"],
                                     env=env, capture_output=True, text=True, timeout=90)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertFalse((installed / "app/bin" / executable.name).exists())
             self.assertFalse((installed / "ifw-installation.json").exists())
+            self.assertFalse(log.exists())
+            self.assertEqual(saved_log.read_text(), "user-saved log")
             # Windows uses a short-lived helper to remove the running maintenance executable.
             for _ in range(200):
                 if not tool.exists():
