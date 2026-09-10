@@ -65,16 +65,24 @@
 正式发布包按平台提供，并为每个产物生成对应的 `.sha256` 校验文件。普通
 用户直接使用适合自己平台的发布包即可。
 
-Linux 用户为下载的 AppImage 添加执行权限后即可启动：
+Windows 和 Linux 目前仅构建普通版，Avalon 构建暂时停用。普通版有两种分发形式：
 
-```bash
-chmod +x ./K230BurningTool_linux_normal_*.AppImage
-./K230BurningTool_linux_normal_*.AppImage
-```
+- **安装版**：Windows 使用 Qt IFW `_setup.exe`，Linux 使用 `_setup.run`。
+  安装向导负责部署程序、运行库、快捷方式和维护工具，默认安装在
+  `~/Applications/K230BurningTool-Installed` 下。Linux `.run` 文件需有执行权限。
+- **便携 ZIP**：完整解压后运行 `bin/` 下的程序，保留所有运行库和子目录。
+  不安装桌面快捷方式，也不显示安装提示。Linux 解压后如丢失执行权限，
+  请为 `bin/K230BurningTool` 添加执行权限。
 
-新构建的 AppImage 在 FUSE 不可用时会自动解压并运行，无需安装 FUSE 或
-添加启动参数。请确保临时目录有足够的可用空间。旧版本仍可能需要添加
-`--appimage-extract-and-run` 参数。
+安装版通过**安装管理 > 检查更新**打开维护工具，确认后会关闭应用。
+请先完成或取消所有烧录任务。在线更新需要发布方配置并部署更新仓库；
+未配置时菜单会显示“尚未配置在线更新”。**管理 / 卸载**不依赖在线更新配置。
+
+便携版通过将新版本 ZIP 解压到新目录进行更新。macOS 继续使用已签名、公证的
+拖放式 DMG。新版本不再生成 AppImage；旧 AppImage 安装及手动创建的快捷方式
+不会被自动删除，切换版本时请自行清理。
+
+`_repository.tar.gz` 是供发布维护者部署更新服务器的仓库包，不是用户安装包。
 
 需要从源码构建或发布版本的开发者请阅读
 [构建与发布指南](BUILD.md)。

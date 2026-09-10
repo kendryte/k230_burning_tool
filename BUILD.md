@@ -7,49 +7,98 @@ the [user README](README_en.md) and a published package.
 
 ## Local release build
 
-The release script builds both the normal and Avalon Nano 3 variants:
+The release script builds only the normal variant; Avalon builds and publication
+are temporarily disabled on all platforms. Avalon source and packaging support
+remain available for future use. Windows
+and Linux require Python 3.8+, `zip`, and native Qt IFW 4.11 tools in addition to
+the existing Qt deployment tools. For example, on Linux x86_64:
 
 ```bash
 git submodule update --init --recursive
+bash .github/scripts/setup-ifw.sh linux x86_64 /tmp/k230-ifw-tools
+export K230_IFW_TOOLS_DIR=/tmp/k230-ifw-tools/bin
 ./release.sh
 ```
 
-The script runs the platform CMake install checks and generates a `.sha256`
-checksum for every artifact. Linux releases include the Qt runtime in `.tar.gz`
-archives and produce AppImages. Newly built AppImages use a SHA-256-verified,
-pinned uruntime launcher (v0.7.1) on x86_64 and ARM64. It tries FUSE first and
-automatically extracts and runs when mounting is unavailable, without requiring
-users to install FUSE or pass special flags. Extraction needs a writable,
-executable temporary directory with enough free space and can slow startup;
-temporary files are cleaned up after exit.
+The bootstrap script requires `curl`, `sha256sum`, and `7z`, downloads pinned
+Qt IFW 4.11.0 archives, and verifies their SHA-256 before extraction. Use a new
+destination directory. Supported combinations are `linux x86_64`, `linux arm64`,
+and `windows x86_64`; `SEVENZIP` can select the 7-Zip executable. An existing
+trusted IFW installation can instead supply `K230_IFW_TOOLS_DIR` directly.
 
-The Linux install hook needs `curl` and GNU coreutils to download and verify
-the launcher. `gui/repack-appimage.sh` preserves the deployer's SquashFS payload
-unchanged and replaces only its runtime, before release checksums are generated.
-When updating the runtime, review its release and update both architecture
-checksums in that script. The bundled runtime's license is in
-`Licenses/LICENSE.uruntime`.
+Each Windows/Linux build produces a portable ZIP plus an IFW installer and
+repository archive in `build/ifw-artifacts/`, all with `.sha256` files. Portable
+ZIPs contain the deployed `bin/`, libraries, and resources without IFW markers,
+maintenance tools, or automatic desktop installation. There are no new AppImage
+release artifacts. macOS retains signed/notarized DMGs and does not require IFW.
 
-CI tests both x86_64 variant launchers inside the build container without
-`/dev/fuse`. To repeat the runtime tests locally (requires `mksquashfs` and Docker):
+`packaging/ifw/package.py` packages the deployed prefix without recompiling it.
+The IFW payload places it under `app/` and adds `ifw-installation.json` at the
+installation root. This marker binds the application layout to its local
+Maintenance Tool; no executable path or update command is taken from the network.
+The installer owns shortcut creation and removal. Retained Avalon support uses
+separate installation directories, component IDs, and update repositories, but
+the current release workflow produces only normal packages.
 
-```bash
-docker pull python:3.12-slim
-K230_TEST_APPIMAGE=/absolute/path/to/K230BurningTool-x86_64.AppImage \
-K230_TEST_DOCKER_IMAGE=python:3.12-slim \
-  python3 .github/scripts/test_appimage_runtime.py
+The default installation path is `~/Applications/K230BurningTool-Installed`,
+selectable in the wizard. Old portable/AppImage installations are not migrated or deleted.
+`CreateShortcuts=false` can be passed to IFW's CLI for deployments without shortcuts.
+
+## Update repositories
+
+Set the GitHub repository variable `K230_IFW_REPOSITORY_BASE` to a stable HTTPS
+base URL, or export that environment variable for local release builds. No server
+URL is assumed. With an empty value, installers are offline-only and online
+updates are disabled in the application; the Maintenance Tool can still uninstall.
+With a URL, binarycreator creates hybrid installers: installation works offline,
+then the Maintenance Tool uses the configured repository for subsequent updates.
+
+The build appends `/<platform>/<arch>/<variant>` to the base URL, for example:
+
+```text
+<base>/linux/x86_64/normal/Updates.xml
+<base>/linux/arm64/normal/Updates.xml
+<base>/windows/x86_64/normal/Updates.xml
 ```
 
-Older AppImages can run without FUSE with:
+Unpack the corresponding `K230BurningToolIFW_*_repository.tar.gz` into each
+channel directory and publish its entire contents on the HTTPS server. Upload
+versioned archives and metadata archives first, then publish `Updates.xml` last.
+GitHub release upload includes repository bundles but does not deploy that server.
+Keep channel URLs stable and bump the GUI project version for every update;
+rebuilding the same IFW component version does not constitute an update.
+Changing the repository base requires rebuilding installers or administering the
+Maintenance Tool's repository settings. Protect repository publishing credentials.
+
+Installed applications expose Maintenance Tool actions in the Installation menu.
+Handoff asks for confirmation, refuses active burning jobs, and closes the app
+before maintenance proceeds. IFW also requests that the application process be
+closed before installing/updating/removing its component. Updates are interactive,
+not silent background replacements. Portable ZIPs retain version checks and a
+release-download link; they do not overwrite their own binaries.
+
+## Installer tests
 
 ```bash
-./K230BurningTool-x86_64.AppImage --appimage-extract-and-run
+python3 -m unittest discover -s .github/scripts -p 'test_*.py'
+qt-cmake -S tests/ifw-integration -B build/ifw-tests -G Ninja
+cmake --build build/ifw-tests
+ctest --test-dir build/ifw-tests --output-on-failure
+K230_TEST_IFW_TOOLS="$K230_IFW_TOOLS_DIR" python3 .github/scripts/test_ifw_installer.py
 ```
+
+The opt-in native IFW test installs a fixture, updates it from a local repository,
+and uninstalls it in isolated temporary directories. Linux menu operations are
+tested only when running unprivileged; Windows test shortcuts are disabled to
+avoid touching the real desktop. Qt tests cover installed/portable detection,
+missing tools, repository validation, menu handoff, and child-process environment.
+Windows installers are not Authenticode-signed by this workflow; signing and
+checksum regeneration should be added when publisher credentials are available.
 
 ## Windows builds
 
-Windows builds run natively on `windows-2022` (x86_64) and `windows-11-arm`
-(ARM64), using MSYS2 `CLANG64` and `CLANGARM64` respectively. Qt, Clang,
+Windows builds run natively on `windows-2022` (x86_64), using MSYS2 `CLANG64`.
+The Windows ARM64 matrix entry remains disabled. Qt, Clang,
 winpthreads, and the C++ runtime come from matching MSYS2 packages. The install
 hook runs windeployqt and collects transitive runtime DLL dependencies.
 Wine is no longer used in CI. `release.sh` honors an explicit
@@ -61,7 +110,7 @@ x86_64 retains the Qt 6.6 container on Ubuntu 22.04 and linuxdeployqt packaging.
 ARM64 builds natively on `ubuntu-24.04-arm` with distribution Qt 6 development
 packages and native linuxdeploy/Qt-plugin AppImages. Its packages therefore
 have an Ubuntu 24.04 system-library baseline. Both architectures produce the
-normal and Avalon variants as tarballs and AppImages with checksums.
+normal variant as portable ZIPs and IFW installers with checksums.
 Set `K230_BURNING_LINUX_DEPLOY_TOOL=linuxdeploy` to use the ARM64 deployment
 path locally; the default remains `linuxdeployqt`.
 
@@ -110,7 +159,7 @@ Do not use unsigned artifacts for distribution.
 
 ## Split macOS CI
 
-Both x86_64 and ARM64 produce normal and Avalon variants. Intel compilation
+Both x86_64 and ARM64 produce only the normal variant. Intel compilation
 runs on GitHub's `macos-15-intel` runner. ARM64 compilation stays on the
 self-hosted Mac (`self-hosted`, `macOS`, `ARM64`, `shenzhen_mac`) to reduce
 hosted runner costs. Both architectures target macOS 13.0; the build runner
@@ -121,7 +170,7 @@ trees as unsigned ZIP inputs. The self-hosted signing job verifies their
 checksums and app architectures, then uses `SKIP_DEPLOYMENT=ON` to sign and
 package them without running macdeployqt or compiling anything. It notarizes
 and staples both the app and final DMG and validates both tickets. The final
-checksums are generated after stapling. Release upload selects only the four
+checksums are generated after stapling. Release upload selects only the two
 signed DMGs, plus final Linux/Windows artifacts; unsigned ZIP inputs are excluded.
 Branch runs produce explicitly unsigned validation DMGs, not release assets.
 
@@ -132,10 +181,16 @@ identity must exist in that keychain under the runner user. CMake and Xcode
 command-line tools must be installed on the signing Mac. ARM64 compilation
 and signing share a concurrency group within the repository.
 The group uses `queue: max` so newer builds queue instead of replacing a pending
-signing job. Before release upload, all 16 expected packages (including Linux
-AppImages) must exist with individual, matching checksum files. Missing variants,
+signing job. Before release upload, all 11 expected artifacts (5 portable/DMG
+packages, 3 IFW installers, and 3 repository archives) must exist with individual,
+matching checksum files. Missing variants,
 stale duplicates, unsigned inputs, and checksum failures stop publication.
 Checksum files use LF line endings across platforms.
+
+To re-enable Avalon, restore its invocation in `release.sh`, the workflow's
+collection and signing steps, and the expected release artifacts/tests together.
+Existing Avalon outputs are not deleted automatically; release validation rejects
+them if they are mixed into a normal-only release directory.
 
 Archive names include OS, architecture, variant, and revision. Local builds
 can set `K230_BURNING_TARGET_ARCH` and `K230_BURNING_REVISION` to choose artifact

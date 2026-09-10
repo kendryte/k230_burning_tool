@@ -30,11 +30,9 @@ endforeach()
 set(_SRC_DIR "${CMAKE_CURRENT_LIST_DIR}/resources")
 set(_ICON "${_SRC_DIR}/icon.png")
 set(_DESKTOP "${_SRC_DIR}/K230BurningTool.desktop")
-set(_APPRUN "${_SRC_DIR}/AppRun")
 
 file(INSTALL ${_ICON} DESTINATION "${DIST_DIR}/share/icons/hicolor/256x256")
 file(INSTALL ${_DESKTOP} DESTINATION "${DIST_DIR}/share/applications")
-file(INSTALL ${_APPRUN} DESTINATION "${DIST_DIR}/../" PERMISSIONS OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 
 # Keep the existing x86_64 deployer; linuxdeploy also provides native ARM64 tools.
 if(K230_BURNING_LINUX_DEPLOY_TOOL STREQUAL "linuxdeploy")
@@ -43,13 +41,11 @@ if(K230_BURNING_LINUX_DEPLOY_TOOL STREQUAL "linuxdeploy")
 		COMMAND "${CMAKE_COMMAND}" -E env
 			"QMAKE=${QT_QMAKE_PATH}"
 			"LD_LIBRARY_PATH=${DIST_DIR}/lib:$ENV{LD_LIBRARY_PATH}"
-			"LDAI_OUTPUT=${CMAKE_CACHEFILE_DIR}/K230BurningTool-${K230_BURNING_TARGET_ARCH}.AppImage"
-			"LDAI_NO_APPSTREAM=1"
 			"${LINUXDEPLOY}" --appdir "${DIST_DIR}/.."
 			--executable "${DIST_DIR}/bin/K230BurningTool"
 			--desktop-file "${DIST_DIR}/share/applications/K230BurningTool.desktop"
 			--icon-file "${DIST_DIR}/share/icons/hicolor/256x256/icon.png"
-			--plugin qt --output appimage
+			--plugin qt
 		WORKING_DIRECTORY "${CMAKE_CACHEFILE_DIR}"
 		COMMAND_ECHO STDOUT
 		COMMAND_ERROR_IS_FATAL ANY
@@ -57,24 +53,13 @@ if(K230_BURNING_LINUX_DEPLOY_TOOL STREQUAL "linuxdeploy")
 else()
 	find_program(LINUXDEPLOY linuxdeployqt REQUIRED)
 	execute_process(
-		COMMAND "${LINUXDEPLOY}" "${DIST_DIR}/share/applications/K230BurningTool.desktop" -qmake="${QT_QMAKE_PATH}" -appimage
+		COMMAND "${LINUXDEPLOY}" "${DIST_DIR}/share/applications/K230BurningTool.desktop" -qmake="${QT_QMAKE_PATH}" -bundle-non-qt-libs
 		WORKING_DIRECTORY "${CMAKE_CACHEFILE_DIR}"
 		COMMAND_ECHO STDOUT
 		COMMAND_ERROR_IS_FATAL ANY
 	)
 endif()
 
-# The deployers' default runtime requires FUSE. Replace only the launcher so
-# ordinary execution also works on desktops without a usable FUSE setup.
-file(GLOB _APPIMAGES "${CMAKE_CACHEFILE_DIR}/K230BurningTool-*.AppImage")
-list(LENGTH _APPIMAGES _APPIMAGE_COUNT)
-if(NOT _APPIMAGE_COUNT EQUAL 1)
-	message(FATAL_ERROR "Expected exactly one deployed K230BurningTool AppImage")
-endif()
-list(GET _APPIMAGES 0 _APPIMAGE)
-execute_process(
-	COMMAND bash "${CMAKE_CURRENT_LIST_DIR}/repack-appimage.sh"
-		"${_APPIMAGE}" "${K230_BURNING_TARGET_ARCH}"
-	COMMAND_ECHO STDOUT
-	COMMAND_ERROR_IS_FATAL ANY
-)
+# The desktop file is deployer input only. IFW owns desktop integration;
+# portable ZIPs do not include a launcher intended for system registration.
+file(REMOVE "${DIST_DIR}/share/applications/K230BurningTool.desktop")

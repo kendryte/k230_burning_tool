@@ -39,6 +39,7 @@ set(MY_VERSION $DATE)
 string(TIMESTAMP MY_VERSION_STRING "%Y-%m-%d %H:%M")
 # set(GITHUB_VERSION "$ENV{GITHUB_SHA}")
 configure_file("${CMAKE_CURRENT_LIST_DIR}/src/config.h.in" "${CMAKE_CURRENT_BINARY_DIR}/autogen/config.h")
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/autogen/version.txt" "${PROJECT_VERSION}\n")
 
 find_package(
 	Qt6

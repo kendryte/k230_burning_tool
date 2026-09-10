@@ -4,6 +4,7 @@
 #include "common/BurningRequest.h"
 #include "common/BurnLibrary.h"
 #include "common/UpdateChecker.h"
+#include "common/IfwInstallation.h"
 #include "config.h"
 #include "main.h"
 #include "ui_MainWindow.h"
@@ -18,6 +19,8 @@
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QMimeData>
+#include <QMessageBox>
+#include <QProcess>
 
 #define SETTING_SPLIT_STATE "splitter-sizes"
 
@@ -108,11 +111,12 @@ MainWindow::MainWindow(QWidget *parent)
 
 	BurnLibrary::instance()->start();
 
-	if (GlobalSetting::disableUpdate.getValue()) {
+	if (GlobalSetting::disableUpdate.getValue() && !IfwInstallation::detect(QCoreApplication::applicationFilePath()).isManaged()) {
 		ui->btnUpdate->hide();
 		updateChecker = nullptr;
 	} else {
-		updateChecker = new UpdateChecker(ui->btnUpdate);
+		updateChecker = new UpdateChecker(ui->btnUpdate, QVersionNumber(CURRENT_VERSION_MAJOR, CURRENT_VERSION_MINOR, CURRENT_VERSION_PATCH));
+		connect(updateChecker, &UpdateChecker::maintenanceRequested, this, &MainWindow::openMaintenance);
 	}
 }
 
@@ -145,6 +149,38 @@ void MainWindow::on_btnOpenWebsite_triggered() {
 	QDesktopServices::openUrl(QUrl("https://kendryte-download.canaan-creative.com/developer/tools/k230_burningtool"));
 }
 
+void MainWindow::openMaintenance(bool update) {
+	auto active = [this] {
+		for (auto *job : findChildren<SingleBurnWindow *>()) {
+			if (job->getWork()) return true;
+		}
+		return false;
+	};
+	if (closing) return;
+	if (active()) {
+		QMessageBox::warning(this, tr("Installation"), tr("Finish or cancel all burning jobs before opening the Maintenance Tool."));
+		return;
+	}
+	if (QMessageBox::question(this, tr("Installation"), tr("Close the application and open the Maintenance Tool?"),
+		QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes) return;
+	// Device events can start an automatic job while the confirmation is open.
+	if (active()) {
+		QMessageBox::warning(this, tr("Installation"), tr("Finish or cancel all burning jobs before opening the Maintenance Tool."));
+		return;
+	}
+	const auto installed = IfwInstallation::detect(QCoreApplication::applicationFilePath());
+	QProcess process;
+	process.setProgram(installed.maintenanceTool);
+	process.setWorkingDirectory(installed.root);
+	process.setProcessEnvironment(IfwInstallation::maintenanceEnvironment());
+	if (update) process.setArguments({"--start-updater"});
+	if (installed.maintenanceTool.isEmpty() || (update && !installed.canUpdate()) || !process.startDetached()) {
+		QMessageBox::warning(this, tr("Installation"), tr("Could not start the Maintenance Tool. The application will remain open."));
+		return;
+	}
+	close();
+}
+
 void MainWindow::on_btnSaveLog_triggered() {
 	QString selFilter("Log File (*.html)");
 	QDateTime datetime = QDateTime::currentDateTime();
@@ -163,6 +199,10 @@ void MainWindow::on_btnSaveLog_triggered() {
 // }
 
 void MainWindow::startNewBurnJob(BurningRequest *partialRequest) {
+	if (closing) {
+		delete partialRequest;
+		return;
+	}
 	if (!partialRequest->isAutoCreate) {
 		clearFinishedBurnJobs();
 	}

@@ -1,4 +1,4 @@
-"""Require enabled architectures and both variants, including each Linux AppImage."""
+"""Require portable packages, IFW installers/repositories, and signed macOS DMGs."""
 
 import hashlib
 import subprocess
@@ -16,14 +16,16 @@ class ReleaseVerificationTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         self.names = []
-        for platform, extension in (("linux", "tar.gz"), ("windows", "zip"), ("macos", "dmg")):
+        for platform, extension in (("linux", "zip"), ("windows", "zip"), ("macos", "dmg")):
             for arch in ("x86_64", "arm64"):
                 if platform == "windows" and arch == "arm64":
                     continue
-                for variant in ("normal", "avalon"):
+                for variant in ("normal",):
                     self.add_package(f"K230BurningTool_{platform}_{arch}_{variant}_v1.0.0.{extension}")
-                    if platform == "linux":
-                        self.add_package(f"K230BurningTool_linux_{variant}_v1.0.0_{arch}.AppImage")
+                    if platform != "macos":
+                        setup = "run" if platform == "linux" else "exe"
+                        self.add_package(f"K230BurningToolIFW_{platform}_{arch}_{variant}_v1.0.0_setup.{setup}")
+                        self.add_package(f"K230BurningToolIFW_{platform}_{arch}_{variant}_v1.0.0_repository.tar.gz")
 
     def add_package(self, name):
         self.names.append(name)
@@ -43,7 +45,7 @@ class ReleaseVerificationTests(unittest.TestCase):
         self.verify(False)
 
     def test_missing_windows_x86_64_variant(self):
-        name = next(name for name in self.names if name.endswith(".zip"))
+        name = next(name for name in self.names if name.startswith("K230BurningTool_windows_") and name.endswith(".zip"))
         (self.root / name).unlink()
         self.verify(False)
 
@@ -51,8 +53,34 @@ class ReleaseVerificationTests(unittest.TestCase):
         self.add_package("K230BurningTool_windows_arm64_normal_v1.0.0.zip")
         self.verify(False)
 
-    def test_missing_appimage(self):
+    def test_unexpected_avalon_artifacts(self):
+        for name in (
+            "K230BurningTool_linux_x86_64_avalon_v1.0.0.zip",
+            "K230BurningTool_windows_x86_64_avalon_v1.0.0.zip",
+            "K230BurningTool_macos_arm64_avalon_v1.0.0.dmg",
+            "K230BurningToolIFW_linux_x86_64_avalon_v1.0.0_setup.run",
+            "K230BurningToolIFW_linux_x86_64_avalon_v1.0.0_repository.tar.gz",
+        ):
+            with self.subTest(name=name):
+                self.add_package(name)
+                self.verify(False)
+                (self.root / name).unlink()
+                (self.root / (name + ".sha256")).unlink()
+
+    def test_missing_installer(self):
         (self.root / self.names[1]).unlink()
+        self.verify(False)
+
+    def test_missing_repository(self):
+        (self.root / self.names[2]).unlink()
+        self.verify(False)
+
+    def test_obsolete_appimage_is_rejected(self):
+        self.add_package("K230BurningTool_linux_normal_v1.0.0_x86_64.AppImage")
+        self.verify(False)
+
+    def test_unknown_file_is_rejected(self):
+        (self.root / "unexpected.txt").write_text("unexpected")
         self.verify(False)
 
     def test_corrupt_archive(self):
@@ -78,7 +106,7 @@ class ReleaseVerificationTests(unittest.TestCase):
         self.verify(False)
 
     def test_windows_crlf_checksum(self):
-        name = next(name for name in self.names if name.endswith(".zip"))
+        name = next(name for name in self.names if name.startswith("K230BurningTool_windows_") and name.endswith(".zip"))
         path = self.root / (name + ".sha256")
         path.write_bytes(path.read_bytes().replace(b"\n", b"\r\n"))
         self.verify(True)

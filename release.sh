@@ -5,7 +5,7 @@ usage() {
   cat <<'EOF'
 Usage: ./release.sh
 
-Builds, installs, validates, and packages the normal and Avalon variants.
+Builds, installs, validates, and packages the normal variant.
 
 Environment variables:
   K230_BURNING_TARGET_OS       linux, macos, or windows (default: host OS)
@@ -13,6 +13,8 @@ Environment variables:
   K230_BURNING_BUILD_DIR       build and artifact directory (default: ./build)
   K230_BURNING_REVISION        optional artifact revision override
   K230_BURNING_LINUX_DEPLOY_TOOL  linuxdeployqt (default) or linuxdeploy
+  K230_IFW_TOOLS_DIR            directory containing Qt IFW binarycreator and repogen
+  K230_IFW_REPOSITORY_BASE      optional HTTPS base URL for installer updates
   QT_CMAKE                     path to qt-cmake
   CMAKE_GENERATOR              default: Ninja when available, otherwise Makefiles
 
@@ -74,6 +76,11 @@ if [[ "$OS" == "linux" ]]; then
 fi
 
 QT_CMAKE=${QT_CMAKE:-qt-cmake}
+if [[ "$OS" != macos ]]; then
+  : "${K230_IFW_TOOLS_DIR:?Set K230_IFW_TOOLS_DIR to the Qt IFW bin directory}"
+  command -v python3 >/dev/null
+  command -v zip >/dev/null
+fi
 if ! command -v "$QT_CMAKE" >/dev/null 2>&1; then
   echo "Qt's qt-cmake was not found; add it to PATH or set QT_CMAKE." >&2
   exit 1
@@ -188,7 +195,7 @@ build_variant() {
     case "$OS" in
         windows) ARTIFACT_PATH="${BUILD_ROOT}/${ARTIFACTS_NAME}.zip" ;;
         macos) ARTIFACT_PATH="${BUILD_ROOT}/${ARTIFACTS_NAME}.dmg" ;;
-        linux) ARTIFACT_PATH="${BUILD_ROOT}/${ARTIFACTS_NAME}.tar.gz" ;;
+        linux) ARTIFACT_PATH="${BUILD_ROOT}/${ARTIFACTS_NAME}.zip" ;;
     esac
     if [[ "$OS" == "macos" && "${MACOS_BUILD_ONLY:-0}" == "1" ]]; then
         ARTIFACT_PATH="${BUILD_ROOT}/${ARTIFACTS_NAME}.zip"
@@ -271,7 +278,7 @@ build_variant() {
 
     # Package
     case "$OS" in
-        windows)
+        windows|linux)
             (cd "$VARIANT_INSTALL_DIR" && zip -r "$ARTIFACT_PATH" .)
             ;;
         macos)
@@ -282,9 +289,6 @@ build_variant() {
                 echo "macOS install step did not create $ARTIFACT_PATH" >&2
                 exit 1
             fi
-            ;;
-        linux)
-            tar -C "$VARIANT_INSTALL_DIR" -czf "$ARTIFACT_PATH" .
             ;;
         *)
             echo "Unsupported OS: $OS"
@@ -297,10 +301,19 @@ build_variant() {
 
     echo "Artifact created: $ARTIFACT_PATH"
     echo "Checksum created: $CHECKSUM_PATH"
+
+    if [[ "$OS" != macos ]]; then
+        python3 "$REPO_ROOT/packaging/ifw/package.py" \
+            --source "$VARIANT_INSTALL_DIR" --output "$BUILD_ROOT/ifw-artifacts" \
+            --tools "$K230_IFW_TOOLS_DIR" --platform "$OS" \
+            --arch "${K230_BURNING_TARGET_ARCH:-$(uname -m)}" --variant "$TARGET_SUFFIX" \
+            --version "$(<"$VARIANT_BUILD_DIR/gui/autogen/version.txt")" --revision "$ARTIFACT_REVISION" \
+            --repository-base "${K230_IFW_REPOSITORY_BASE:-}"
+    fi
 }
 
-# Build both variants
+# Avalon is disabled; restore CI collection/signing and release verification before re-enabling.
 build_variant normal
-build_variant avalon3
+# build_variant avalon3
 
 echo "All builds complete."

@@ -78,17 +78,31 @@ Official packages are provided for each desktop platform with a matching
 `.sha256` checksum file. End users can download and run the package for their
 platform.
 
-On Linux, make the downloaded AppImage executable and launch it:
+Windows and Linux offer two editions of the normal variant. Avalon builds are
+temporarily disabled:
 
-```bash
-chmod +x ./K230BurningTool_linux_normal_*.AppImage
-./K230BurningTool_linux_normal_*.AppImage
-```
+- **Installer:** choose the Qt IFW `_setup.exe` (Windows) or `_setup.run` (Linux).
+  The wizard installs the application, bundled libraries, shortcuts, and a
+  Maintenance Tool. The default location is `~/Applications/K230BurningTool-Installed`.
+  Linux `.run` files must be executable.
+- **Portable ZIP:** extract the complete archive and launch the executable in
+  `bin/`. Keep all libraries and subdirectories together. It does not install
+  desktop shortcuts or display installation prompts. Linux users may need to
+  restore executable permission on `bin/K230BurningTool` after extraction.
 
-New builds automatically extract and run if FUSE is unavailable; no FUSE
-installation or special launch flags are needed. Keep enough free space in
-your temporary directory. Older releases may still require
-`--appimage-extract-and-run`.
+For the installed edition, **Installation > Check for Updates** opens the
+Maintenance Tool after confirmation and closes the application. Finish or cancel
+all burning jobs first. Online updates require a release configured with a hosted
+repository; otherwise the menu reports that updates are not configured.
+**Manage / Uninstall** is available independently of online updates.
+
+Portable ZIPs are updated by extracting a new release into a new directory.
+macOS keeps its signed and notarized drag-and-drop DMG. New releases no longer
+produce AppImages. Existing AppImage installations and manually created shortcuts
+are not deleted automatically; remove them separately when switching editions.
+
+Files ending in `_repository.tar.gz` are update-server bundles for maintainers,
+not application packages for end users.
 
 Developers who need to build or publish a release should read the
 [build and release guide](BUILD.md).

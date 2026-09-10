@@ -558,6 +558,22 @@
 <context>
     <name>MainWindow</name>
     <message>
+        <source>Installation</source>
+        <translation>安装管理</translation>
+    </message>
+    <message>
+        <source>Finish or cancel all burning jobs before opening the Maintenance Tool.</source>
+        <translation>请先完成或取消所有烧录任务，再打开维护工具。</translation>
+    </message>
+    <message>
+        <source>Close the application and open the Maintenance Tool?</source>
+        <translation>是否关闭应用并打开维护工具？</translation>
+    </message>
+    <message>
+        <source>Could not start the Maintenance Tool. The application will remain open.</source>
+        <translation>无法启动维护工具，应用将保持运行。</translation>
+    </message>
+    <message>
         <location filename="../../src/MainWindow.ui" line="196"/>
         <source>Quit</source>
         <translation>退出</translation>
@@ -769,12 +785,32 @@
 <context>
     <name>UpdateChecker</name>
     <message>
+        <source>Installation</source>
+        <translation>安装管理</translation>
+    </message>
+    <message>
+        <source>Check for Updates...</source>
+        <translation>检查更新...</translation>
+    </message>
+    <message>
+        <source>Online updates not configured</source>
+        <translation>尚未配置在线更新</translation>
+    </message>
+    <message>
+        <source>Manage / Uninstall...</source>
+        <translation>管理 / 卸载...</translation>
+    </message>
+    <message>
+        <source>Download Releases...</source>
+        <translation>下载发布版本...</translation>
+    </message>
+    <message>
         <source>Check Update Failed</source>
-        <translation type="vanished">检查更新失败</translation>
+        <translation>检查更新失败</translation>
     </message>
     <message>
         <source>Checking Update...</source>
-        <translation type="vanished">检查更新中...</translation>
+        <translation>检查更新中...</translation>
     </message>
     <message>
         <source>Can&apos;t Checking Update: </source>
@@ -782,11 +818,11 @@
     </message>
     <message>
         <source>New Version</source>
-        <translation type="vanished">新版本</translation>
+        <translation>新版本</translation>
     </message>
     <message>
         <source>Latest</source>
-        <translation type="vanished">最新版</translation>
+        <translation>最新版</translation>
     </message>
 </context>
 <context>

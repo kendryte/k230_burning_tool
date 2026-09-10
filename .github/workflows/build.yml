@@ -12,6 +12,9 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  K230_IFW_REPOSITORY_BASE: ${{ vars.K230_IFW_REPOSITORY_BASE }}
+
 jobs:
   build-linux:
     name: Linux x86_64
@@ -28,13 +31,22 @@ jobs:
           echo "REVISION=$revision" >> "$GITHUB_ENV"
           echo "SAFE_REVISION=${revision//\//-}" >> "$GITHUB_ENV"
 
-      - name: Build both variants
+      - name: Build normal variant
         run: |
           docker run --name qt6-linux \
             -v "${{ github.workspace }}:/home/user/project:ro" \
+            -e K230_IFW_REPOSITORY_BASE -e K230_BURNING_REVISION="$SAFE_REVISION" \
             stateoftheartio/qt6:6.6-gcc-aqt /bin/bash -euc '
               sudo apt-get update
-              sudo apt-get install -y libgl-dev libvulkan-dev libssl-dev libudev-dev file python3 squashfs-tools
+              sudo apt-get install -y libgl-dev libvulkan-dev libssl-dev libudev-dev file python3 zip p7zip-full
+              export QT_QPA_PLATFORM=offscreen
+              bash /home/user/project/.github/scripts/setup-ifw.sh linux x86_64 /home/user/ifw-tools
+              export K230_IFW_TOOLS_DIR=/home/user/ifw-tools/bin
+              qt-cmake -S /home/user/project/tests/ifw-integration -B /home/user/ifw-tests -G Ninja
+              cmake --build /home/user/ifw-tests
+              ctest --test-dir /home/user/ifw-tests --output-on-failure
+              python3 /home/user/project/.github/scripts/test_ifw_packaging.py
+              K230_TEST_IFW_TOOLS="$K230_IFW_TOOLS_DIR" python3 /home/user/project/.github/scripts/test_ifw_installer.py
               sudo curl -fsSL \
                 https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage \
                 -o /usr/local/bin/linuxdeployqt
@@ -42,10 +54,6 @@ jobs:
               K230_BURNING_TARGET_ARCH=x86_64 \
               K230_BURNING_BUILD_DIR=/home/user/build \
                 /home/user/project/release.sh
-              for image in /home/user/build/{normal,avalon3}/K230BurningTool-*.AppImage; do
-                K230_TEST_APPIMAGE="$image" python3 \
-                  /home/user/project/.github/scripts/test_appimage_runtime.py
-              done
             '
           docker cp qt6-linux:/home/user/build "${{ github.workspace }}/build"
           docker rm qt6-linux
@@ -53,14 +61,7 @@ jobs:
       - name: Collect artifacts
         run: |
           mkdir -p artifact_output
-          cp build/*.tar.gz build/*.sha256 artifact_output/
-          cp build/normal/K230BurningTool-*.AppImage \
-            "artifact_output/K230BurningTool_linux_normal_${SAFE_REVISION}_x86_64.AppImage"
-          cp build/avalon3/K230BurningTool-*.AppImage \
-            "artifact_output/K230BurningTool_linux_avalon_${SAFE_REVISION}_x86_64.AppImage"
-          for appimage in artifact_output/*.AppImage; do
-            (cd artifact_output && sha256sum "${appimage##*/}" > "${appimage##*/}.sha256")
-          done
+          cp build/*_normal_*.zip build/*_normal_*.zip.sha256 build/ifw-artifacts/*_normal_* artifact_output/
 
       - uses: actions/upload-artifact@v4
         with:
@@ -83,7 +84,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential cmake ninja-build qt6-base-dev \
             qt6-tools-dev qt6-tools-dev-tools qt6-svg-dev libudev-dev libssl-dev \
-            libgl-dev libvulkan-dev file patchelf
+            libgl-dev libvulkan-dev file patchelf zip p7zip-full
           sudo curl -fL --retry 3 \
             https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-aarch64.AppImage \
             -o /usr/local/bin/linuxdeploy
@@ -92,7 +93,16 @@ jobs:
             -o /usr/local/bin/linuxdeploy-plugin-qt
           sudo chmod +x /usr/local/bin/linuxdeploy /usr/local/bin/linuxdeploy-plugin-qt
 
-      - name: Build and package both variants
+      - name: Set up and test Qt IFW
+        run: |
+          bash .github/scripts/setup-ifw.sh linux arm64 "$RUNNER_TEMP/ifw-tools"
+          echo "K230_IFW_TOOLS_DIR=$RUNNER_TEMP/ifw-tools/bin" >> "$GITHUB_ENV"
+          cmake -S tests/ifw-integration -B "$RUNNER_TEMP/ifw-tests" -G Ninja
+          cmake --build "$RUNNER_TEMP/ifw-tests"
+          ctest --test-dir "$RUNNER_TEMP/ifw-tests" --output-on-failure
+          python3 .github/scripts/test_ifw_packaging.py
+
+      - name: Build and package normal variant
         env:
           QT_CMAKE: /usr/lib/qt6/bin/qt-cmake
           K230_BURNING_TARGET_ARCH: arm64
@@ -103,16 +113,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p artifact_output
-          cp build/*.tar.gz build/*.sha256 artifact_output/
-          revision="$(git describe --long --tags --always)"
-          for variant in normal avalon3; do
-            readelf -h "build/$variant/dist/usr/bin/K230BurningTool" | grep -F AArch64
-            suffix="$variant"
-            [[ "$variant" != avalon3 ]] || suffix=avalon
-            name="K230BurningTool_linux_${suffix}_${revision//\//-}_arm64.AppImage"
-            cp "build/$variant/K230BurningTool-arm64.AppImage" "artifact_output/$name"
-            (cd artifact_output && sha256sum "$name" > "$name.sha256")
-          done
+          cp build/*_normal_*.zip build/*_normal_*.zip.sha256 build/ifw-artifacts/*_normal_* artifact_output/
+          readelf -h build/normal/dist/usr/bin/K230BurningTool | grep -F AArch64
 
       - uses: actions/upload-artifact@v4
         with:
@@ -162,6 +164,7 @@ jobs:
             ${{ matrix.prefix }}-qt6-base
             ${{ matrix.prefix }}-qt6-tools
             ${{ matrix.prefix }}-qt6-svg
+            ${{ matrix.prefix }}-python
 
       - name: Test C macro portability
         run: |
@@ -174,7 +177,22 @@ jobs:
             -o "$test_dir/test_variadic_macros.exe"
           "$test_dir/test_variadic_macros.exe"
 
-      - name: Build both variants natively
+      - name: Set up and test Qt IFW
+        env:
+          SEVENZIP: /c/Program Files/7-Zip/7z.exe
+        run: |
+          set -euo pipefail
+          export CC=clang CXX=clang++
+          export CMAKE_PREFIX_PATH="$(cygpath -m "$MINGW_PREFIX")"
+          bash .github/scripts/setup-ifw.sh windows x86_64 "$RUNNER_TEMP/ifw-tools"
+          echo "K230_IFW_TOOLS_DIR=$(cygpath -m "$RUNNER_TEMP/ifw-tools/bin")" >> "$GITHUB_ENV"
+          cmake -S tests/ifw-integration -B build/ifw-tests -G Ninja
+          cmake --build build/ifw-tests --parallel 2
+          ctest --test-dir build/ifw-tests --output-on-failure
+          python3 .github/scripts/test_ifw_packaging.py
+          K230_TEST_IFW_TOOLS="$(cygpath -m "$RUNNER_TEMP/ifw-tools/bin")" python3 .github/scripts/test_ifw_installer.py
+
+      - name: Build normal variant natively
         env:
           TARGET_ARCH: ${{ matrix.arch }}
           EXPECTED_PE_MACHINE: ${{ matrix.machine }}
@@ -186,7 +204,7 @@ jobs:
           export CMAKE_BUILD_PARALLEL_LEVEL=2
           export K230_BURNING_BUILD_DIR="$PWD/build"
           bash ./release.sh
-          for exe in build/normal/install/bin/*.exe build/avalon3/install/bin/*.exe; do
+          for exe in build/normal/install/bin/*.exe; do
             llvm-readobj --file-headers "$exe" | grep -F "$EXPECTED_PE_MACHINE"
           done
 
@@ -194,12 +212,13 @@ jobs:
         with:
           name: K230BurningTool-windows-${{ matrix.arch }}
           path: |
-            build/*.zip
-            build/*.sha256
+            build/*_normal_*.zip
+            build/*_normal_*.zip.sha256
+            build/ifw-artifacts/*_normal_*
           if-no-files-found: error
 
   build-macos:
-    name: Build macOS ${{ matrix.arch }} (normal and Avalon)
+    name: Build macOS ${{ matrix.arch }} (normal)
     strategy:
       fail-fast: false
       matrix:
@@ -320,10 +339,8 @@ jobs:
         env:
           TARGET_ARCH: ${{ matrix.arch }}
         run: |
-          for variant in normal avalon3; do
-            lipo "build/$variant/install/bin/K230BurningTool.app/Contents/MacOS/K230BurningTool" \
-              -verify_arch "$TARGET_ARCH"
-          done
+          lipo build/normal/install/bin/K230BurningTool.app/Contents/MacOS/K230BurningTool \
+            -verify_arch "$TARGET_ARCH"
 
       - name: Upload unsigned signing inputs
         if: startsWith(github.ref, 'refs/tags/')
@@ -331,8 +348,8 @@ jobs:
         with:
           name: macos-unsigned-${{ matrix.arch }}
           path: |
-            build/*.zip
-            build/*.zip.sha256
+            build/*_normal_*.zip
+            build/*_normal_*.zip.sha256
           if-no-files-found: error
           compression-level: 0
 
@@ -342,8 +359,8 @@ jobs:
         with:
           name: K230BurningTool-macos-${{ matrix.arch }}-unsigned
           path: |
-            build/*.dmg
-            build/*.sha256
+            build/*_normal_*.dmg
+            build/*_normal_*.dmg.sha256
           if-no-files-found: error
           compression-level: 0
 
@@ -370,7 +387,7 @@ jobs:
           pattern: macos-unsigned-*
           path: macos-input
 
-      - name: Sign and notarize both variants and architectures
+      - name: Sign and notarize normal variant for both architectures
         env:
           MACOS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
           MACOS_KEYCHAIN: ${{ secrets.MACOS_KEYCHAIN }}
@@ -384,18 +401,16 @@ jobs:
           echo "MACOS_RELEASE_DIR=$work/output" >> "$GITHUB_ENV"
           revision="${GITHUB_REF_NAME//\//-}-${GITHUB_SHA:0:12}"
           for arch in x86_64 arm64; do
-            for variant in normal avalon; do
-              bash .github/scripts/sign-macos-package.sh \
-                "$arch" "$variant" "$revision" "$PWD/macos-input/macos-unsigned-$arch" "$work"
-            done
+            bash .github/scripts/sign-macos-package.sh \
+              "$arch" normal "$revision" "$PWD/macos-input/macos-unsigned-$arch" "$work"
           done
 
       - uses: actions/upload-artifact@v4
         with:
           name: K230BurningTool-macos-signed
           path: |
-            ${{ env.MACOS_RELEASE_DIR }}/*.dmg
-            ${{ env.MACOS_RELEASE_DIR }}/*.sha256
+            ${{ env.MACOS_RELEASE_DIR }}/*_normal_*.dmg
+            ${{ env.MACOS_RELEASE_DIR }}/*_normal_*.dmg.sha256
           if-no-files-found: error
           compression-level: 0
 
@@ -448,8 +463,9 @@ jobs:
           tag_name: ${{ github.ref_name }}
           files: |
             k230_burningtool_lastest.txt
-            release/*.AppImage
             release/*.tar.gz
             release/*.zip
             release/*.dmg
+            release/*.run
+            release/*.exe
             release/*.sha256

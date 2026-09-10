@@ -2,7 +2,12 @@
 
 #include <QMenu>
 #include <QObject>
-#include <QRunnable>
+#include <QPointer>
+#include <QVersionNumber>
+
+class QNetworkAccessManager;
+class QNetworkReply;
+class QAction;
 
 class UpdateButton : public QMenu {
     Q_OBJECT
@@ -14,17 +19,19 @@ class UpdateButton : public QMenu {
     void changeTitle(QString newTitle) { setTitle(newTitle); };
 };
 
-class UpdateChecker : public QObject, public QRunnable {
+class UpdateChecker : public QObject {
 	Q_OBJECT
 
 	UpdateButton *button;
-	void _run();
+	QNetworkAccessManager *network = nullptr;
+	QPointer<QNetworkReply> reply;
+	QAction *checkAction = nullptr;
+	QVersionNumber currentVersion;
+	void check();
 
   signals:
-    void giveTip(QString tip);
+	void maintenanceRequested(bool update);
 
   public:
-    explicit UpdateChecker(UpdateButton *button);
-
-    void run();
+	explicit UpdateChecker(UpdateButton *button, const QVersionNumber &version, const QString &executable = QString());
 };
