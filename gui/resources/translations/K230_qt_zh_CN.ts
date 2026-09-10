@@ -584,9 +584,8 @@
         <translation>选项(&amp;O)</translation>
     </message>
     <message>
-        <location filename="../../src/MainWindow.ui" line="168"/>
-        <source>Check Update</source>
-        <translation>检查更新</translation>
+        <source>Updates(&amp;U)</source>
+        <translation>更新(&amp;U)</translation>
     </message>
     <message>
         <location filename="../../src/MainWindow.cpp" line="62"/>
@@ -609,11 +608,6 @@
         <translation>展开日志窗口</translation>
     </message>
     <message>
-        <location filename="../../src/MainWindow.ui" line="181"/>
-        <source>Download Update</source>
-        <translation>下载更新</translation>
-    </message>
-    <message>
         <location filename="../../src/MainWindow.ui" line="199"/>
         <source>Ctrl+Q</source>
         <translation>Ctrl+Q</translation>
@@ -628,11 +622,6 @@
         <location filename="../../src/MainWindow.ui" line="241"/>
         <source>More Detailed Logs</source>
         <translation>更详细显示日志</translation>
-    </message>
-    <message>
-        <location filename="../../src/MainWindow.ui" line="159"/>
-        <source>About(&amp;A)</source>
-        <translation>关于(&amp;A)</translation>
     </message>
     <message>
         <location filename="../../src/MainWindow.cpp" line="138"/>
@@ -785,8 +774,8 @@
 <context>
     <name>UpdateChecker</name>
     <message>
-        <source>Installation</source>
-        <translation>安装管理</translation>
+        <source>Update Application...</source>
+        <translation>更新应用程序...</translation>
     </message>
     <message>
         <source>Check for Updates...</source>
@@ -797,32 +786,36 @@
         <translation>尚未配置在线更新</translation>
     </message>
     <message>
-        <source>Manage / Uninstall...</source>
-        <translation>管理 / 卸载...</translation>
+        <source>Manage Installation...</source>
+        <translation>管理安装...</translation>
+    </message>
+    <message>
+        <source>Maintenance Tool not found</source>
+        <translation>未找到维护工具</translation>
     </message>
     <message>
         <source>Download Releases...</source>
         <translation>下载发布版本...</translation>
     </message>
     <message>
-        <source>Check Update Failed</source>
-        <translation>检查更新失败</translation>
+        <source>Could not check for updates</source>
+        <translation>无法检查更新</translation>
     </message>
     <message>
-        <source>Checking Update...</source>
-        <translation>检查更新中...</translation>
+        <source>Checking for updates...</source>
+        <translation>正在检查更新...</translation>
     </message>
     <message>
         <source>Can&apos;t Checking Update: </source>
         <translation type="vanished">无法检查更新： </translation>
     </message>
     <message>
-        <source>New Version</source>
-        <translation>新版本</translation>
+        <source>A new version is available</source>
+        <translation>有新版本可用</translation>
     </message>
     <message>
-        <source>Latest</source>
-        <translation>最新版</translation>
+        <source>You are up to date</source>
+        <translation>已是最新版本</translation>
     </message>
 </context>
 <context>

@@ -61,6 +61,27 @@ class InstallerSelectionTests(unittest.TestCase):
 
 @unittest.skipUnless(os.environ.get("K230_TEST_IFW_TOOLS"), "Set K230_TEST_IFW_TOOLS for native IFW tests")
 class IfwInstallerTests(unittest.TestCase):
+    def test_offline_build_does_not_generate_repository_bundles(self):
+        with tempfile.TemporaryDirectory(prefix="ifw offline ") as temporary:
+            root = Path(temporary)
+            host = "windows" if os.name == "nt" else "linux"
+            arch = "arm64" if platform.machine().lower() in ("aarch64", "arm64") else "x86_64"
+            source = root / "source"
+            (source / "bin").mkdir(parents=True)
+            executable = source / "bin" / ("K230BurningTool.exe" if host == "windows" else "K230BurningTool")
+            executable.write_bytes(b"fixture")
+            executable.chmod(0o755)
+            output = root / "output"
+            subprocess.run([sys.executable, str(ROOT / "packaging/ifw/package.py"),
+                            "--source", str(source), "--output", str(output),
+                            "--tools", os.environ["K230_TEST_IFW_TOOLS"],
+                            "--platform", host, "--arch", arch, "--variant", "normal",
+                            "--version", "1.0.0", "--revision", "1.0.0"],
+                           check=True, env=dict(os.environ, QT_QPA_PLATFORM="offscreen"),
+                           capture_output=True, timeout=180)
+            installer = find_installer(output, host)
+            self.assertEqual({path.name for path in output.iterdir()}, {installer.name, installer.name + ".sha256"})
+
     def test_install_update_and_uninstall(self):
         with tempfile.TemporaryDirectory(prefix="ifw smoke ") as temporary:
             root = Path(temporary)
@@ -92,7 +113,7 @@ class IfwInstallerTests(unittest.TestCase):
                 subprocess.run(command, check=True, env=env, capture_output=True, timeout=180)
                 repository = root / ("repository-" + version)
                 repository.mkdir()
-                with tarfile.open(next(output.glob("*_repository.tar.gz"))) as archive:
+                with tarfile.open(next((output / "repositories").glob("*_repository.tar.gz"))) as archive:
                     if hasattr(tarfile, "data_filter"):
                         archive.extractall(repository, filter="data")
                     else:

@@ -135,8 +135,8 @@ if [[ "$OS" == "macos" ]]; then
   fi
 fi
 
-# Get Git revision string
-REVISION=${K230_BURNING_REVISION:-$(git -C "$REPO_ROOT" describe --long --tags --dirty --always || echo "unknown")}
+# Use immutable tag/commit metadata rather than workspace dirtiness in filenames.
+REVISION=$(bash "$REPO_ROOT/.github/scripts/release-revision.sh" "$REPO_ROOT")
 ARTIFACT_REVISION=${REVISION//\//-}
 echo "Git revision: $REVISION"
 

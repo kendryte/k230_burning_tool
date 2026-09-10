@@ -154,36 +154,14 @@
     <addaction name="separator"/>
     <addaction name="btnQuitMenu"/>
    </widget>
-   <widget class="QMenu" name="menu_A_bout">
+   <widget class="QMenu" name="menuUpdates">
     <property name="title">
-     <string>About(&amp;A)</string>
-    </property>
-    <addaction name="btnOpenWebsite"/>
-   </widget>
-   <widget class="UpdateButton" name="btnUpdate">
-    <property name="enabled">
-     <bool>false</bool>
-    </property>
-    <property name="title">
-     <string>Check Update</string>
+     <string>Updates(&amp;U)</string>
     </property>
    </widget>
    <addaction name="menuF_ile"/>
-   <addaction name="menu_A_bout"/>
-   <addaction name="btnUpdate"/>
+   <addaction name="menuUpdates"/>
   </widget>
-  <action name="btnOpenWebsite">
-   <property name="icon">
-    <iconset resource="../resources/main.qrc">
-     <normaloff>:/github-brands.svg</normaloff>:/github-brands.svg</iconset>
-   </property>
-   <property name="text">
-    <string>Download Update</string>
-   </property>
-   <property name="iconVisibleInMenu">
-    <bool>false</bool>
-   </property>
-  </action>
   <action name="btnQuitMenu">
    <property name="icon">
     <iconset resource="../resources/main.qrc">
@@ -259,11 +237,6 @@
    <extends>QWidget</extends>
    <header>widgets/BurningControlWindow.h</header>
    <container>1</container>
-  </customwidget>
-  <customwidget>
-   <class>UpdateButton</class>
-   <extends>QMenu</extends>
-   <header>common/UpdateChecker.h</header>
   </customwidget>
  </customwidgets>
  <resources>

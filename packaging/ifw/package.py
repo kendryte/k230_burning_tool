@@ -125,7 +125,10 @@ def main():
     output.mkdir(parents=True, exist_ok=True)
     tools = Path(args.tools).resolve()
     ext = ".exe" if args.platform == "windows" else ""
-    for tool in ("binarycreator", "repogen", "installerbase"):
+    required_tools = ["binarycreator", "installerbase"]
+    if args.repository_base:
+        required_tools.append("repogen")
+    for tool in required_tools:
         if not (tools / (tool + ext)).is_file():
             parser.error("Missing Qt IFW tool: " + str(tools / (tool + ext)))
     revision = re.sub(r"[^A-Za-z0-9_.-]", "-", args.revision)
@@ -133,20 +136,26 @@ def main():
     with tempfile.TemporaryDirectory(prefix="ifw-", dir=output) as temporary:
         work = Path(temporary)
         info = prepare(args.source, work, args.platform, args.arch, args.variant, args.version, args.repository_base)
-        subprocess.run([str(tools / ("repogen" + ext)), "-p", str(work / "packages"), str(work / "repository")], check=True)
         installer = work / (base + ("_setup.exe" if ext else "_setup.run"))
         subprocess.run([str(tools / ("binarycreator" + ext)),
                         "--hybrid" if info["repository"] else "--offline-only",
                         "-t", str(tools / ("installerbase" + ext)),
                         "-c", str(work / "config/config.xml"), "-p", str(work / "packages"), str(installer)], check=True)
-        repository = work / (base + "_repository.tar.gz")
-        with tarfile.open(repository, "w:gz") as archive:
-            archive.add(work / "repository", arcname=".")
-        for artifact in (installer, repository):
-            destination = output / artifact.name
-            artifact.replace(destination)
+        destination = output / installer.name
+        installer.replace(destination)
+        checksum(destination)
+        print("Created " + str(destination))
+        if info["repository"]:
+            subprocess.run([str(tools / ("repogen" + ext)), "-p", str(work / "packages"), str(work / "repository")], check=True)
+            repository = work / (base + "_repository.tar.gz")
+            with tarfile.open(repository, "w:gz") as archive:
+                archive.add(work / "repository", arcname=".")
+            repository_output = output / "repositories"
+            repository_output.mkdir(exist_ok=True)
+            destination = repository_output / repository.name
+            repository.replace(destination)
             checksum(destination)
-            print("Created " + str(destination))
+            print("Created maintainer repository " + str(destination))
 
 
 if __name__ == "__main__":

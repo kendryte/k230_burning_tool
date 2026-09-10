@@ -74,9 +74,11 @@ device before powering on and insert it after power-on to enter `BootROM` mode.
 
 ## 4. Release packages
 
-Official packages are provided for each desktop platform with a matching
-`.sha256` checksum file. End users can download and run the package for their
-platform.
+Official releases contain the application packages and one `SHA256SUMS` checksum
+list. CI downloads contain a corresponding per-platform checksum list. Download
+the package for your platform; individual checksum sidecars and updater-server
+bundles are kept out of user downloads. Filenames use a release tag or short
+commit ID, without a `dirty` suffix.
 
 Windows and Linux offer two editions of the normal variant. Avalon builds are
 temporarily disabled:
@@ -90,19 +92,22 @@ temporarily disabled:
   desktop shortcuts or display installation prompts. Linux users may need to
   restore executable permission on `bin/K230BurningTool` after extraction.
 
-For the installed edition, **Installation > Check for Updates** opens the
+For the installed edition, **Updates > Update Application** opens the
 Maintenance Tool after confirmation and closes the application. Finish or cancel
 all burning jobs first. Online updates require a release configured with a hosted
 repository; otherwise the menu reports that updates are not configured.
-**Manage / Uninstall** is available independently of online updates.
+**Updates > Manage Installation** lets you manage or uninstall the application
+independently of online updates.
 
-Portable ZIPs are updated by extracting a new release into a new directory.
+Portable editions provide **Check for Updates** and **Download Releases** in the
+**Updates** menu. These manual actions remain available when automatic checks are
+disabled. Portable ZIPs are updated by extracting a new release into a new directory.
 macOS keeps its signed and notarized drag-and-drop DMG. New releases no longer
 produce AppImages. Existing AppImage installations and manually created shortcuts
 are not deleted automatically; remove them separately when switching editions.
 
-Files ending in `_repository.tar.gz` are update-server bundles for maintainers,
-not application packages for end users.
+Update-server bundles are generated only when updates are configured and are
+uploaded separately for maintainers, not attached to the public release.
 
 Developers who need to build or publish a release should read the
 [build and release guide](BUILD.md).

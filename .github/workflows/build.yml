@@ -27,15 +27,13 @@ jobs:
 
       - name: Get revision
         run: |
-          revision=$(git describe --long --tags --always)
-          echo "REVISION=$revision" >> "$GITHUB_ENV"
-          echo "SAFE_REVISION=${revision//\//-}" >> "$GITHUB_ENV"
+          echo "K230_BURNING_REVISION=$(bash .github/scripts/release-revision.sh)" >> "$GITHUB_ENV"
 
       - name: Build normal variant
         run: |
           docker run --name qt6-linux \
             -v "${{ github.workspace }}:/home/user/project:ro" \
-            -e K230_IFW_REPOSITORY_BASE -e K230_BURNING_REVISION="$SAFE_REVISION" \
+            -e K230_IFW_REPOSITORY_BASE -e K230_BURNING_REVISION \
             stateoftheartio/qt6:6.6-gcc-aqt /bin/bash -euc '
               sudo apt-get update
               sudo apt-get install -y libgl-dev libvulkan-dev libssl-dev libudev-dev file python3 zip p7zip-full
@@ -60,13 +58,22 @@ jobs:
 
       - name: Collect artifacts
         run: |
-          mkdir -p artifact_output
-          cp build/*_normal_*.zip build/*_normal_*.zip.sha256 build/ifw-artifacts/*_normal_* artifact_output/
+          python3 .github/scripts/release_artifacts.py collect \
+            --build-dir build --output artifact_output --platform linux --arch x86_64
 
       - uses: actions/upload-artifact@v4
         with:
           name: K230BurningTool-linux-x86_64
           path: artifact_output/*
+          if-no-files-found: error
+          compression-level: 0
+
+      - name: Upload updater repository for maintainers
+        if: env.K230_IFW_REPOSITORY_BASE != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ifw-repository-linux-x86_64
+          path: build/ifw-artifacts/repositories/*
           if-no-files-found: error
           compression-level: 0
 
@@ -78,6 +85,10 @@ jobs:
         with:
           submodules: recursive
           persist-credentials: false
+
+      - name: Get revision
+        run: |
+          echo "K230_BURNING_REVISION=$(bash .github/scripts/release-revision.sh)" >> "$GITHUB_ENV"
 
       - name: Install native Qt and deployment tools
         run: |
@@ -112,14 +123,23 @@ jobs:
       - name: Collect and verify ARM64 artifacts
         run: |
           set -euo pipefail
-          mkdir -p artifact_output
-          cp build/*_normal_*.zip build/*_normal_*.zip.sha256 build/ifw-artifacts/*_normal_* artifact_output/
           readelf -h build/normal/dist/usr/bin/K230BurningTool | grep -F AArch64
+          python3 .github/scripts/release_artifacts.py collect \
+            --build-dir build --output artifact_output --platform linux --arch arm64
 
       - uses: actions/upload-artifact@v4
         with:
           name: K230BurningTool-linux-arm64
           path: artifact_output/*
+          if-no-files-found: error
+          compression-level: 0
+
+      - name: Upload updater repository for maintainers
+        if: env.K230_IFW_REPOSITORY_BASE != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ifw-repository-linux-arm64
+          path: build/ifw-artifacts/repositories/*
           if-no-files-found: error
           compression-level: 0
 
@@ -166,6 +186,10 @@ jobs:
             ${{ matrix.prefix }}-qt6-svg
             ${{ matrix.prefix }}-python
 
+      - name: Get revision
+        run: |
+          echo "K230_BURNING_REVISION=$(bash .github/scripts/release-revision.sh)" >> "$GITHUB_ENV"
+
       - name: Test C macro portability
         run: |
           set -euo pipefail
@@ -208,14 +232,25 @@ jobs:
             llvm-readobj --file-headers "$exe" | grep -F "$EXPECTED_PE_MACHINE"
           done
 
+      - name: Collect artifacts
+        run: |
+          python3 .github/scripts/release_artifacts.py collect \
+            --build-dir build --output artifact_output --platform windows --arch "${{ matrix.arch }}"
+
       - uses: actions/upload-artifact@v4
         with:
           name: K230BurningTool-windows-${{ matrix.arch }}
-          path: |
-            build/*_normal_*.zip
-            build/*_normal_*.zip.sha256
-            build/ifw-artifacts/*_normal_*
+          path: artifact_output/*
           if-no-files-found: error
+
+      - name: Upload updater repository for maintainers
+        if: env.K230_IFW_REPOSITORY_BASE != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ifw-repository-windows-${{ matrix.arch }}
+          path: build/ifw-artifacts/repositories/*
+          if-no-files-found: error
+          compression-level: 0
 
   build-macos:
     name: Build macOS ${{ matrix.arch }} (normal)
@@ -320,7 +355,7 @@ jobs:
 
       - name: Get revision
         run: |
-          echo "K230_BURNING_REVISION=${GITHUB_REF_NAME//\//-}-${GITHUB_SHA:0:12}" >> "$GITHUB_ENV"
+          echo "K230_BURNING_REVISION=$(bash .github/scripts/release-revision.sh)" >> "$GITHUB_ENV"
 
       - name: Build and deploy unsigned apps
         env:
@@ -353,14 +388,18 @@ jobs:
           if-no-files-found: error
           compression-level: 0
 
+      - name: Collect unsigned validation DMG
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        run: |
+          python3 .github/scripts/release_artifacts.py collect --build-dir build \
+            --output artifact_output --platform macos --arch "${{ matrix.arch }}" --allow-unsigned
+
       - name: Upload unsigned validation DMGs
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         uses: actions/upload-artifact@v4
         with:
           name: K230BurningTool-macos-${{ matrix.arch }}-unsigned
-          path: |
-            build/*_normal_*.dmg
-            build/*_normal_*.dmg.sha256
+          path: artifact_output/*
           if-no-files-found: error
           compression-level: 0
 
@@ -398,19 +437,19 @@ jobs:
           source .github/scripts/prepare-macos-signing.sh
           work=$(mktemp -d "$RUNNER_TEMP/k230-burning-signing.XXXXXX")
           echo "MACOS_SIGNING_WORK=$work" >> "$GITHUB_ENV"
-          echo "MACOS_RELEASE_DIR=$work/output" >> "$GITHUB_ENV"
-          revision="${GITHUB_REF_NAME//\//-}-${GITHUB_SHA:0:12}"
+          echo "MACOS_RELEASE_DIR=$work/public" >> "$GITHUB_ENV"
+          revision="$(bash .github/scripts/release-revision.sh)"
           for arch in x86_64 arm64; do
             bash .github/scripts/sign-macos-package.sh \
               "$arch" normal "$revision" "$PWD/macos-input/macos-unsigned-$arch" "$work"
+            python3 .github/scripts/release_artifacts.py collect --build-dir "$work/output" \
+              --output "$work/public" --platform macos --arch "$arch"
           done
 
       - uses: actions/upload-artifact@v4
         with:
           name: K230BurningTool-macos-signed
-          path: |
-            ${{ env.MACOS_RELEASE_DIR }}/*_normal_*.dmg
-            ${{ env.MACOS_RELEASE_DIR }}/*_normal_*.dmg.sha256
+          path: ${{ env.MACOS_RELEASE_DIR }}/*
           if-no-files-found: error
           compression-level: 0
 
@@ -456,16 +495,21 @@ jobs:
         shell: bash
         run: bash .github/scripts/verify-release.sh release
 
+      - name: Keep legacy update metadata for server deployment
+        uses: actions/upload-artifact@v4
+        with:
+          name: update-server-metadata
+          path: k230_burningtool_lastest.txt
+          if-no-files-found: error
+
       - name: Upload release assets
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
           tag_name: ${{ github.ref_name }}
           files: |
-            k230_burningtool_lastest.txt
-            release/*.tar.gz
             release/*.zip
             release/*.dmg
             release/*.run
             release/*.exe
-            release/*.sha256
+            release/SHA256SUMS

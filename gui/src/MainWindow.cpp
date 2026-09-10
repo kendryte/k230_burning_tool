@@ -10,7 +10,6 @@
 #include "ui_MainWindow.h"
 #include "widgets/SingleBurnWindow.h"
 #include <QCloseEvent>
-#include <QDesktopServices>
 #include <QFileDialog>
 #include <QList>
 #include <QScrollBar>
@@ -111,13 +110,10 @@ MainWindow::MainWindow(QWidget *parent)
 
 	BurnLibrary::instance()->start();
 
-	if (GlobalSetting::disableUpdate.getValue() && !IfwInstallation::detect(QCoreApplication::applicationFilePath()).isManaged()) {
-		ui->btnUpdate->hide();
-		updateChecker = nullptr;
-	} else {
-		updateChecker = new UpdateChecker(ui->btnUpdate, QVersionNumber(CURRENT_VERSION_MAJOR, CURRENT_VERSION_MINOR, CURRENT_VERSION_PATCH));
-		connect(updateChecker, &UpdateChecker::maintenanceRequested, this, &MainWindow::openMaintenance);
-	}
+	updateChecker = new UpdateChecker(ui->menuUpdates,
+		QVersionNumber(CURRENT_VERSION_MAJOR, CURRENT_VERSION_MINOR, CURRENT_VERSION_PATCH),
+		QString(), !GlobalSetting::disableUpdate.getValue());
+	connect(updateChecker, &UpdateChecker::maintenanceRequested, this, &MainWindow::openMaintenance);
 }
 
 void MainWindow::onResized() {
@@ -143,10 +139,6 @@ void MainWindow::closeEvent(QCloseEvent *ev) {
 	kburnMonitorGlobalDestroy();
 
 	ev->accept();
-}
-
-void MainWindow::on_btnOpenWebsite_triggered() {
-	QDesktopServices::openUrl(QUrl("https://kendryte-download.canaan-creative.com/developer/tools/k230_burningtool"));
 }
 
 void MainWindow::openMaintenance(bool update) {
@@ -193,10 +185,6 @@ void MainWindow::on_btnSaveLog_triggered() {
 
 	ui->textLog->copyLogFileTo(str);
 }
-
-// void MainWindow::on_btnOpenRelease_triggered() {
-// 	QDesktopServices::openUrl(QUrl("https://github.com/kendryte/BurningTool/releases/tag/latest"));
-// }
 
 void MainWindow::startNewBurnJob(BurningRequest *partialRequest) {
 	if (closing) {

@@ -5,9 +5,12 @@
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QTest>
+#include <QXmlStreamReader>
 #include <memory>
 
 class IfwIntegrationTests : public QObject {
@@ -55,13 +58,81 @@ class IfwIntegrationTests : public QObject {
         QCOMPARE(installed.maintenanceTool, tool);
     }
 
+    void mainWindowHasSingleUpdatesMenu() {
+        QFile file(QFINDTESTDATA("../../gui/src/MainWindow.ui"));
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        QXmlStreamReader xml(&file);
+        QStringList menus;
+        int updatesReferences = 0;
+        while (!xml.atEnd()) {
+            xml.readNext();
+            if (!xml.isStartElement()) continue;
+            const auto attributes = xml.attributes();
+            if (xml.name() == QLatin1String("widget") && attributes.value("class") == QLatin1String("QMenu")) {
+                menus.append(attributes.value("name").toString());
+            }
+            if (xml.name() == QLatin1String("addaction") && attributes.value("name") == QLatin1String("menuUpdates")) {
+                ++updatesReferences;
+            }
+            QVERIFY(attributes.value("name") != QLatin1String("btnOpenWebsite"));
+            QVERIFY(attributes.value("name") != QLatin1String("btnUpdate"));
+        }
+        QVERIFY(!xml.hasError());
+        QCOMPARE(menus, QStringList({"menuF_ile", "menuUpdates"}));
+        QCOMPARE(updatesReferences, 1);
+    }
+
     void portableCopiesStayPortable() {
         QVERIFY(QFile::remove(temp->path() + "/ifw-installation.json"));
         QVERIFY(!IfwInstallation::detect(executable).isManaged());
-        UpdateButton menu;
+        QMenu menu("Updates(&U)");
         UpdateChecker checker(&menu, QVersionNumber(2, 2, 4), executable);
-        QCOMPARE(menu.actions().size(), 2);
+        QCOMPARE(menu.title(), QString("Updates(&U)"));
+        QCOMPARE(menu.actions().size(), 3);
+        QCOMPARE(menu.actions()[0]->text(), QString("Check for Updates..."));
+        QCOMPARE(menu.actions()[1]->text(), QString("Download Releases..."));
         QVERIFY(menu.actions()[0]->isEnabled());
+        QVERIFY(menu.actions()[1]->isEnabled());
+        QVERIFY(!menu.actions()[2]->isVisible());
+    }
+
+    void manualCheckKeepsMenuTitle() {
+        QVERIFY(QFile::remove(temp->path() + "/ifw-installation.json"));
+        QMenu menu("Updates(&U)");
+        UpdateChecker checker(&menu, QVersionNumber(2, 2, 4), executable, false);
+        auto *check = menu.actions()[0];
+        auto *status = menu.actions()[2];
+        QVERIFY(checker.findChildren<QNetworkReply *>().isEmpty());
+        check->trigger();
+        QCOMPARE(menu.title(), QString("Updates(&U)"));
+        QCOMPARE(check->text(), QString("Check for Updates..."));
+        QVERIFY(!check->isEnabled());
+        QVERIFY(status->isVisible());
+        QVERIFY(!status->isEnabled());
+        QCOMPARE(status->text(), QString("Checking for updates..."));
+
+        auto *reply = checker.findChild<QNetworkReply *>();
+        QVERIFY(reply);
+        reply->abort();
+        QTRY_VERIFY(check->isEnabled());
+        QCOMPARE(status->text(), QString("Could not check for updates"));
+        QCOMPARE(menu.title(), QString("Updates(&U)"));
+        QCOMPARE(check->text(), QString("Check for Updates..."));
+    }
+
+    void disablingAutomaticChecksKeepsManualActions() {
+        QVERIFY(QFile::remove(temp->path() + "/ifw-installation.json"));
+        QMenu menu("Updates(&U)");
+        UpdateChecker checker(&menu, QVersionNumber(2, 2, 4), executable, false);
+        auto *network = checker.findChild<QNetworkAccessManager *>();
+        QVERIFY(network);
+        QSignalSpy requests(network, &QNetworkAccessManager::finished);
+        QTest::qWait(10500);
+        QCOMPARE(requests.size(), 0);
+        QVERIFY(checker.findChildren<QNetworkReply *>().isEmpty());
+        QVERIFY(menu.actions()[0]->isEnabled());
+        QVERIFY(menu.actions()[1]->isEnabled());
+        QVERIFY(!menu.actions()[2]->isVisible());
     }
 
     void rejectsInvalidMarkers() {
@@ -77,15 +148,26 @@ class IfwIntegrationTests : public QObject {
         saveMarker();
         QVERIFY(IfwInstallation::detect(executable).isManaged());
         QVERIFY(!IfwInstallation::detect(executable).canUpdate());
-        UpdateButton menu;
+        QMenu menu("Updates(&U)");
         UpdateChecker checker(&menu, QVersionNumber(2, 2, 4), executable);
+        QCOMPARE(menu.title(), QString("Updates(&U)"));
+        QCOMPARE(menu.actions().size(), 3);
+        QCOMPARE(menu.actions()[0]->text(), QString("Update Application..."));
         QVERIFY(!menu.actions()[0]->isEnabled());
         QVERIFY(menu.actions()[1]->isEnabled());
+        QCOMPARE(menu.actions()[2]->text(), QString("Online updates not configured"));
+        QVERIFY(!menu.actions()[2]->isEnabled());
+        QVERIFY(!checker.findChild<QNetworkAccessManager *>());
     }
 
     void menuDelegatesToFramework() {
-        UpdateButton menu;
+        QMenu menu("Updates(&U)");
         UpdateChecker checker(&menu, QVersionNumber(2, 2, 4), executable);
+        QCOMPARE(menu.title(), QString("Updates(&U)"));
+        QCOMPARE(menu.actions().size(), 2);
+        QCOMPARE(menu.actions()[0]->text(), QString("Update Application..."));
+        QCOMPARE(menu.actions()[1]->text(), QString("Manage Installation..."));
+        QVERIFY(!checker.findChild<QNetworkAccessManager *>());
         QSignalSpy requests(&checker, &UpdateChecker::maintenanceRequested);
         menu.actions()[0]->trigger();
         menu.actions()[1]->trigger();
@@ -99,10 +181,15 @@ class IfwIntegrationTests : public QObject {
         const auto installed = IfwInstallation::detect(executable);
         QVERIFY(installed.isManaged());
         QVERIFY(installed.maintenanceTool.isEmpty());
-        UpdateButton menu;
+        QMenu menu("Updates(&U)");
         UpdateChecker checker(&menu, QVersionNumber(2, 2, 4), executable);
+        QCOMPARE(menu.title(), QString("Updates(&U)"));
+        QCOMPARE(menu.actions().size(), 3);
         QVERIFY(!menu.actions()[0]->isEnabled());
         QVERIFY(!menu.actions()[1]->isEnabled());
+        QCOMPARE(menu.actions()[2]->text(), QString("Maintenance Tool not found"));
+        QVERIFY(!menu.actions()[2]->isEnabled());
+        QVERIFY(!checker.findChild<QNetworkAccessManager *>());
     }
 
     void insecureRepositoryIsRejected() {

@@ -9,23 +9,13 @@ class QNetworkAccessManager;
 class QNetworkReply;
 class QAction;
 
-class UpdateButton : public QMenu {
-    Q_OBJECT
-
-  public:
-    UpdateButton(QWidget *parent = nullptr) : QMenu(parent){};
-
-  public slots:
-    void changeTitle(QString newTitle) { setTitle(newTitle); };
-};
-
 class UpdateChecker : public QObject {
 	Q_OBJECT
 
-	UpdateButton *button;
 	QNetworkAccessManager *network = nullptr;
 	QPointer<QNetworkReply> reply;
 	QAction *checkAction = nullptr;
+	QAction *statusAction = nullptr;
 	QVersionNumber currentVersion;
 	void check();
 
@@ -33,5 +23,5 @@ class UpdateChecker : public QObject {
 	void maintenanceRequested(bool update);
 
   public:
-	explicit UpdateChecker(UpdateButton *button, const QVersionNumber &version, const QString &executable = QString());
+	explicit UpdateChecker(QMenu *menu, const QVersionNumber &version, const QString &executable = QString(), bool automaticChecks = true);
 };

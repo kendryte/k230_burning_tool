@@ -26,11 +26,18 @@ destination directory. Supported combinations are `linux x86_64`, `linux arm64`,
 and `windows x86_64`; `SEVENZIP` can select the 7-Zip executable. An existing
 trusted IFW installation can instead supply `K230_IFW_TOOLS_DIR` directly.
 
-Each Windows/Linux build produces a portable ZIP plus an IFW installer and
-repository archive in `build/ifw-artifacts/`, all with `.sha256` files. Portable
+Each Windows/Linux build produces a portable ZIP plus an IFW installer in
+`build/ifw-artifacts/`. Raw build outputs retain individual `.sha256` files for
+verification, but user downloads use consolidated checksum manifests. Portable
 ZIPs contain the deployed `bin/`, libraries, and resources without IFW markers,
 maintenance tools, or automatic desktop installation. There are no new AppImage
 release artifacts. macOS retains signed/notarized DMGs and does not require IFW.
+
+User-facing CI bundles contain only their installer/portable packages (or DMG)
+and one `SHA256SUMS_<platform>_<arch>.txt` manifest. Tagged GitHub releases publish
+eight packages: three installers, three portable ZIPs, and two signed macOS DMGs,
+plus a single `SHA256SUMS`. Individual checksum sidecars and update-server files
+are not attached to the public release.
 
 `packaging/ifw/package.py` packages the deployed prefix without recompiling it.
 The IFW payload places it under `app/` and adds `ifw-installation.json` at the
@@ -48,8 +55,9 @@ selectable in the wizard. Old portable/AppImage installations are not migrated o
 
 Set the GitHub repository variable `K230_IFW_REPOSITORY_BASE` to a stable HTTPS
 base URL, or export that environment variable for local release builds. No server
-URL is assumed. With an empty value, installers are offline-only and online
-updates are disabled in the application; the Maintenance Tool can still uninstall.
+URL is assumed. With an empty value, installers are offline-only, repository
+archives are not generated, and online updates are disabled in the application;
+the Maintenance Tool can still uninstall.
 With a URL, binarycreator creates hybrid installers: installation works offline,
 then the Maintenance Tool uses the configured repository for subsequent updates.
 
@@ -61,16 +69,22 @@ The build appends `/<platform>/<arch>/<variant>` to the base URL, for example:
 <base>/windows/x86_64/normal/Updates.xml
 ```
 
+When configured, repository bundles and their checksums are generated separately
+under `build/ifw-artifacts/repositories/`. CI uploads them as separate maintainer
+`ifw-repository-<platform>-<arch>` artifacts, excluded from public package bundles.
 Unpack the corresponding `K230BurningToolIFW_*_repository.tar.gz` into each
 channel directory and publish its entire contents on the HTTPS server. Upload
 versioned archives and metadata archives first, then publish `Updates.xml` last.
-GitHub release upload includes repository bundles but does not deploy that server.
+CI does not deploy that server. The legacy `k230_burningtool_lastest.txt` file is
+retained in the separate `update-server-metadata` Actions artifact for deployment
+to the existing version-check server, not published among user packages.
 Keep channel URLs stable and bump the GUI project version for every update;
 rebuilding the same IFW component version does not constitute an update.
 Changing the repository base requires rebuilding installers or administering the
 Maintenance Tool's repository settings. Protect repository publishing credentials.
 
-Installed applications expose Maintenance Tool actions in the Installation menu.
+Installed applications expose **Update Application** and **Manage Installation**
+in the **Updates** menu.
 Handoff asks for confirmation, refuses active burning jobs, and closes the app
 before maintenance proceeds. IFW also requests that the application process be
 closed before installing/updating/removing its component. Updates are interactive,
@@ -181,10 +195,11 @@ identity must exist in that keychain under the runner user. CMake and Xcode
 command-line tools must be installed on the signing Mac. ARM64 compilation
 and signing share a concurrency group within the repository.
 The group uses `queue: max` so newer builds queue instead of replacing a pending
-signing job. Before release upload, all 11 expected artifacts (5 portable/DMG
-packages, 3 IFW installers, and 3 repository archives) must exist with individual,
-matching checksum files. Missing variants,
-stale duplicates, unsigned inputs, and checksum failures stop publication.
+signing job. Collection verifies the build-time checksum sidecars before copying
+only user packages into public bundles. Before release upload, all eight expected
+packages must match their per-platform checksum manifests. The verifier then
+writes the combined `SHA256SUMS`. Missing packages, stale duplicates, updater
+bundles, dirty labels, unsigned inputs, and checksum failures stop publication.
 Checksum files use LF line endings across platforms.
 
 To re-enable Avalon, restore its invocation in `release.sh`, the workflow's
@@ -196,6 +211,11 @@ Archive names include OS, architecture, variant, and revision. Local builds
 can set `K230_BURNING_TARGET_ARCH` and `K230_BURNING_REVISION` to choose artifact
 labels; those variables do not select a compiler architecture. macOS compilation
 is selected by `MACOS_ARCHITECTURES` and other platforms by their native toolchain.
+All CI jobs share `.github/scripts/release-revision.sh`: tag builds use the tag,
+and branch builds use the first 12 commit-ID characters. Local builds use an exact
+tag or short commit ID unless overridden. Tracked local modifications produce a
+warning rather than adding `-dirty` to filenames; CI-generated workspace changes
+therefore cannot alter the revision label.
 
 ## Qt on macOS
 
