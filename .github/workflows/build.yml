@@ -128,11 +128,12 @@ jobs:
             msystem: CLANG64
             prefix: mingw-w64-clang-x86_64
             machine: IMAGE_FILE_MACHINE_AMD64
-          - runner: windows-11-arm
-            arch: arm64
-            msystem: CLANGARM64
-            prefix: mingw-w64-clang-aarch64
-            machine: IMAGE_FILE_MACHINE_ARM64
+          # Disabled due to slow builds; restore release verification when re-enabling.
+          # - runner: windows-11-arm
+          #   arch: arm64
+          #   msystem: CLANGARM64
+          #   prefix: mingw-w64-clang-aarch64
+          #   machine: IMAGE_FILE_MACHINE_ARM64
     runs-on: ${{ matrix.runner }}
     defaults:
       run:

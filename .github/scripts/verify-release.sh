@@ -32,6 +32,10 @@ for platform in linux windows macos; do
         macos) extension=dmg ;;
     esac
     for arch in x86_64 arm64; do
+        # Windows ARM64 is temporarily disabled in the build matrix.
+        if [[ "$platform" == windows && "$arch" == arm64 ]]; then
+            continue
+        fi
         for variant in normal avalon; do
             packages=(K230BurningTool_"${platform}_${arch}_${variant}"_*."$extension")
             if [[ ${#packages[@]} -ne 1 ]]; then
@@ -53,7 +57,7 @@ done
 
 packages=(*.zip *.tar.gz *.dmg *.AppImage)
 checksums=(*.sha256)
-if [[ ${#packages[@]} -ne 16 || ${#checksums[@]} -ne 16 ]]; then
+if [[ ${#packages[@]} -ne 14 || ${#checksums[@]} -ne 14 ]]; then
     echo "Unexpected extra packages or checksums in release directory" >&2
     exit 1
 fi

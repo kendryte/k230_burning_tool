@@ -1,4 +1,4 @@
-"""Require both architectures and variants, including each Linux AppImage."""
+"""Require enabled architectures and both variants, including each Linux AppImage."""
 
 import hashlib
 import subprocess
@@ -18,6 +18,8 @@ class ReleaseVerificationTests(unittest.TestCase):
         self.names = []
         for platform, extension in (("linux", "tar.gz"), ("windows", "zip"), ("macos", "dmg")):
             for arch in ("x86_64", "arm64"):
+                if platform == "windows" and arch == "arm64":
+                    continue
                 for variant in ("normal", "avalon"):
                     self.add_package(f"K230BurningTool_{platform}_{arch}_{variant}_v1.0.0.{extension}")
                     if platform == "linux":
@@ -38,6 +40,15 @@ class ReleaseVerificationTests(unittest.TestCase):
 
     def test_missing_variant(self):
         (self.root / self.names[-1]).unlink()
+        self.verify(False)
+
+    def test_missing_windows_x86_64_variant(self):
+        name = next(name for name in self.names if name.endswith(".zip"))
+        (self.root / name).unlink()
+        self.verify(False)
+
+    def test_unexpected_windows_arm64_package(self):
+        self.add_package("K230BurningTool_windows_arm64_normal_v1.0.0.zip")
         self.verify(False)
 
     def test_missing_appimage(self):
