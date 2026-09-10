@@ -39,6 +39,7 @@ jobs:
                 https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage \
                 -o /usr/local/bin/linuxdeployqt
               sudo chmod +x /usr/local/bin/linuxdeployqt
+              K230_BURNING_TARGET_ARCH=x86_64 \
               K230_BURNING_BUILD_DIR=/home/user/build \
                 /home/user/project/release.sh
             '
@@ -53,55 +54,156 @@ jobs:
             "artifact_output/K230BurningTool_linux_normal_${SAFE_REVISION}_x86_64.AppImage"
           cp build/avalon3/K230BurningTool-*.AppImage \
             "artifact_output/K230BurningTool_linux_avalon_${SAFE_REVISION}_x86_64.AppImage"
-          (cd artifact_output && sha256sum *.AppImage > K230BurningTool_linux_AppImage.sha256)
+          for appimage in artifact_output/*.AppImage; do
+            (cd artifact_output && sha256sum "${appimage##*/}" > "${appimage##*/}.sha256")
+          done
 
       - uses: actions/upload-artifact@v4
         with:
-          name: K230BurningTool-linux
+          name: K230BurningTool-linux-x86_64
           path: artifact_output/*
           if-no-files-found: error
           compression-level: 0
 
-  build-windows:
-    name: Windows x86_64
-    runs-on: ubuntu-22.04
+  build-linux-arm64:
+    name: Linux ARM64
+    runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
           persist-credentials: false
 
-      - name: Build both variants
+      - name: Install native Qt and deployment tools
         run: |
-          docker run --name qt6-windows \
-            -v "${{ github.workspace }}:/home/user/project:ro" \
-            stateoftheartio/qt6:6.7-mingw-aqt /bin/bash -euc '
-              sudo apt-get update
-              sudo apt-get install -y zip
-              CMAKE_BUILD_PARALLEL_LEVEL=1 \
-              K230_BURNING_TARGET_OS=windows \
-              K230_BURNING_BUILD_DIR=/home/user/build \
-                /home/user/project/release.sh
-            '
-          docker cp qt6-windows:/home/user/build "${{ github.workspace }}/build"
-          docker rm qt6-windows
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build qt6-base-dev \
+            qt6-tools-dev qt6-tools-dev-tools qt6-svg-dev libudev-dev libssl-dev \
+            libgl-dev libvulkan-dev file patchelf
+          sudo curl -fL --retry 3 \
+            https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-aarch64.AppImage \
+            -o /usr/local/bin/linuxdeploy
+          sudo curl -fL --retry 3 \
+            https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-aarch64.AppImage \
+            -o /usr/local/bin/linuxdeploy-plugin-qt
+          sudo chmod +x /usr/local/bin/linuxdeploy /usr/local/bin/linuxdeploy-plugin-qt
+
+      - name: Build and package both variants
+        env:
+          QT_CMAKE: /usr/lib/qt6/bin/qt-cmake
+          K230_BURNING_TARGET_ARCH: arm64
+          K230_BURNING_LINUX_DEPLOY_TOOL: linuxdeploy
+        run: ./release.sh
+
+      - name: Collect and verify ARM64 artifacts
+        run: |
+          set -euo pipefail
+          mkdir -p artifact_output
+          cp build/*.tar.gz build/*.sha256 artifact_output/
+          revision="$(git describe --long --tags --always)"
+          for variant in normal avalon3; do
+            readelf -h "build/$variant/dist/usr/bin/K230BurningTool" | grep -F AArch64
+            suffix="$variant"
+            [[ "$variant" != avalon3 ]] || suffix=avalon
+            name="K230BurningTool_linux_${suffix}_${revision//\//-}_arm64.AppImage"
+            cp "build/$variant/K230BurningTool-arm64.AppImage" "artifact_output/$name"
+            (cd artifact_output && sha256sum "$name" > "$name.sha256")
+          done
 
       - uses: actions/upload-artifact@v4
         with:
-          name: K230BurningTool-windows
+          name: K230BurningTool-linux-arm64
+          path: artifact_output/*
+          if-no-files-found: error
+          compression-level: 0
+
+  build-windows:
+    name: Windows ${{ matrix.arch }} (native Qt/Clang)
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-2022
+            arch: x86_64
+            msystem: CLANG64
+            prefix: mingw-w64-clang-x86_64
+            machine: IMAGE_FILE_MACHINE_AMD64
+          - runner: windows-11-arm
+            arch: arm64
+            msystem: CLANGARM64
+            prefix: mingw-w64-clang-aarch64
+            machine: IMAGE_FILE_MACHINE_ARM64
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          persist-credentials: false
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: ${{ matrix.msystem }}
+          update: true
+          install: >-
+            git zip
+            ${{ matrix.prefix }}-clang
+            ${{ matrix.prefix }}-llvm
+            ${{ matrix.prefix }}-cmake
+            ${{ matrix.prefix }}-ninja
+            ${{ matrix.prefix }}-winpthreads
+            ${{ matrix.prefix }}-qt6-base
+            ${{ matrix.prefix }}-qt6-tools
+            ${{ matrix.prefix }}-qt6-svg
+
+      - name: Build both variants natively
+        env:
+          TARGET_ARCH: ${{ matrix.arch }}
+          EXPECTED_PE_MACHINE: ${{ matrix.machine }}
+        run: |
+          set -euo pipefail
+          export CC=clang CXX=clang++ QT_CMAKE=cmake CMAKE_GENERATOR=Ninja
+          export CMAKE_PREFIX_PATH="$(cygpath -m "$MINGW_PREFIX")"
+          export K230_BURNING_TARGET_OS=windows K230_BURNING_TARGET_ARCH="$TARGET_ARCH"
+          export CMAKE_BUILD_PARALLEL_LEVEL=2
+          export K230_BURNING_BUILD_DIR="$PWD/build"
+          bash ./release.sh
+          for exe in build/normal/install/bin/*.exe build/avalon3/install/bin/*.exe; do
+            llvm-readobj --file-headers "$exe" | grep -F "$EXPECTED_PE_MACHINE"
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: K230BurningTool-windows-${{ matrix.arch }}
           path: |
             build/*.zip
             build/*.sha256
           if-no-files-found: error
 
   build-macos:
-    name: macOS ARM64 validation/release
-    runs-on: [self-hosted, macOS, ARM64, shenzhen_mac]
+    name: Build macOS ${{ matrix.arch }} (normal and Avalon)
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15-intel
+            arch: x86_64
+          - runner: [self-hosted, macOS, ARM64, shenzhen_mac]
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    concurrency:
+      group: ${{ matrix.arch == 'arm64' && 'k230-burning-tool-macos-runner' || format('k230-burning-tool-intel-{0}', github.ref) }}
+      cancel-in-progress: false
+      queue: max
+    defaults:
+      run:
+        shell: bash
     env:
       QT_VERSION: "6.6.3"
       AQT_CONFIG: ${{ github.workspace }}/.github/aqt.ini
-    environment:
-      name: ${{ startsWith(github.ref, 'refs/tags/') && 'macos-signing' || 'macos-validation' }}
+      HOMEBREW_NO_AUTO_UPDATE: "1"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -166,61 +268,116 @@ jobs:
         shell: bash
         run: bash .github/scripts/qt-environment.sh activate
 
-      - name: Verify installed signing identity
-        if: ${{ startsWith(github.ref, 'refs/tags/') }}
-        shell: bash
-        env:
-          MACOS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
-          MACOS_KEYCHAIN: ${{ secrets.MACOS_KEYCHAIN }}
-          MACOS_KEYCHAIN_PASSWORD: ${{ secrets.MACOS_KEYCHAIN_PASSWORD }}
+      - name: Get revision
         run: |
-          set -euo pipefail
-          : "${MACOS_SIGN_IDENTITY:?Set MACOS_SIGN_IDENTITY in the macos-signing environment}"
-          : "${MACOS_KEYCHAIN_PASSWORD:?Set MACOS_KEYCHAIN_PASSWORD in the macos-signing environment}"
-          MACOS_SIGN_IDENTITY="${MACOS_SIGN_IDENTITY//$'\r'/}"
-          MACOS_SIGN_IDENTITY="${MACOS_SIGN_IDENTITY//$'\n'/}"
-          MACOS_KEYCHAIN="${MACOS_KEYCHAIN//$'\r'/}"
-          MACOS_KEYCHAIN="${MACOS_KEYCHAIN//$'\n'/}"
-          if [[ -n "${MACOS_KEYCHAIN:-}" ]]; then
-            signing_keychain="$MACOS_KEYCHAIN"
-          else
-            signing_keychain=$(security default-keychain -d user | sed \
-              -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' \
-              -e 's/^"//' -e 's/"$//')
-          fi
-          security unlock-keychain -p "$MACOS_KEYCHAIN_PASSWORD" "$signing_keychain" >/dev/null
-          security set-key-partition-list \
-            -S apple-tool:,apple:,codesign: \
-            -s -k "$MACOS_KEYCHAIN_PASSWORD" "$signing_keychain" >/dev/null
-          identities=$(security find-identity -v -p codesigning "$signing_keychain" 2>/dev/null)
-          if ! grep -F -- "$MACOS_SIGN_IDENTITY" <<<"$identities" >/dev/null; then
-            echo "Installed signing identity was not found: $MACOS_SIGN_IDENTITY" >&2
-            exit 1
-          fi
+          echo "K230_BURNING_REVISION=${GITHUB_REF_NAME//\//-}-${GITHUB_SHA:0:12}" >> "$GITHUB_ENV"
 
-      - name: Build and sign both variants
+      - name: Build and deploy unsigned apps
         env:
+          K230_BURNING_TARGET_OS: macos
           K230_BURNING_BUILD_DIR: ${{ github.workspace }}/build
-          MACOS_ARCHITECTURES: arm64
-          MACOS_SIGN_IDENTITY: ${{ startsWith(github.ref, 'refs/tags/') && secrets.MACOS_SIGN_IDENTITY || '' }}
-          MACOS_KEYCHAIN: ${{ startsWith(github.ref, 'refs/tags/') && secrets.MACOS_KEYCHAIN || '' }}
-          MACOS_KEYCHAIN_PASSWORD: ${{ startsWith(github.ref, 'refs/tags/') && secrets.MACOS_KEYCHAIN_PASSWORD || '' }}
-          MACOS_NOTARY_PROFILE: ${{ startsWith(github.ref, 'refs/tags/') && secrets.MACOS_NOTARY_PROFILE || '' }}
-          MACOS_ALLOW_UNSIGNED: ${{ startsWith(github.ref, 'refs/tags/') && '0' || '1' }}
+          MACOS_ARCHITECTURES: ${{ matrix.arch }}
+          MACOS_DEPLOYMENT_TARGET: "13.0"
+          MACOS_ALLOW_UNSIGNED: "1"
+          MACOS_SIGN_IDENTITY: ""
+          MACOS_KEYCHAIN: ""
+          MACOS_NOTARY_PROFILE: ""
+          MACOS_BUILD_ONLY: ${{ startsWith(github.ref, 'refs/tags/') && '1' || '0' }}
         run: ./release.sh
 
-      - uses: actions/upload-artifact@v4
+      - name: Check native app architectures
+        env:
+          TARGET_ARCH: ${{ matrix.arch }}
+        run: |
+          for variant in normal avalon3; do
+            lipo "build/$variant/install/bin/K230BurningTool.app/Contents/MacOS/K230BurningTool" \
+              -verify_arch "$TARGET_ARCH"
+          done
+
+      - name: Upload unsigned signing inputs
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/upload-artifact@v4
         with:
-          name: K230BurningTool-macos-arm64
+          name: macos-unsigned-${{ matrix.arch }}
+          path: |
+            build/*.zip
+            build/*.zip.sha256
+          if-no-files-found: error
+          compression-level: 0
+
+      - name: Upload unsigned validation DMGs
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: K230BurningTool-macos-${{ matrix.arch }}-unsigned
           path: |
             build/*.dmg
             build/*.sha256
           if-no-files-found: error
           compression-level: 0
 
+  sign-macos:
+    name: Sign and notarize macOS apps and DMGs
+    needs: build-macos
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: [self-hosted, macOS, ARM64, shenzhen_mac]
+    environment: macos-signing
+    concurrency:
+      group: k230-burning-tool-macos-runner
+      cancel-in-progress: false
+      queue: max
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: macos-unsigned-*
+          path: macos-input
+
+      - name: Sign and notarize both variants and architectures
+        env:
+          MACOS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+          MACOS_KEYCHAIN: ${{ secrets.MACOS_KEYCHAIN }}
+          MACOS_KEYCHAIN_PASSWORD: ${{ secrets.MACOS_KEYCHAIN_PASSWORD }}
+          MACOS_NOTARY_PROFILE: ${{ secrets.MACOS_NOTARY_PROFILE }}
+        run: |
+          set -euo pipefail
+          source .github/scripts/prepare-macos-signing.sh
+          work=$(mktemp -d "$RUNNER_TEMP/k230-burning-signing.XXXXXX")
+          echo "MACOS_SIGNING_WORK=$work" >> "$GITHUB_ENV"
+          echo "MACOS_RELEASE_DIR=$work/output" >> "$GITHUB_ENV"
+          revision="${GITHUB_REF_NAME//\//-}-${GITHUB_SHA:0:12}"
+          for arch in x86_64 arm64; do
+            for variant in normal avalon; do
+              bash .github/scripts/sign-macos-package.sh \
+                "$arch" "$variant" "$revision" "$PWD/macos-input/macos-unsigned-$arch" "$work"
+            done
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: K230BurningTool-macos-signed
+          path: |
+            ${{ env.MACOS_RELEASE_DIR }}/*.dmg
+            ${{ env.MACOS_RELEASE_DIR }}/*.sha256
+          if-no-files-found: error
+          compression-level: 0
+
+      - name: Clean signing staging directory
+        if: always()
+        run: |
+          if [[ -n "${MACOS_SIGNING_WORK:-}" ]]; then
+            cmake -E remove_directory "$MACOS_SIGNING_WORK"
+          fi
+
   release:
     if: startsWith(github.ref, 'refs/tags/')
-    needs: [build-linux, build-windows, build-macos]
+    needs: [build-linux, build-linux-arm64, build-windows, sign-macos]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -245,7 +402,13 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
+          pattern: K230BurningTool-*
           path: release
+          merge-multiple: true
+
+      - name: Verify release files
+        shell: bash
+        run: bash .github/scripts/verify-release.sh release
 
       - name: Upload release assets
         uses: softprops/action-gh-release@v2
@@ -254,8 +417,8 @@ jobs:
           tag_name: ${{ github.ref_name }}
           files: |
             k230_burningtool_lastest.txt
-            release/**/*.AppImage
-            release/**/*.tar.gz
-            release/**/*.zip
-            release/**/*.dmg
-            release/**/*.sha256
+            release/*.AppImage
+            release/*.tar.gz
+            release/*.zip
+            release/*.dmg
+            release/*.sha256

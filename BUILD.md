@@ -24,16 +24,22 @@ archives and produce AppImages. An AppImage can run without FUSE with:
 
 ## Windows builds
 
-The Windows CI job uses the Qt MinGW container, whose Windows compiler runs
-under Wine. It sets `CMAKE_BUILD_PARALLEL_LEVEL=1` to limit simultaneous
-compiler launches. `release.sh` passes a configured parallel level explicitly
-to CMake; other builds retain the native default when it is unset or empty.
+Windows builds run natively on `windows-2022` (x86_64) and `windows-11-arm`
+(ARM64), using MSYS2 `CLANG64` and `CLANGARM64` respectively. Qt, Clang,
+winpthreads, and the C++ runtime come from matching MSYS2 packages. The install
+hook runs windeployqt and collects transitive runtime DLL dependencies.
+Wine is no longer used in CI. `release.sh` honors an explicit
+`CMAKE_BUILD_PARALLEL_LEVEL`; CI uses two build jobs per runner.
 
-Wine process-start failures (such as `failed to map the shared user data`)
-are separate from compiler diagnostics. Serial compilation is a mitigation,
-not a guaranteed fix for Wine address-space conflicts. If these failures
-persist, use a native Windows runner or investigate the container's Wine
-runtime rather than changing the C source named in the failed command.
+## Linux builds
+
+x86_64 retains the Qt 6.6 container on Ubuntu 22.04 and linuxdeployqt packaging.
+ARM64 builds natively on `ubuntu-24.04-arm` with distribution Qt 6 development
+packages and native linuxdeploy/Qt-plugin AppImages. Its packages therefore
+have an Ubuntu 24.04 system-library baseline. Both architectures produce the
+normal and Avalon variants as tarballs and AppImages with checksums.
+Set `K230_BURNING_LINUX_DEPLOY_TOOL=linuxdeploy` to use the ARM64 deployment
+path locally; the default remains `linuxdeployqt`.
 
 ## macOS signing
 
@@ -50,6 +56,8 @@ MACOS_SIGN_IDENTITY="Developer ID Application: Example (TEAMID)" \
 
 Optional variables:
 
+- `MACOS_DEPLOYMENT_TARGET`: minimum macOS version (default `13.0`). It is
+  passed to CMake and written into the app's `LSMinimumSystemVersion` field.
 - `MACOS_KEYCHAIN`: absolute path to a dedicated keychain. Leave empty to use
   the account's normal keychain search list.
 - `MACOS_KEYCHAIN_PASSWORD`: password used by CI to unlock the signing
@@ -76,9 +84,43 @@ Do not put Apple credentials, certificates, or private keys in the repository.
 For validation-only unsigned builds, explicitly set `MACOS_ALLOW_UNSIGNED=1`.
 Do not use unsigned artifacts for distribution.
 
+## Split macOS CI
+
+Both x86_64 and ARM64 produce normal and Avalon variants. Intel compilation
+runs on GitHub's `macos-15-intel` runner. ARM64 compilation stays on the
+self-hosted Mac (`self-hosted`, `macOS`, `ARM64`, `shenzhen_mac`) to reduce
+hosted runner costs. Both architectures target macOS 13.0; the build runner
+does not need to run that older OS. Build jobs have no signing secrets.
+
+For tags, `MACOS_BUILD_ONLY=1` deploys Qt into the apps and archives the install
+trees as unsigned ZIP inputs. The self-hosted signing job verifies their
+checksums and app architectures, then uses `SKIP_DEPLOYMENT=ON` to sign and
+package them without running macdeployqt or compiling anything. It notarizes
+and staples both the app and final DMG and validates both tickets. The final
+checksums are generated after stapling. Release upload selects only the four
+signed DMGs, plus final Linux/Windows artifacts; unsigned ZIP inputs are excluded.
+Branch runs produce explicitly unsigned validation DMGs, not release assets.
+
+Configure all four secrets in this repository's `macos-signing` environment:
+`MACOS_SIGN_IDENTITY`, `MACOS_KEYCHAIN` (explicit absolute path),
+`MACOS_KEYCHAIN_PASSWORD`, and `MACOS_NOTARY_PROFILE`. The profile and signing
+identity must exist in that keychain under the runner user. CMake and Xcode
+command-line tools must be installed on the signing Mac. ARM64 compilation
+and signing share a concurrency group within the repository.
+The group uses `queue: max` so newer builds queue instead of replacing a pending
+signing job. Before release upload, all 16 expected packages (including Linux
+AppImages) must exist with individual, matching checksum files. Missing variants,
+stale duplicates, unsigned inputs, and checksum failures stop publication.
+Checksum files use LF line endings across platforms.
+
+Archive names include OS, architecture, variant, and revision. Local builds
+can set `K230_BURNING_TARGET_ARCH` and `K230_BURNING_REVISION` to choose artifact
+labels; those variables do not select a compiler architecture. macOS compilation
+is selected by `MACOS_ARCHITECTURES` and other platforms by their native toolchain.
+
 ## Qt on macOS
 
-The macOS workflow keeps Qt outside the checkout, at
+The macOS build jobs keep Qt outside the checkout, at
 `$RUNNER_TOOL_CACHE/qt-6.6.3/Qt/6.6.3/macos`. It checks the installed version,
 required tools, CMake package files, and platform plugin before reusing it.
 When these checks pass, the Qt installer and its Python setup are skipped.
@@ -97,6 +139,9 @@ The workflow retries a failed installer once after 15 seconds; a second failure
 stops the job. An installation-in-progress marker prevents future jobs from
 reusing a partially installed tree. Successful installation and validation clear
 the marker. Archive checksum verification remains enabled.
+
+The self-hosted ARM64 builder reuses this directory across jobs; hosted Intel
+builders use the action's remote cache between fresh runner instances.
 
 Automated release configuration is maintained in
 `.github/workflows/build.yml`. Keep workflow changes under maintainer review.

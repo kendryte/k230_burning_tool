@@ -12,20 +12,21 @@ if(NOT IS_DIRECTORY "${APP_PATH}")
 	message(FATAL_ERROR "Installed application bundle not found: ${APP_PATH}")
 endif()
 
-find_program(MACDEPLOYQT_EXECUTABLE macdeployqt REQUIRED)
-find_program(HDIUTIL_EXECUTABLE hdiutil REQUIRED)
 find_program(FILE_EXECUTABLE file REQUIRED)
 find_program(OTOOL_EXECUTABLE otool REQUIRED)
 
-execute_process(
-	COMMAND "${MACDEPLOYQT_EXECUTABLE}" "${APP_PATH}"
-		-verbose=1
-		"-libpath=${APP_PATH}/Contents/Frameworks"
-	RESULT_VARIABLE deploy_result
-	COMMAND_ECHO STDOUT
-)
-if(NOT deploy_result STREQUAL "0")
-	message(FATAL_ERROR "macdeployqt failed: ${deploy_result}")
+if(NOT SKIP_DEPLOYMENT)
+	find_program(MACDEPLOYQT_EXECUTABLE macdeployqt REQUIRED)
+	execute_process(
+		COMMAND "${MACDEPLOYQT_EXECUTABLE}" "${APP_PATH}"
+			-verbose=1
+			"-libpath=${APP_PATH}/Contents/Frameworks"
+		RESULT_VARIABLE deploy_result
+		COMMAND_ECHO STDOUT
+	)
+	if(NOT deploy_result STREQUAL "0")
+		message(FATAL_ERROR "macdeployqt failed: ${deploy_result}")
+	endif()
 endif()
 
 function(is_macho path result_var)
@@ -81,6 +82,43 @@ foreach(candidate IN LISTS bundle_files)
 	endforeach()
 endforeach()
 
+if(DEPLOY_ONLY)
+	if(NOT "${SIGN_IDENTITY}" STREQUAL "" OR NOT "${NOTARY_PROFILE}" STREQUAL "")
+		message(FATAL_ERROR "DEPLOY_ONLY is only for unsigned build inputs")
+	endif()
+	message(STATUS "Deployed app ready for transfer to signing runner: ${APP_PATH}")
+	return()
+endif()
+
+find_program(HDIUTIL_EXECUTABLE hdiutil REQUIRED)
+find_program(DITTO_EXECUTABLE ditto REQUIRED)
+
+function(notarize_artifact artifact)
+	execute_process(
+		COMMAND "${XCRUN_EXECUTABLE}" notarytool submit "${artifact}"
+			--keychain-profile "${NOTARY_PROFILE}" ${NOTARY_KEYCHAIN_ARGS}
+			--wait --output-format json
+		RESULT_VARIABLE notary_result
+		OUTPUT_VARIABLE notary_output
+		COMMAND_ECHO STDOUT
+	)
+	file(WRITE "${artifact}.notary.json" "${notary_output}")
+	if(NOT notary_result STREQUAL "0")
+		message(FATAL_ERROR "Notarization failed for ${artifact}")
+	endif()
+	find_program(PLUTIL_EXECUTABLE plutil REQUIRED)
+	execute_process(
+		COMMAND "${PLUTIL_EXECUTABLE}" -extract status raw -o - "${artifact}.notary.json"
+		RESULT_VARIABLE status_result
+		OUTPUT_VARIABLE notary_status
+		OUTPUT_STRIP_TRAILING_WHITESPACE
+	)
+	if(NOT status_result STREQUAL "0" OR NOT notary_status STREQUAL "Accepted")
+		message(FATAL_ERROR "Notarization not accepted; see ${artifact}.notary.json")
+	endif()
+	message(STATUS "Notarization accepted for ${artifact}")
+endfunction()
+
 if(DEFINED NOTARY_PROFILE AND NOT NOTARY_PROFILE STREQUAL ""
 		AND (NOT DEFINED SIGN_IDENTITY OR SIGN_IDENTITY STREQUAL ""))
 	message(FATAL_ERROR "Notarization requires a signing identity")
@@ -134,18 +172,8 @@ if(DEFINED NOTARY_PROFILE AND NOT NOTARY_PROFILE STREQUAL "")
 	if(NOT zip_result STREQUAL "0")
 		message(FATAL_ERROR "Failed to create notarization ZIP")
 	endif()
-	execute_process(
-		COMMAND "${XCRUN_EXECUTABLE}" notarytool submit "${NOTARY_ZIP}"
-			--keychain-profile "${NOTARY_PROFILE}"
-			${NOTARY_KEYCHAIN_ARGS}
-			--wait
-		RESULT_VARIABLE notary_result
-		COMMAND_ECHO STDOUT
-	)
+	notarize_artifact("${NOTARY_ZIP}")
 	file(REMOVE "${NOTARY_ZIP}")
-	if(NOT notary_result STREQUAL "0")
-		message(FATAL_ERROR "Application notarization failed")
-	endif()
 	execute_process(
 		COMMAND "${XCRUN_EXECUTABLE}" stapler staple "${APP_PATH}"
 		RESULT_VARIABLE staple_result
@@ -153,6 +181,11 @@ if(DEFINED NOTARY_PROFILE AND NOT NOTARY_PROFILE STREQUAL "")
 	)
 	if(NOT staple_result STREQUAL "0")
 		message(FATAL_ERROR "Failed to staple ${APP_PATH}")
+	endif()
+	execute_process(COMMAND "${XCRUN_EXECUTABLE}" stapler validate "${APP_PATH}"
+		RESULT_VARIABLE validate_result)
+	if(NOT validate_result STREQUAL "0")
+		message(FATAL_ERROR "App notarization ticket validation failed")
 	endif()
 endif()
 
@@ -169,7 +202,13 @@ file(REMOVE "${DMG_PATH}")
 set(DMG_STAGING_DIRECTORY "${CMAKE_CACHEFILE_DIR}/${EXECUTABLE_NAME}-dmg-staging")
 file(REMOVE_RECURSE "${DMG_STAGING_DIRECTORY}")
 file(MAKE_DIRECTORY "${DMG_STAGING_DIRECTORY}")
-file(COPY "${APP_PATH}" DESTINATION "${DMG_STAGING_DIRECTORY}")
+execute_process(
+	COMMAND "${DITTO_EXECUTABLE}" "${APP_PATH}" "${DMG_STAGING_DIRECTORY}/${EXECUTABLE_NAME}.app"
+	RESULT_VARIABLE copy_result
+)
+if(NOT copy_result STREQUAL "0")
+	message(FATAL_ERROR "Failed to stage the signed app")
+endif()
 file(CREATE_LINK "/Applications"
 	"${DMG_STAGING_DIRECTORY}/Applications" SYMBOLIC)
 
@@ -201,17 +240,7 @@ if(DEFINED SIGN_IDENTITY AND NOT SIGN_IDENTITY STREQUAL "")
 endif()
 
 if(DEFINED NOTARY_PROFILE AND NOT NOTARY_PROFILE STREQUAL "")
-	execute_process(
-		COMMAND "${XCRUN_EXECUTABLE}" notarytool submit "${DMG_PATH}"
-			--keychain-profile "${NOTARY_PROFILE}"
-			${NOTARY_KEYCHAIN_ARGS}
-			--wait
-		RESULT_VARIABLE dmg_notary_result
-		COMMAND_ECHO STDOUT
-	)
-	if(NOT dmg_notary_result STREQUAL "0")
-		message(FATAL_ERROR "DMG notarization failed")
-	endif()
+	notarize_artifact("${DMG_PATH}")
 	execute_process(
 		COMMAND "${XCRUN_EXECUTABLE}" stapler staple "${DMG_PATH}"
 		RESULT_VARIABLE dmg_staple_result
@@ -219,6 +248,11 @@ if(DEFINED NOTARY_PROFILE AND NOT NOTARY_PROFILE STREQUAL "")
 	)
 	if(NOT dmg_staple_result STREQUAL "0")
 		message(FATAL_ERROR "Failed to staple ${DMG_PATH}")
+	endif()
+	execute_process(COMMAND "${XCRUN_EXECUTABLE}" stapler validate "${DMG_PATH}"
+		RESULT_VARIABLE validate_result)
+	if(NOT validate_result STREQUAL "0")
+		message(FATAL_ERROR "DMG notarization ticket validation failed")
 	endif()
 endif()
 

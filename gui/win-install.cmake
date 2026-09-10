@@ -22,10 +22,14 @@ find_program(WINDEPLOYQT_EXECUTABLE
 	REQUIRED
 )
 
+set(COMPILER_RUNTIME_OPTION --compiler-runtime)
+if(DEFINED ENV{MSYSTEM})
+	set(COMPILER_RUNTIME_OPTION --no-compiler-runtime)
+endif()
 execute_process(
 	COMMAND "${WINDEPLOYQT_EXECUTABLE}"
 		--release
-		--compiler-runtime
+		${COMPILER_RUNTIME_OPTION}
 		--no-translations
 		"${EXECUTABLE_PATH}"
 	WORKING_DIRECTORY "${BIN_DIR}"
@@ -34,6 +38,35 @@ execute_process(
 )
 if(NOT deploy_result STREQUAL "0")
 	message(FATAL_ERROR "windeployqt failed: ${deploy_result}")
+endif()
+
+# MSYS2 Qt/Clang needs libc++, libunwind, and winpthreads in addition to Qt.
+# Resolve the installed binaries' dependency closure using the matching tools.
+if(DEFINED ENV{MSYSTEM})
+	find_program(OBJDUMP_EXECUTABLE NAMES llvm-objdump objdump
+		HINTS "${TOOLCHAIN_RUNTIME_DIR}" "${QT_BIN_DIR}" REQUIRED)
+	set(CMAKE_GET_RUNTIME_DEPENDENCIES_PLATFORM "windows+pe")
+	set(CMAKE_GET_RUNTIME_DEPENDENCIES_TOOL "objdump")
+	set(CMAKE_GET_RUNTIME_DEPENDENCIES_COMMAND "${OBJDUMP_EXECUTABLE}")
+	file(GLOB_RECURSE deployed_dlls "${BIN_DIR}/*.dll")
+	file(GET_RUNTIME_DEPENDENCIES
+		EXECUTABLES "${EXECUTABLE_PATH}"
+		LIBRARIES ${deployed_dlls}
+		DIRECTORIES "${BIN_DIR}" "${QT_BIN_DIR}" "${TOOLCHAIN_RUNTIME_DIR}"
+		PRE_EXCLUDE_REGEXES "[Aa][Pp][Ii]-[Mm][Ss]-.*" "[Ee][Xx][Tt]-[Mm][Ss]-.*"
+		POST_EXCLUDE_REGEXES ".*[/\\\\][Ww][Ii][Nn][Dd][Oo][Ww][Ss][/\\\\].*"
+		RESOLVED_DEPENDENCIES_VAR runtime_dlls
+		UNRESOLVED_DEPENDENCIES_VAR missing_dlls
+	)
+	if(missing_dlls)
+		message(FATAL_ERROR "Unresolved Windows runtime dependencies: ${missing_dlls}")
+	endif()
+	foreach(runtime IN LISTS runtime_dlls)
+		get_filename_component(runtime_dir "${runtime}" DIRECTORY)
+		if(NOT runtime_dir STREQUAL BIN_DIR)
+			file(INSTALL "${runtime}" DESTINATION "${BIN_DIR}")
+		endif()
+	endforeach()
 endif()
 
 file(GLOB KBURN_DLLS LIST_DIRECTORIES FALSE "${BIN_DIR}/*kburn*.dll")

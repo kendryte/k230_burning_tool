@@ -28,6 +28,8 @@ set(K230_BURNING_MACOS_KEYCHAIN "" CACHE FILEPATH
 	"Optional keychain used for macOS signing and notarization")
 set(K230_BURNING_MACOS_DMG_PATH "" CACHE FILEPATH
 	"Optional output path for the packaged macOS DMG")
+option(K230_BURNING_MACOS_DEPLOY_ONLY
+	"Deploy the unsigned app for a separate signing runner without creating a DMG" OFF)
 
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
 	if(CMAKE_SYSTEM_NAME STREQUAL "Linux")

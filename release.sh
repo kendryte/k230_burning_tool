@@ -9,17 +9,21 @@ Builds, installs, validates, and packages the normal and Avalon variants.
 
 Environment variables:
   K230_BURNING_TARGET_OS       linux, macos, or windows (default: host OS)
+  K230_BURNING_TARGET_ARCH     optional artifact architecture label
   K230_BURNING_BUILD_DIR       build and artifact directory (default: ./build)
+  K230_BURNING_REVISION        optional artifact revision override
+  K230_BURNING_LINUX_DEPLOY_TOOL  linuxdeployqt (default) or linuxdeploy
   QT_CMAKE                     path to qt-cmake
   CMAKE_GENERATOR              default: Ninja when available, otherwise Makefiles
 
 macOS release variables:
   MACOS_SIGN_IDENTITY          required Developer ID Application identity
   MACOS_ARCHITECTURES          architecture list (default: current machine)
-  MACOS_DEPLOYMENT_TARGET      optional deployment target
+  MACOS_DEPLOYMENT_TARGET      deployment target (default: 13.0)
   MACOS_NOTARY_PROFILE         optional notarytool keychain profile
   MACOS_KEYCHAIN               optional dedicated signing/notarization keychain
   MACOS_ALLOW_UNSIGNED=1       CI validation only; marks artifacts as unsigned
+  MACOS_BUILD_ONLY=1           archive deployed unsigned apps for a signing runner
 EOF
 }
 
@@ -42,7 +46,8 @@ if [[ "$UNAME" == "darwin" ]]; then
   HOST_OS="macos"
 elif [[ "$UNAME" == "linux" ]]; then
   HOST_OS="linux"
-elif [[ "$UNAME" == *"mingw"* || "$UNAME" == *"msys"* || "$UNAME" == *"cygwin"* ]]; then
+elif [[ "$UNAME" == *"mingw"* || "$UNAME" == *"msys"* || "$UNAME" == *"cygwin"* ||
+        "$UNAME" == *"clang"* || "$UNAME" == *"ucrt"* ]]; then
   HOST_OS="windows"
 else
   echo "Unsupported OS: $UNAME"
@@ -57,8 +62,9 @@ case "$OS" in
     ;;
 esac
 
-if [[ "$OS" == "linux" ]] && ! command -v linuxdeployqt >/dev/null 2>&1; then
-  echo "linuxdeployqt is required to bundle the Linux Qt libraries." >&2
+LINUX_DEPLOY_TOOL=${K230_BURNING_LINUX_DEPLOY_TOOL:-linuxdeployqt}
+if [[ "$OS" == "linux" ]] && ! command -v "$LINUX_DEPLOY_TOOL" >/dev/null 2>&1; then
+  echo "$LINUX_DEPLOY_TOOL is required to bundle the Linux Qt libraries." >&2
   exit 1
 fi
 if [[ "$OS" == "linux" ]]; then
@@ -86,12 +92,19 @@ MACOS_SIGN_IDENTITY=${MACOS_SIGN_IDENTITY:-}
 MACOS_NOTARY_PROFILE=${MACOS_NOTARY_PROFILE:-}
 MACOS_KEYCHAIN=${MACOS_KEYCHAIN:-}
 if [[ "$OS" == "macos" ]]; then
+  MACOS_ARCHITECTURES=${MACOS_ARCHITECTURES:-$(uname -m)}
+  MACOS_DEPLOYMENT_TARGET=${MACOS_DEPLOYMENT_TARGET:-13.0}
   MACOS_SIGN_IDENTITY=$(printf '%s' "$MACOS_SIGN_IDENTITY" | tr -d '\r\n')
   MACOS_NOTARY_PROFILE=$(printf '%s' "$MACOS_NOTARY_PROFILE" | tr -d '\r\n')
   MACOS_KEYCHAIN=$(printf '%s' "$MACOS_KEYCHAIN" | tr -d '\r\n')
   export MACOS_SIGN_IDENTITY MACOS_NOTARY_PROFILE MACOS_KEYCHAIN
 fi
 if [[ "$OS" == "macos" ]]; then
+  if [[ "${MACOS_BUILD_ONLY:-0}" == "1" &&
+        ( -n "$MACOS_SIGN_IDENTITY" || -n "$MACOS_NOTARY_PROFILE" ) ]]; then
+    echo "MACOS_BUILD_ONLY cannot be combined with signing or notarization." >&2
+    exit 1
+  fi
   if [[ -z "$MACOS_SIGN_IDENTITY" && "${MACOS_ALLOW_UNSIGNED:-0}" != "1" ]]; then
     echo "MACOS_SIGN_IDENTITY is required for a macOS release." >&2
     echo "For CI-only validation, explicitly set MACOS_ALLOW_UNSIGNED=1." >&2
@@ -116,7 +129,7 @@ if [[ "$OS" == "macos" ]]; then
 fi
 
 # Get Git revision string
-REVISION=$(git -C "$REPO_ROOT" describe --long --tags --dirty --always || echo "unknown")
+REVISION=${K230_BURNING_REVISION:-$(git -C "$REPO_ROOT" describe --long --tags --dirty --always || echo "unknown")}
 ARTIFACT_REVISION=${REVISION//\//-}
 echo "Git revision: $REVISION"
 
@@ -163,6 +176,12 @@ build_variant() {
     fi
 
     ARTIFACTS_NAME="K230BurningTool_${OS}_${TARGET_SUFFIX}_${ARTIFACT_REVISION}"
+    if [[ -n "${K230_BURNING_TARGET_ARCH:-}" ]]; then
+        ARTIFACTS_NAME="K230BurningTool_${OS}_${K230_BURNING_TARGET_ARCH}_${TARGET_SUFFIX}_${ARTIFACT_REVISION}"
+    fi
+    if [[ "$OS" == "macos" ]]; then
+        ARTIFACTS_NAME="K230BurningTool_macos_${MACOS_ARCHITECTURES//;/+}_${TARGET_SUFFIX}_${ARTIFACT_REVISION}"
+    fi
     if [[ "$OS" == "macos" && -z "$MACOS_SIGN_IDENTITY" ]]; then
         ARTIFACTS_NAME+="_unsigned"
     fi
@@ -171,6 +190,9 @@ build_variant() {
         macos) ARTIFACT_PATH="${BUILD_ROOT}/${ARTIFACTS_NAME}.dmg" ;;
         linux) ARTIFACT_PATH="${BUILD_ROOT}/${ARTIFACTS_NAME}.tar.gz" ;;
     esac
+    if [[ "$OS" == "macos" && "${MACOS_BUILD_ONLY:-0}" == "1" ]]; then
+        ARTIFACT_PATH="${BUILD_ROOT}/${ARTIFACTS_NAME}.zip"
+    fi
     if [[ -e "$ARTIFACT_PATH" ]]; then
         cmake -E remove "$ARTIFACT_PATH"
     fi
@@ -184,11 +206,18 @@ build_variant() {
             "-DK230_BURNING_MACOS_NOTARY_PROFILE=$MACOS_NOTARY_PROFILE"
             "-DK230_BURNING_MACOS_KEYCHAIN=$MACOS_KEYCHAIN"
             "-DK230_BURNING_MACOS_DMG_PATH=$ARTIFACT_PATH"
+            "-DK230_BURNING_MACOS_DEPLOY_ONLY=${MACOS_BUILD_ONLY:-0}"
             "-DCMAKE_OSX_ARCHITECTURES=${MACOS_ARCHITECTURES:-$(uname -m)}"
         )
         if [[ -n "${MACOS_DEPLOYMENT_TARGET:-}" ]]; then
             CMAKE_EXTRA_ARGS+=("-DCMAKE_OSX_DEPLOYMENT_TARGET=$MACOS_DEPLOYMENT_TARGET")
         fi
+    fi
+    if [[ "$OS" == "linux" ]]; then
+        CMAKE_EXTRA_ARGS+=(
+            "-DK230_BURNING_LINUX_DEPLOY_TOOL=$LINUX_DEPLOY_TOOL"
+            "-DK230_BURNING_TARGET_ARCH=${K230_BURNING_TARGET_ARCH:-$(uname -m)}"
+        )
     fi
 
     # Configure
@@ -246,6 +275,9 @@ build_variant() {
             (cd "$VARIANT_INSTALL_DIR" && zip -r "$ARTIFACT_PATH" .)
             ;;
         macos)
+            if [[ "${MACOS_BUILD_ONLY:-0}" == "1" ]]; then
+                ditto -c -k --sequesterRsrc --keepParent "$VARIANT_INSTALL_DIR" "$ARTIFACT_PATH"
+            fi
             if [[ ! -f "$ARTIFACT_PATH" ]]; then
                 echo "macOS install step did not create $ARTIFACT_PATH" >&2
                 exit 1
@@ -261,7 +293,7 @@ build_variant() {
     esac
 
     CHECKSUM_PATH="${ARTIFACT_PATH}.sha256"
-    (cd "${ARTIFACT_PATH%/*}" && cmake -E sha256sum "${ARTIFACT_PATH##*/}") > "$CHECKSUM_PATH"
+    (cd "${ARTIFACT_PATH%/*}" && cmake -E sha256sum "${ARTIFACT_PATH##*/}" | tr -d '\r') > "$CHECKSUM_PATH"
 
     echo "Artifact created: $ARTIFACT_PATH"
     echo "Checksum created: $CHECKSUM_PATH"
