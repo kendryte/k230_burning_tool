@@ -5,9 +5,12 @@
 #include "MyException.h"
 #include <public/canaan-burn.h>
 #include <QFile>
+#include <QMutex>
 #include <QObject>
 #include <QRunnable>
 #include <QString>
+
+#include <atomic>
 
 #include "common/BurnImageItem.h"
 
@@ -17,9 +20,10 @@ class BurningProcess : public QObject, public QRunnable {
 	// QFile imageFile;
 	QList<struct BurnImageItem>	imageList;
 	class QByteArray *buffer = NULL;
-	bool _isCanceled = false;
-	bool _isStarted = false;
-	bool _isCompleted = false;
+	std::atomic_bool _isCanceled{false};
+	std::atomic_bool _isStarted{false};
+	std::atomic_bool _isCompleted{false};
+	mutable QMutex stateMutex;
 	KBurnException _result;
 
   protected:
@@ -28,12 +32,11 @@ class BurningProcess : public QObject, public QRunnable {
 	KBMonCTX scope;
 	bool isAutoCreate = false;
 
-	class QDataStream *imageStream = NULL;
-
 	void setResult(const KBurnException &reason);
 	void throwIfCancel();
 
 	void setStage(const QString &title, quint64 bytesToWrite = 0);
+	void setStageTitle(const QString &title);
 	void setProgress(quint64 writtenBytes);
 
 	virtual int prepare(QList<struct BurnImageItem>	&imageList, quint64 *total_size, quint64 *chunk_size, quint64 *blk_size) = 0;
@@ -55,11 +58,11 @@ class BurningProcess : public QObject, public QRunnable {
 	virtual QString getTitle() const { return "UNKNOWN JOB"; }
 	virtual const QString &getDetailInfo() const = 0;
 	virtual bool pollingDevice(kburnDeviceNode *node, BurnLibrary::DeviceEvent event) = 0;
-	const KBurnException &getReason() { return _result; }
+	KBurnException getReason() const;
 
-	bool isCanceled() const { return _isCanceled; }
-	bool isStarted() const { return _isStarted; }
-	bool isCompleted() const { return _isCompleted; }
+	bool isCanceled() const { return _isCanceled.load(std::memory_order_acquire); }
+	bool isStarted() const { return _isStarted.load(std::memory_order_acquire); }
+	bool isCompleted() const { return _isCompleted.load(std::memory_order_acquire); }
 
 	virtual void cancel(const KBurnException reason);
 	virtual void cancel();

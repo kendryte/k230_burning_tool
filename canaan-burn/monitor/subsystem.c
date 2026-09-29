@@ -13,8 +13,8 @@
 
 static void thread_libusb_handle_events(void *UNUSED(ctx), KBMonCTX monitor, const bool *const quit) {
 	struct timeval timeout = {
-		.tv_sec = 1,
-		.tv_usec = 0,
+		.tv_sec = 0,
+		.tv_usec = 100000,
 	};
 	while (!*quit) {
 		libusb_handle_events_timeout(monitor->usb->libusb, &timeout);
@@ -27,6 +27,16 @@ void usb_subsystem_deinit(KBMonCTX monitor) {
 		debug_print(KBURN_LOG_DEBUG, "  - already deinited");
 		return;
 	}
+
+	usb_monitor_pause(monitor);
+
+#ifndef WIN32
+	if (monitor->usb->libusb_thread) {
+		libusb_interrupt_event_handler(monitor->usb->libusb);
+		thread_destroy(monitor, monitor->usb->libusb_thread);
+		monitor->usb->libusb_thread = NULL;
+	}
+#endif
 
 	usb_monitor_destroy(monitor);
 

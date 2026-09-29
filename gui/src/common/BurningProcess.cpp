@@ -3,15 +3,20 @@
 #include "main.h"
 #include "MyException.h"
 #include <QByteArray>
-#include <QDataStream>
+#include <QByteArrayView>
+#include <QCryptographicHash>
 #include <QFile>
 #include <QFileInfo>
 #include <QFuture>
 #include <QPromise>
 #include <QThread>
 #include <QElapsedTimer>
+#include <QMutexLocker>
 
 #include "AppGlobalSetting.h"
+
+#include <algorithm>
+#include <limits>
 
 static QString formatTransferSpeed(double bytesPerSecond) {
 	if (bytesPerSecond >= 1024.0 * 1024.0) {
@@ -35,21 +40,26 @@ BurningProcess::BurningProcess(KBMonCTX scope, const BurningRequest *request)
 }
 
 BurningProcess::~BurningProcess() {
-	if (imageStream) {
-		delete imageStream;
-	}
 	if (buffer) {
 		delete buffer;
 	}
 }
 
 void BurningProcess::setResult(const KBurnException &reason) {
-	_result = reason;
+	QMutexLocker locker(&stateMutex);
+	if (!_isCanceled.load(std::memory_order_relaxed))
+		_result = reason;
+}
+
+KBurnException BurningProcess::getReason() const {
+	QMutexLocker locker(&stateMutex);
+	return _result;
 }
 
 void BurningProcess::schedule() {
-	if (!_isStarted && !_isCanceled) {
-		_isStarted = true;
+	bool expected = false;
+	if (!isCanceled() && _isStarted.compare_exchange_strong(
+			expected, true, std::memory_order_acq_rel)) {
 		BurnLibrary::instance()->getThreadPool()->start(this);
 	}
 }
@@ -67,7 +77,7 @@ void BurningProcess::_run() {
 
 	kburnUsbIspCommandTaget isp_target = (kburnUsbIspCommandTaget)GlobalSetting::flashTarget.getValue();
 
-	Q_ASSERT(_isStarted);
+	Q_ASSERT(isStarted());
 
 	QThread::currentThread()->setObjectName("burn:" + getTitle());
 
@@ -81,7 +91,9 @@ void BurningProcess::_run() {
 	timer.start();
 	qint64 lastSpeedUpdate = 0;
 
-	buffer = new QByteArray(chunk_size, 0);
+	if (chunk_size > static_cast<quint64>(std::numeric_limits<qsizetype>::max()))
+		throw KBurnException(tr("Device returned an excessive write chunk size"));
+	buffer = new QByteArray(static_cast<qsizetype>(chunk_size), 0);
 
 	foreach(struct BurnImageItem item, imageList) {
 		if(item.partName == QString("loader")) {
@@ -96,7 +108,14 @@ void BurningProcess::_run() {
 		if (!imageFile.open(QIODeviceBase::ReadOnly)) {
 			throw(KBurnException(::tr("Can't Open Image File") + " (" + item.fileName + ")"));
 		}
-		imageStream = new QDataStream(&imageFile);
+		if (!item.fileSize || item.dataSize > item.fileSize ||
+		    item.fileOffset > static_cast<quint64>(imageFile.size()) ||
+		    item.dataSize > static_cast<quint64>(imageFile.size()) - item.fileOffset ||
+		    item.fileOffset > static_cast<quint64>(std::numeric_limits<qint64>::max()) ||
+		    !imageFile.seek(static_cast<qint64>(item.fileOffset))) {
+			throw KBurnException(tr("Invalid image source range") +
+			                     " (" + item.fileName + ")");
+		}
 
 		address = item.partOffset;
 		if(false == begin(item)) {
@@ -111,11 +130,11 @@ void BurningProcess::_run() {
 
 			BurnLibrary::instance()->localLog(QStringLiteral("Flag: flag %1, val1 %2, val2 %3").arg(flag_flag).arg(flag_val1).arg(flag_val2));
 
-				if((KBURN_USB_ISP_SPI_NAND == isp_target) && (KBURN_FLAG_SPI_NAND_WRITE_WITH_OOB == flag_flag)) {
-					quint64 page_size_with_oob =
-						static_cast<quint64>(flag_val1) + flag_val2;
-					if (!page_size_with_oob || chunk_size <= page_size_with_oob)
-						throw KBurnException(tr("Invalid SPI NAND OOB chunk layout"));
+			if((KBURN_USB_ISP_SPI_NAND == isp_target) && (KBURN_FLAG_SPI_NAND_WRITE_WITH_OOB == flag_flag)) {
+				quint64 page_size_with_oob =
+					static_cast<quint64>(flag_val1) + flag_val2;
+				if (!page_size_with_oob || chunk_size / page_size_with_oob <= 1)
+					throw KBurnException(tr("Invalid SPI NAND OOB chunk layout"));
 
 				block_size_bak = block_size;
 				chunk_size_bak = chunk_size;
@@ -142,57 +161,85 @@ void BurningProcess::_run() {
 			}
 		}
 
-		while (!imageStream->atEnd()) {
+		quint64 logicalRemaining = item.fileSize;
+		quint64 dataRemaining = item.dataSize;
+		QCryptographicHash dataHash(QCryptographicHash::Sha256);
+
+		while (logicalRemaining) {
 			throwIfCancel();
 
-				int bytesRead = imageStream->readRawData(buffer->data(), buffer->size());
-				if (bytesRead <= 0) {
+			const quint64 logicalBytes = std::min<quint64>(
+				logicalRemaining, static_cast<quint64>(buffer->size()));
+			const quint64 dataBytes = std::min(logicalBytes, dataRemaining);
+			if (dataBytes) {
+				const qint64 bytesRead = imageFile.read(
+					buffer->data(), static_cast<qint64>(dataBytes));
+				if (bytesRead != static_cast<qint64>(dataBytes)) {
 					throw KBurnException(tr("Read image file failed") +
 							     " (" + item.fileName + ")");
 				}
-
-			if ((bytesRead > 0) && (bytesRead % block_size != 0)) {
-				memset(buffer->data() + bytesRead, 0, block_size - (bytesRead % block_size));
-				bytesRead += (block_size - (bytesRead % block_size)); // Update bytesRead to reflect the padded size
+				if (!item.dataSha256.isEmpty())
+					dataHash.addData(QByteArrayView(buffer->constData(), bytesRead));
+			}
+			if (logicalBytes > dataBytes) {
+				memset(buffer->data() + static_cast<qsizetype>(dataBytes),
+				       item.paddingValue,
+				       static_cast<size_t>(logicalBytes - dataBytes));
 			}
 
-				if (step(address, *buffer, bytesRead)) {
-					address += bytesRead;
+			quint64 transferBytes = logicalBytes;
+			if (transferBytes % block_size) {
+				const quint64 padding = block_size - transferBytes % block_size;
+				if (transferBytes + padding > static_cast<quint64>(buffer->size()))
+					throw KBurnException(tr("Invalid aligned write chunk size"));
+				memset(buffer->data() + static_cast<qsizetype>(transferBytes), 0,
+				       static_cast<size_t>(padding));
+				transferBytes += padding;
+			}
 
-					burned_size += bytesRead;
-					setProgress(burned_size);
+			if (step(address, *buffer, transferBytes)) {
+				address += transferBytes;
 
-					qint64 elapsed = timer.elapsed();
-					if (elapsed > 0 &&
-						(elapsed - lastSpeedUpdate >= 250 || burned_size >= total_size)) {
-						double bytesPerSecond = burned_size * 1000.0 / elapsed;
-						emit speedChanged(formatTransferSpeed(bytesPerSecond));
-						lastSpeedUpdate = elapsed;
-					}
-				} else {
+				burned_size += transferBytes;
+				setProgress(burned_size);
+
+				qint64 elapsed = timer.elapsed();
+				if (elapsed > 0 &&
+				    (elapsed - lastSpeedUpdate >= 250 || burned_size >= total_size)) {
+					double bytesPerSecond = burned_size * 1000.0 / elapsed;
+					emit speedChanged(formatTransferSpeed(bytesPerSecond));
+					lastSpeedUpdate = elapsed;
+				}
+			} else {
 				throw KBurnException(tr("Write File to Device failed") + tr(" at 0x") + QString::number(address, 16) + tr(", Message: ") + errormsg());
 			}
+
+			logicalRemaining -= logicalBytes;
+			dataRemaining -= dataBytes;
 		}
 		imageFile.close();
 
-		delete imageStream;
-		imageStream = nullptr;
-
-			if (!end(address)) {
-				throw KBurnException(tr("Finish writing file to device failed") +
-						     " (" + item.fileName + "), " + errormsg());
-			}
-
-			if (block_size_bak) {
-				block_size = block_size_bak;
-				block_size_bak = 0;
-			}
-			if (chunk_size_bak) {
-				chunk_size = chunk_size_bak;
-				buffer->resize(chunk_size);
-				chunk_size_bak = 0;
-			}
+		if (dataRemaining ||
+		    (!item.dataSha256.isEmpty() && dataHash.result() != item.dataSha256)) {
+			throw KBurnException(tr("Image SHA-256 mismatch") +
+			                     " (" + item.partName + ")");
 		}
+
+		if (!end(address)) {
+			throw KBurnException(tr("Finish writing file to device failed") +
+			                     " (" + item.fileName + "), " + errormsg());
+		}
+
+		if (block_size_bak) {
+			block_size = block_size_bak;
+			block_size_bak = 0;
+		}
+		if (chunk_size_bak) {
+			chunk_size = chunk_size_bak;
+			buffer->resize(chunk_size);
+			chunk_size_bak = 0;
+		}
+	}
 
 	qint64 elapsedTime = timer.elapsed();
 	double bytesPerSecond = elapsedTime > 0
@@ -221,15 +268,15 @@ void BurningProcess::run() Q_DECL_NOTHROW {
 	} catch (KBurnException &e) {
 		BurnLibrary::instance()->localLog(QStringLiteral("Burn failed: %1").arg(e.errorMessage));
 		setResult(e); // may get result after return
-		emit failed(_result);
+		emit failed(getReason());
 		cleanup(false);
 	} catch (...) {
 		BurnLibrary::instance()->localLog(QStringLiteral("Burn failed: unexpected exception"));
 		setResult(KBurnException("Unknown Error"));
-		emit failed(_result);
+		emit failed(getReason());
 		cleanup(false);
 	}
-	_isCompleted = true;
+	_isCompleted.store(true, std::memory_order_release);
 	emit finished();
 }
 
@@ -245,14 +292,24 @@ void BurningProcess::setStage(const QString &title, quint64 bytes) {
 	emit stageChanged(title);
 }
 
+void BurningProcess::setStageTitle(const QString &title) {
+	throwIfCancel();
+	emit stageChanged(title);
+}
+
 void BurningProcess::cancel(const KBurnException reason) {
-	if (!_isCanceled) {
-		_isCanceled = true;
-		if (_result.errorCode == KBurnNoErr) {
-			setResult(reason);
+	bool notify = false;
+	{
+		QMutexLocker locker(&stateMutex);
+		if (!_isCanceled.load(std::memory_order_relaxed)) {
+			if (_result.errorCode == KBurnNoErr)
+				_result = reason;
+			_isCanceled.store(true, std::memory_order_release);
+			notify = true;
 		}
-		emit cancelRequested();
 	}
+	if (notify)
+		emit cancelRequested();
 }
 
 void BurningProcess::cancel() {
@@ -260,10 +317,13 @@ void BurningProcess::cancel() {
 }
 
 void BurningProcess::throwIfCancel() {
-	if (_result.errorCode != KBurnNoErr) {
+	QMutexLocker locker(&stateMutex);
+	if (_isCanceled.load(std::memory_order_acquire)) {
+		throw _result.errorCode == KBurnNoErr
+			? KBurnException(KBurnCommonError::KBurnUserCancel,
+					 tr("User Canceled"))
+			: _result;
+	}
+	if (_result.errorCode != KBurnNoErr)
 		throw _result;
-	}
-	if (_isCanceled) {
-		throw KBurnException(tr("User Canceled"));
-	}
 }

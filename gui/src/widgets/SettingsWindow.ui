@@ -335,6 +335,16 @@
         </property>
        </widget>
       </item>
+      <item row="3" column="1">
+       <widget class="QCheckBox" name="inputVerifyAfterWrite">
+        <property name="toolTip">
+         <string>Read back written data and compare SHA-256. SPI NAND OOB images verify ECC-corrected page data; OOB bytes are not compared. This increases total burn time.</string>
+        </property>
+        <property name="text">
+         <string>Verify written data after burning (slower)</string>
+        </property>
+       </widget>
+      </item>
      </layout>
     </widget>
    </item>

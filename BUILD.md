@@ -78,6 +78,45 @@ versioned archives and metadata archives first, then publish `Updates.xml` last.
 CI does not deploy that server. The legacy `k230_burningtool_lastest.txt` file is
 retained in the separate `update-server-metadata` Actions artifact for deployment
 to the existing version-check server, not published among user packages.
+
+To download and stage the latest release in the layout used by
+`download.kendryte.com`, run:
+
+```bash
+python3 .github/scripts/prepare_server_upload.py
+```
+
+The script selects the latest published release and its successful tag workflow
+run from `kendryte/k230_burning_tool`. By default it creates a versioned,
+root-relative archive such as `k230-burning-tool-v2.2.6-server.tar.gz`. Extract
+it directly in the existing `k230_burningtool` server directory:
+
+```bash
+tar -xzf k230-burning-tool-v2.2.6-server.tar.gz \
+  -C /path/to/developer/tools/k230_burningtool
+```
+
+Pass a workflow run ID only when selecting a specific build. `--version` selects
+a specific release without requiring its run ID, `-o` changes the output path,
+`--zip` creates a ZIP, and `--directory` creates an unpacked tree. `--repo`
+remains available for forks.
+
+The archive has no wrapper directory. It writes the version directory, update
+channels, and `k230_burningtool_lastest.txt` directly beneath the extraction
+directory. Repository `Updates.xml` files are stored last in the archive so their
+payloads are extracted first. `--zip` is also supported, although `tar.gz` is
+preferred for the Linux server. Extraction overwrites matching files
+but does not remove old unreferenced repository payloads.
+
+The converter uses an authenticated GitHub CLI to download the published release
+assets plus only the three `ifw-repository-*` artifacts and
+`update-server-metadata` from the selected run. It verifies the SHA-256
+manifests, tag, and commit metadata, generates the version directory and its
+`.md5` sidecars, expands the IFW repositories under
+`<platform>/<arch>/normal/`, and copies the legacy metadata to the server root.
+The output path must not already exist. Review the staged
+tree before upload, and continue to publish each repository's `Updates.xml` after
+its other files.
 Keep channel URLs stable and bump the GUI project version for every update;
 rebuilding the same IFW component version does not constitute an update.
 Changing the repository base requires rebuilding installers or administering the

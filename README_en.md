@@ -53,6 +53,13 @@ K230 supports five storage media types:
 - **SPI NOR**: NOR flash connected to the `SPI` bus.
 - **OTP**: the chip's built-in OTP device.
 
+### Readback verification
+
+Enable **Verify written data after burning (slower)** in **Setting** to read
+each written partition back and compare its SHA-256 digest. The option is off by
+default and increases total burn time when enabled. SPI NAND writes containing
+explicit OOB data cannot use readback verification.
+
 ### Start
 
 After clicking **Start**, the tool searches for and waits for a connected

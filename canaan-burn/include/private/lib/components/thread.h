@@ -13,6 +13,7 @@ typedef struct thread_passing_object *kbthread;
 
 kburn_err_t thread_create(const char *debug_title, thread_function start_routine, void *context, KBMonCTX monitor, kbthread *out_thread);
 void thread_destroy(KBMonCTX monitor, kbthread thread);
+void thread_request_quit(kbthread thread);
 void thread_tell_quit(kbthread thread);
 void thread_resume(kbthread thread);
 

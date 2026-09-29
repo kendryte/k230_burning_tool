@@ -233,6 +233,51 @@ jobs:
             llvm-readobj --file-headers "$exe" | grep -F "$EXPECTED_PE_MACHINE"
           done
 
+      - name: Test Windows GUI shutdown
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $executable = (Resolve-Path "build/normal/install/bin/K230BurningTool.exe").Path
+          $process = Start-Process -FilePath $executable -PassThru
+          try {
+            if (-not $process.WaitForInputIdle(15000)) {
+              throw "K230BurningTool did not become ready"
+            }
+
+            # The USB monitor has a native message window before Qt shows the UI.
+            $windowDeadline = [DateTime]::UtcNow.AddSeconds(15)
+            do {
+              if ($process.HasExited) {
+                throw "K230BurningTool exited before showing its main window"
+              }
+              $process.Refresh()
+              $mainWindowReady = (
+                $process.MainWindowHandle -ne [IntPtr]::Zero -and
+                $process.MainWindowTitle -like "K230BurningTool*"
+              )
+              if (-not $mainWindowReady) {
+                Start-Sleep -Milliseconds 100
+              }
+            } while (-not $mainWindowReady -and [DateTime]::UtcNow -lt $windowDeadline)
+
+            if (-not $mainWindowReady) {
+              throw "K230BurningTool did not show its main window"
+            }
+            if (-not $process.CloseMainWindow()) {
+              throw "K230BurningTool main window did not accept close"
+            }
+            if (-not $process.WaitForExit(10000)) {
+              throw "K230BurningTool did not exit within 10 seconds"
+            }
+            if ($process.ExitCode -ne 0) {
+              throw "K230BurningTool exited with code $($process.ExitCode)"
+            }
+          } finally {
+            if (-not $process.HasExited) {
+              Stop-Process -Id $process.Id -Force
+            }
+          }
+
       - name: Collect artifacts
         run: |
           python3 .github/scripts/release_artifacts.py collect \

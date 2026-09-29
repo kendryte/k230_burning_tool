@@ -46,17 +46,36 @@ typedef struct thread_passing_object {
 	bool quit_signal;
 } thread_passing_object;
 
+void thread_request_quit(thread_passing_object *thread) {
+	kb_mutex_t event_lock = thread_get_event_lock(&thread->condition);
+	bool locked = event_lock && lock(event_lock);
+	thread->quit_signal = true;
+	if (thread->stage != THREAD_COMPLETE)
+		thread->stage = THREAD_QUITTING;
+	thread_fire_event(&thread->condition);
+	if (locked)
+		unlock(event_lock);
+}
+
 void thread_tell_quit(thread_passing_object *thread) {
-	autolock(thread_get_event_lock(&thread->condition));
+	thread_condition_t cond = NULL;
+	bool join_thread = false;
+	kb_mutex_t event_lock = thread_get_event_lock(&thread->condition);
+	bool locked = event_lock && lock(event_lock);
 
 	thread->quit_signal = true;
 	if (thread->stage != THREAD_COMPLETE) {
 		thread->stage = THREAD_QUITTING;
 
-		thread_condition_t cond = thread->condition;
+		cond = thread->condition;
 		thread->condition = NULL;
 		thread_fire_event(&cond);
+		join_thread = true;
+	}
+	if (locked)
+		unlock(event_lock);
 
+	if (join_thread) {
 		pthread_join(thread->thread, NULL);
 		thread_condition_deinit(&cond);
 	}
@@ -81,8 +100,11 @@ static DECALRE_DISPOSE(_destroy_thread, thread_passing_object) {
 		break;
 	case THREAD_QUITTING:
 		pthread_join(context->thread, NULL);
+		thread_condition_deinit(&context->condition);
 		break;
 	case THREAD_COMPLETE:
+		pthread_join(context->thread, NULL);
+		thread_condition_deinit(&context->condition);
 		break;
 	default:
 		m_abort("invalid thread state");

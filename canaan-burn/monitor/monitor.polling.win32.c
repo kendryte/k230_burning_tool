@@ -228,7 +228,7 @@ static void usb_monitor_polling_thread(void *UNUSED(context), KBMonCTX monitor, 
 
 	// Step 3: The Message Loop
 	MSG Msg;
-	while (GetMessage(&Msg, NULL, 0, 0) > 0 && !*quit) {
+	while (!*quit && GetMessage(&Msg, NULL, 0, 0) > 0) {
 		TranslateMessage(&Msg);
 		DispatchMessage(&Msg);
 		debug_print(KBURN_LOG_TRACE, "WindowMessage: %d", Msg.message);
@@ -275,16 +275,20 @@ void usb_monitor_polling_destroy(KBMonCTX monitor) {
 	if (!monitor->usb->polling_context)
 		return;
 
-	if (monitor->usb->polling_context->window) {
-		// ?
+	struct polling_context *context = monitor->usb->polling_context;
+
+	if (context->thread) {
+		/* GetMessage() must be woken before thread_destroy() waits for exit. */
+		thread_request_quit(context->thread);
+		quit_windows_thread(monitor->threads, context);
+		dispose_list_cancel(
+			monitor->threads,
+			toDisposable(unset_pointer, (void **)&context->thread));
+		thread_destroy(monitor, context->thread);
+		context->thread = NULL;
 	}
 
-	if (monitor->usb->polling_context->thread) {
-		thread_destroy(monitor, monitor->usb->polling_context->thread);
-		monitor->usb->polling_context->thread = NULL;
-	}
-
-	free(monitor->usb->polling_context);
+	free(context);
 	monitor->usb->polling_context = NULL;
 }
 

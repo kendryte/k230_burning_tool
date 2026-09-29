@@ -12,6 +12,7 @@ class MacOSDistributionTests(unittest.TestCase):
     def setUpClass(cls):
         cls.workflow = (ROOT / ".github/workflows/build.yml").read_text()
         cls.packager = (ROOT / "gui/mac-install.cmake").read_text()
+        cls.cmake = (ROOT / "gui/CMakeLists.txt").read_text()
         cls.logger = (ROOT / "gui/src/widgets/LoggerWindow.cpp").read_text()
 
     def test_branch_and_tag_builds_use_the_signing_job(self):
@@ -41,6 +42,17 @@ class MacOSDistributionTests(unittest.TestCase):
     def test_macos_log_is_outside_the_signed_app_bundle(self):
         self.assertIn("#ifdef Q_OS_MACOS", self.logger)
         self.assertIn("QStandardPaths::AppLocalDataLocation", self.logger)
+
+    def test_missing_legacy_agl_framework_is_removed_from_qt_dependencies(self):
+        self.assertIn(
+            '"(^|.*/)AGL\\\\.framework(/.*)?$"',
+            self.cmake,
+        )
+        self.assertIn(
+            'list(REMOVE_ITEM K230_QT_OPENGL_LIBRARIES "-framework AGL")',
+            self.cmake,
+        )
+        self.assertNotIn("find_library(K230_AGL_FRAMEWORK AGL)", self.cmake)
 
 
 if __name__ == "__main__":

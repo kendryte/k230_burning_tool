@@ -11,7 +11,6 @@
 #include <QTimer>
 #include <QAction>
 #include <QtAlgorithms>
-#include <QEventLoop>
 
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -303,7 +302,7 @@ static QString getDefaultLoader(QString &target)
 		return QString(":/loader/loader_mmc.bin");
 	}
 	else if(target == QString("OTP")) {
-		return QString(":/loader/loader_spi_nor.bin");
+		return QString(":/loader/loader_otp.bin");
 	}
 	else if(target == QString("SPI NAND")) {
 		return QString(":/loader/loader_spi_nand.bin");
@@ -316,7 +315,7 @@ static QString getDefaultLoader(QString &target)
 	}
 }
 
-static QString convertFileSize(qint64 size) {
+static QString convertFileSize(quint64 size) {
     if (size < 1024) {
         return QString::number(size) + " bytes";
     } else if (size < 1024 * 1024) {
@@ -358,12 +357,19 @@ QList<struct BurnImageItem> BurningControlWindow::getImageListFromTableView() {
 		struct BurnImageItem item;
 
 		QFile imageFile(dft_loader);
+		const qint64 loaderSize = imageFile.size();
+		if (loaderSize <= 0) {
+			BurnLibrary::instance()->localLog(
+				QStringLiteral("Invalid default loader: %1").arg(dft_loader));
+			return {};
+		}
 
 		item.partName = QString("loader");
 		item.partOffset = 0;
 		item.partSize = 0; // no limit
 		item.fileName = imageFile.fileName();
-		item.fileSize = imageFile.size();
+		item.fileSize = static_cast<quint64>(loaderSize);
+		item.dataSize = item.fileSize;
 
 		itemList.append(item);
 	}
@@ -413,7 +419,10 @@ bool BurningControlWindow::applyImageListToTableView() {
 		tableModel->setData(index, true, Qt::UserRole);
 
 		tableModel->setItem(rowCount, TABLEVIEW_COL_PART_NAME, new QStandardItem(item.partName));
-		tableModel->setItem(rowCount, TABLEVIEW_COL_PART_OFFSET, new QStandardItem(QString("0x") + QString("%1").arg(item.partOffset, 8, 16, QLatin1Char('0')).toUpper()));
+		tableModel->setItem(rowCount, TABLEVIEW_COL_PART_OFFSET,
+			new QStandardItem(QString("0x") +
+				QString("%1").arg(static_cast<qulonglong>(item.partOffset),
+						 8, 16, QLatin1Char('0')).toUpper()));
 		tableModel->setItem(rowCount, TABLEVIEW_COL_FILE_SIZE, new QStandardItem(convertFileSize(item.fileSize)));
 
 		rowCount++;
@@ -451,12 +460,20 @@ bool BurningControlWindow::parseImage() {
 		// add image
 		imageFile.setFileName(currentImagePath);
 
+		const qint64 rawImageSize = imageFile.size();
+		if (rawImageSize <= 0) {
+			BurnLibrary::instance()->localLog(
+				QStringLiteral("Image is empty or unreadable: %1").arg(currentImagePath));
+			return false;
+		}
+
 		item.partName = QString("image");
 		item.partOffset = 0x00;
 		item.partSize = 0; // Raw images have no declared partition limit.
         item.partEraseSize = 0x00;
 		item.fileName = imageFile.fileName();
-		item.fileSize = imageFile.size();
+		item.fileSize = static_cast<quint64>(rawImageSize);
+		item.dataSize = item.fileSize;
 
 		imageList.append(item);
 
@@ -466,62 +483,16 @@ bool BurningControlWindow::parseImage() {
 	return false;
 }
 
-static bool copyPartOfFile(const QString& sourceFilePath, const QString& destinationFilePath, qint64 offset, qint64 size) {
-    QFile sourceFile(sourceFilePath);
-    QFile destinationFile(destinationFilePath);
-
-    // Open the source file in read-only mode
-    if (!sourceFile.open(QIODevice::ReadOnly)) {
-		BurnLibrary::instance()->localLog(QStringLiteral("Could not open source file: %1").arg(sourceFilePath));
-        return false;
-    }
-
-    // Seek to the specified offset in the source file
-    if (!sourceFile.seek(offset)) {
-		BurnLibrary::instance()->localLog(QStringLiteral("Could not seek to offset %1 in source file.").arg(offset));
-        return false;
-    }
-
-    // Open the destination file in write-only mode
-    if (!destinationFile.open(QIODevice::WriteOnly)) {
-		BurnLibrary::instance()->localLog(QStringLiteral("Could not open destination file: %1").arg(destinationFilePath));
-        return false;
-    }
-
-    // Read the required data from the source file
-    QByteArray data = sourceFile.read(size);
-    if (data.size() != size) {
-		BurnLibrary::instance()->localLog(QStringLiteral("Could not read enough data. Expected %1 bytes, but got %2.").arg(size).arg(data.size()));
-        return false;
-    }
-
-    // Write the data to the destination file
-    qint64 bytesWritten = destinationFile.write(data);
-    if (bytesWritten != size) {
-		BurnLibrary::instance()->localLog(QStringLiteral("Error writing to destination file. Expected %1 bytes, but wrote %2.").arg(size).arg(bytesWritten));
-        return false;
-    }
-
-	BurnLibrary::instance()->localLog(QStringLiteral("Successfully extract %1 bytes from %2 to %3.").arg(size).arg(sourceFilePath).arg(destinationFilePath));
-
-    // Close both files
-    sourceFile.close();
-    destinationFile.close();
-
-    return true;
-}
-
 bool BurningControlWindow::parseKdimageToImageList(QString &imagePath) {
-    struct kd_img_hdr_t hdr;
+	struct kd_img_hdr_t hdr;
 	QList<struct kd_img_part_t> parts;
-	bool haveLoaderPart = false;
 
 	QFile imageFile(imagePath);
 
-    if (!imageFile.open(QIODevice::ReadOnly | QIODevice::Unbuffered)) {
+	if (!imageFile.open(QIODevice::ReadOnly)) {
 		BurnLibrary::instance()->localLog(QStringLiteral("Could not open kdimage file: %1").arg(imagePath));
-        return false;
-    }
+		return false;
+	}
 
 	if(0x00 != parseKdImage(imageFile, hdr, parts)) {
 		imageFile.close();
@@ -529,74 +500,14 @@ bool BurningControlWindow::parseKdimageToImageList(QString &imagePath) {
         return false;
 	}
 
-	if(compareKdImage(hdr, parts, lastKdImageHdr, lastKdImageParts)) {
+	if (!buildKdImageItemList(imageFile, parts, imageList)) {
 		imageFile.close();
-		BurnLibrary::instance()->localLog(QStringLiteral("Same KdImage %1").arg(imagePath));
-
-		imageList = lastKdImageList;
-		return applyImageListToTableView();
-	}
-
-	{
-		bool result = false;
-
-		// Create a tips message box
-		QMessageBox* msgBox = new QMessageBox(QMessageBox::Information, 
-                                      "Tips", 
-                                      "Processing the image, please wait...", 
-                                      QMessageBox::NoButton, this);
-		msgBox->setModal(true); // Make sure the dialog is modal
-		msgBox->setStandardButtons(QMessageBox::NoButton);  
-		msgBox->show();         // Show the dialog
-
-		// Create a worker object and a thread to run it in
-		ExtractKdImageWorker* worker = new ExtractKdImageWorker();
-		QThread* workerThread = new QThread();
-
-		// Move the worker object to the new thread
-		worker->moveToThread(workerThread);
-
-		// Connect signals and slots
-		QObject::connect(workerThread, &QThread::started, [this, worker, &imageFile, &parts]() {
-			// Start the long-running task once the thread is started
-			worker->extractKdImage(imageFile, parts, lastKdImageParts, imageList, lastKdImageList);
-		});
-
-		// Connect the taskCompleted signal to handle the completion
-		QObject::connect(worker, &ExtractKdImageWorker::taskCompleted, [worker, &msgBox, &result, &workerThread](bool taskResult) {
-			result = taskResult;  // Capture the result
-
-			// Close the message box once the task is complete
-			msgBox->accept();
-			msgBox->deleteLater();
-
-			// Cleanup: quit the worker thread
-			workerThread->quit();
-			workerThread->wait();  // Wait until the thread has finished processing
-			worker->deleteLater();
-			workerThread->deleteLater();
-		});
-
-	    QEventLoop loop;
-    	QObject::connect(worker, &ExtractKdImageWorker::taskCompleted, &loop, &QEventLoop::quit);
-
-		// Start the worker thread
-		workerThread->start();
-
-		loop.exec();
-
-		if(false == result) {
-			imageFile.close();
-			BurnLibrary::instance()->localLog(QStringLiteral("Can not extract KdImage %1").arg(imagePath));
-			return false;
-		}
+		BurnLibrary::instance()->localLog(
+			QStringLiteral("Can not build KdImage partition list %1").arg(imagePath));
+		return false;
 	}
 
 	imageFile.close();
-
-	lastKdImageHdr = hdr;
-	lastKdImageParts = parts;
-	lastKdImageList = imageList;
 
 	return applyImageListToTableView();
 }

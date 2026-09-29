@@ -39,6 +39,7 @@ SettingsWindow::SettingsWindow(QWidget *parent)
 	GlobalSetting::autoConfirmEvenErrorTimeout.connectSpinBox(ui->inputAutoConfirmEvenErrorTimeout);
 
 	GlobalSetting::autoResetChipAfterBurn.connectCheckBox(ui->inputEnableAutoResetChip);
+	GlobalSetting::verifyAfterWrite.connectCheckBox(ui->inputVerifyAfterWrite);
 	GlobalSetting::disableUpdate.connectCheckBox(ui->inputDisableUpdate);
 	// GlobalSetting::watchVid.connectSpinBox(ui->inputWatchVid);
 	// GlobalSetting::watchPid.connectSpinBox(ui->inputWatchPid);

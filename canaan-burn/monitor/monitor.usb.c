@@ -117,32 +117,40 @@ void pump_libusb_event(KBMonCTX UNUSED(monitor), void *recv) {
 }
 
 void push_libusb_event(KBMonCTX monitor, libusb_hotplug_event event, const struct kburnUsbDeviceInfoSlice *devInfo) {
+	if (!monitor || !monitor->usb || !monitor->usb->event_queue) {
+		debug_print(KBURN_LOG_WARN, "ignore libusb event after monitor shutdown");
+		return;
+	}
+
 	struct passing_data *data = calloc(1, sizeof(struct passing_data));
 	if (data == NULL) {
 		debug_print(KBURN_LOG_ERROR, "memory error in libusb event thread");
+		return;
 	}
 	data->monitor = monitor;
 	data->dev = *devInfo;
 	data->event = event;
-	event_thread_queue(monitor->usb->event_queue, data, false);
+	if (event_thread_queue(monitor->usb->event_queue, data, false) != KBurnNoErr) {
+		free(data);
+	}
 }
 
 void usb_monitor_destroy(KBMonCTX monitor) {
 	if (!monitor->usb->monitor_prepared) {
 		return;
 	}
-	monitor->usb->monitor_prepared = false;
+	if (monitor->usb->event_mode == USB_EVENT_CALLBACK) {
+		usb_monitor_callback_destroy(monitor);
+	} else {
+		usb_monitor_polling_destroy(monitor);
+	}
 
 	if (monitor->usb->event_queue) {
 		event_thread_deinit(monitor, &monitor->usb->event_queue);
 		monitor->usb->event_queue = NULL;
 	}
 
-	if (monitor->usb->event_mode == USB_EVENT_CALLBACK) {
-		usb_monitor_callback_destroy(monitor);
-	} else {
-		usb_monitor_polling_destroy(monitor);
-	}
+	monitor->usb->monitor_prepared = false;
 }
 
 kburn_err_t usb_monitor_prepare(KBMonCTX monitor) {
@@ -182,13 +190,14 @@ kburn_err_t usb_monitor_prepare(KBMonCTX monitor) {
 void usb_monitor_pause(KBMonCTX monitor) {
 	debug_trace_function();
 	if (monitor->usb->monitor_enabled) {
+		monitor->usb->monitor_enabled = false;
+
 		if (monitor->usb->event_mode == USB_EVENT_CALLBACK) {
 			usb_monitor_callback_pause(monitor);
 		} else {
 			usb_monitor_polling_pause(monitor);
 		}
 
-		monitor->usb->monitor_enabled = false;
 		debug_print(KBURN_LOG_INFO, "USB monitor disabled");
 	}
 }
@@ -206,10 +215,16 @@ kburn_err_t usb_monitor_resume(KBMonCTX monitor) {
 		}
 	}
 
+	monitor->usb->monitor_enabled = true;
+	kburn_err_t result;
 	if (monitor->usb->event_mode == USB_EVENT_CALLBACK) {
-		IfErrorReturn(usb_monitor_callback_resume(monitor));
+		result = usb_monitor_callback_resume(monitor);
 	} else {
-		IfErrorReturn(usb_monitor_polling_resume(monitor));
+		result = usb_monitor_polling_resume(monitor);
+	}
+	if (result != KBurnNoErr) {
+		monitor->usb->monitor_enabled = false;
+		return result;
 	}
 
 	return KBurnNoErr;

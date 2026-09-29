@@ -16,9 +16,10 @@ typedef struct kburn_t kburn_t;
 
 PUBLIC kburn_t *kburn_create(kburnDeviceNode *node);
 PUBLIC void kburn_destory(kburn_t *kburn);
+PUBLIC void kburn_cancel(kburn_t *kburn);
 
 PUBLIC void kburn_reset_chip(kburn_t *kburn);
-PUBLIC void kburn_nop(struct kburn_t *kburn);
+PUBLIC bool kburn_nop(struct kburn_t *kburn);
 PUBLIC bool kburn_probe(kburn_t *kburn, kburnUsbIspCommandTaget target, uint64_t *chunk_size);
 
 PUBLIC kburnUsbIspCommandTaget kburn_get_medium_type(struct kburn_t *kburn);
@@ -26,12 +27,17 @@ PUBLIC uint64_t kburn_get_capacity(kburn_t *kburn);
 PUBLIC uint64_t kburn_get_erase_size(struct kburn_t *kburn);
 PUBLIC bool kburn_parse_erase_config(struct kburn_t *kburn, uint64_t *offset, uint64_t *size);
 PUBLIC uint64_t kburn_get_medium_blk_size(struct kburn_t *kburn);
+PUBLIC bool kburn_supports_verify(const struct kburn_t *kburn);
 
 PUBLIC bool kburn_erase(struct kburn_t *kburn, uint64_t offset, uint64_t size, int max_retry);
 
 PUBLIC bool kburn_write_start(struct kburn_t *kburn, uint64_t part_offset, uint64_t part_size, uint64_t part_flag, uint64_t file_size);
 PUBLIC bool kburn_write_chunk(struct kburn_t *kburn, void *data, uint64_t size);
 PUBLIC bool kbrun_write_end(struct kburn_t *kburn);
+PUBLIC bool kburn_verify_sha256(struct kburn_t *kburn, uint64_t offset,
+				uint64_t size,
+				const uint8_t expected_digest[32],
+				uint64_t *elapsed_ms);
 
 PUBLIC char *kburn_get_error_msg(kburn_t *kburn);
 

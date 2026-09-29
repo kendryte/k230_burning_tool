@@ -12,7 +12,12 @@
 #include <QEventLoop>
 #include <QTimer>
 
+#include <cstdlib>
+
 BurnLibrary::~BurnLibrary() {
+	if (ctx)
+		kburnMonitorWaitDevicePause(ctx);
+
 	kburnSetColors(previousColors);
 
 	kburnSetLogCallback(previousOnDebugLog.handler, previousOnDebugLog.context);
@@ -22,8 +27,20 @@ BurnLibrary::~BurnLibrary() {
 	kburnOnDeviceDisconnect(ctx, previousOnDisconnect.handler, previousOnDisconnect.context);
 	kburnOnDeviceConfirmed(ctx, previousOnConfirmed.handler, previousOnConfirmed.context);
 
-	_pool->waitForDone(5000);
+	const KBurnException shutdownReason(
+		KBurnCommonError::KBurnUserCancel, ::tr("Application is closing"));
+	for (auto *job : jobs)
+		job->cancel(shutdownReason);
+	_pool->clear();
+	if (!_pool->waitForDone(5000)) {
+		qCritical("Burn jobs did not stop during shutdown; forcing process exit.");
+		std::_Exit(EXIT_SUCCESS);
+	}
 	delete _pool;
+
+	if (ctx)
+		kburnMonitorDestroy(ctx);
+	ctx = nullptr;
 }
 
 BurnLibrary::BurnLibrary(QWidget *parent) : parent(parent) {

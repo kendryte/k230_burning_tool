@@ -12,6 +12,9 @@
 static int on_libusb_hotplug_event(struct libusb_context *UNUSED(ctx), struct libusb_device *dev, libusb_hotplug_event event, void *user_data) {
 	KBMonCTX monitor = user_data;
 	kburnUsbDeviceInfoSlice devInfo;
+	if (!monitor || !monitor->usb || !monitor->usb->monitor_enabled || !monitor->usb->event_queue) {
+		return 0;
+	}
 
 	if (LIBUSB_HOTPLUG_EVENT_DEVICE_ARRIVED == event) {
 		debug_print(KBURN_LOG_DEBUG, "libusb event: " COLOR_FMT("ARRIVED"), COLOR_ARG(GREEN));
@@ -35,7 +38,9 @@ static int on_libusb_hotplug_event(struct libusb_context *UNUSED(ctx), struct li
 		debug_print(KBURN_LOG_WARN, "Unhandled event %d\n", event);
 	}
 
-	event_thread_fire(monitor->usb->event_queue);
+	if (monitor->usb->event_queue) {
+		event_thread_fire(monitor->usb->event_queue);
+	}
 
 	return 0;
 }

@@ -2,7 +2,6 @@
 
 #include <QFile>
 #include <QList>
-#include <QThread>
 
 #include "BurnImageItem.h"
 
@@ -56,26 +55,8 @@ struct alignas(256) kd_img_part_t {
 };
 static_assert(sizeof(struct kd_img_part_t) == 256, "Size of kd_img_part_t struct is not 256 bytes!");
 
-int parseKdImage(QFile &imageFile, struct kd_img_hdr_t& hdr, QList<struct kd_img_part_t> & parts);
-
-bool compareKdImage(struct kd_img_hdr_t& current_hdr, QList<struct kd_img_part_t> & current_parts,
-        struct kd_img_hdr_t& last_hdr, QList<struct kd_img_part_t> & last_parts);
-
-bool extractKdImageToBurnImageItemList(QFile &imageFile, QList<struct kd_img_part_t> &parts, QList<struct kd_img_part_t> &lastParts, QList<struct BurnImageItem> &list, QList<struct BurnImageItem> &lastList);
-
-class ExtractKdImageWorker : public QObject {
-    Q_OBJECT
-
-public:
-    ExtractKdImageWorker() {}
-    ~ExtractKdImageWorker() {}
-
-public slots:
-    void extractKdImage(QFile &imageFile, QList<struct kd_img_part_t> &parts, QList<struct kd_img_part_t> &lastParts, QList<struct BurnImageItem> &list, QList<struct BurnImageItem> &lastList) {
-	    bool result = extractKdImageToBurnImageItemList(imageFile, parts, lastParts, list, lastList);
-        emit taskCompleted(result);
-    }
-
-signals:
-    void taskCompleted(bool result);
-};
+int parseKdImage(QFile &imageFile, struct kd_img_hdr_t& hdr,
+                 QList<struct kd_img_part_t> &parts);
+bool buildKdImageItemList(const QFile &imageFile,
+                          const QList<struct kd_img_part_t> &parts,
+                          QList<struct BurnImageItem> &list);

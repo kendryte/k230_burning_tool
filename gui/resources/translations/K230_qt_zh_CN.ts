@@ -168,6 +168,14 @@
         <translation>写入Loader失败</translation>
     </message>
     <message>
+        <source>Loader does not support verification</source>
+        <translation>Loader 不支持校验</translation>
+    </message>
+    <message>
+        <source>Verifying...</source>
+        <translation>校验中...</translation>
+    </message>
+    <message>
         <location filename="../../src/common/BurnLibrary.cpp" line="69"/>
         <source>System Error:</source>
         <translation>系统错误：</translation>
@@ -725,6 +733,14 @@
         <location filename="../../src/widgets/SettingsWindow.ui" line="334"/>
         <source>No Internet connection (no update prompt)</source>
         <translation>禁止联网（无更新提示）</translation>
+    </message>
+    <message>
+        <source>Read back written data and compare SHA-256. SPI NAND OOB images verify ECC-corrected page data; OOB bytes are not compared. This increases total burn time.</source>
+        <translation>回读已写入的数据并比较 SHA-256。对于包含 OOB 的 SPI NAND 镜像，将校验 ECC 纠正后的页数据，不比较 OOB 字节。这会增加总烧录时间。</translation>
+    </message>
+    <message>
+        <source>Verify written data after burning (slower)</source>
+        <translation>烧录后校验写入数据（较慢）</translation>
     </message>
 </context>
 <context>

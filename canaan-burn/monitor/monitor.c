@@ -83,6 +83,9 @@ void kburnMonitorDestroy(KBMonCTX monitor) {
 	if (monitor_global_monitor == NULL) {
 		return;
 	}
+	if (monitor->usb->subsystem_inited) {
+		usb_subsystem_deinit(monitor);
+	}
 	dispose(bindToList(monitor_global_monitor, toDisposable(dispose_all_and_deinit, monitor->threads)));
 	dispose(bindToList(monitor_global_monitor, toDisposable(dispose_all_and_deinit, monitor->disposables)));
 }

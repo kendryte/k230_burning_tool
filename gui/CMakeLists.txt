@@ -33,7 +33,7 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # when bump version, chane here
-project(K230BurningTool VERSION 2.2.5 LANGUAGES CXX)
+project(K230BurningTool VERSION 2.2.6 LANGUAGES CXX)
 
 set(MY_VERSION $DATE)
 string(TIMESTAMP MY_VERSION_STRING "%Y-%m-%d %H:%M")
@@ -45,6 +45,20 @@ find_package(
 	Qt6
 	COMPONENTS Widgets LinguistTools Network Svg
 	REQUIRED)
+
+# Qt 6.6 may resolve AGL from /System even when that framework is only a broken
+# compatibility stub and is absent from the active macOS SDK.
+if(APPLE AND TARGET WrapOpenGL::WrapOpenGL)
+	get_target_property(K230_QT_OPENGL_LIBRARIES
+		WrapOpenGL::WrapOpenGL INTERFACE_LINK_LIBRARIES)
+	if(K230_QT_OPENGL_LIBRARIES)
+		list(FILTER K230_QT_OPENGL_LIBRARIES EXCLUDE REGEX
+			"(^|.*/)AGL\\.framework(/.*)?$")
+		list(REMOVE_ITEM K230_QT_OPENGL_LIBRARIES "-framework AGL")
+		set_property(TARGET WrapOpenGL::WrapOpenGL PROPERTY
+			INTERFACE_LINK_LIBRARIES "${K230_QT_OPENGL_LIBRARIES}")
+	endif()
+endif()
 
 # Print the Qt installation directory
 get_target_property(QtCore_location Qt6::Core IMPORTED_LOCATION)

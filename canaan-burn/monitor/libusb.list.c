@@ -76,11 +76,8 @@ kburn_err_t init_list_all_usb_devices(KBMonCTX monitor) {
 			}
 
 			if(!CALL_HANDLE_SYNC(monitor->on_before_open, usb_debug_path_string(path))) {
-				libusb_free_device_list(list, true);
-
-				debug_print(KBURN_LOG_ERROR, COLOR_FMT("on_before_open no burn process canceled"), RED);
-
-				return KBurnNoErr;
+				debug_print(KBURN_LOG_DEBUG, "on_before_open rejected path %s", usb_debug_path_string(path));
+				continue;
 			}
 
 			int ret = usb_get_vid_pid_path(dev, &devInfo.idVendor, &devInfo.idProduct, devInfo.path);

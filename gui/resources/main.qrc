@@ -26,6 +26,7 @@
         <file>sliders-solid.svg</file>
         <file>exit.svg</file>
         <file>loader/loader_mmc.bin</file>
+        <file>loader/loader_otp.bin</file>
         <file>loader/loader_spi_nand.bin</file>
         <file>loader/loader_spi_nor.bin</file>
     </qresource>

@@ -8,10 +8,11 @@ EventStack::EventStack(int size) : list(QList<void *>(size, NULL)) {
 void EventStack::set(unsigned int index, void *data) {
 	Q_ASSERT(data != NULL);
 
-	if (canceled)
-		return;
-
 	mutex.lock();
+	if (canceled) {
+		mutex.unlock();
+		return;
+	}
 	list[index] = data;
 	mutex.unlock();
 
@@ -19,7 +20,9 @@ void EventStack::set(unsigned int index, void *data) {
 }
 
 void EventStack::cancel() {
-	this->canceled = true;
+	mutex.lock();
+	canceled = true;
+	mutex.unlock();
 	cond.wakeAll();
 }
 

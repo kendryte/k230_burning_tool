@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QByteArray>
 #include <QString>
 #include <QList>
 
@@ -18,11 +19,15 @@ struct BurnImageItem
     }
 
 	QString partName;
-	uint32_t partOffset = 0;
-	uint32_t partSize = 0;
-	uint32_t partEraseSize = 0;
+	quint64 partOffset = 0;
+	quint64 partSize = 0;
+	quint64 partEraseSize = 0;
 	uint64_t partFlag = 0;
 
-	QString fileName; 
-	uint32_t fileSize = 0;
+	QString fileName;
+	quint64 fileOffset = 0;
+	quint64 dataSize = 0;
+	quint64 fileSize = 0;
+	quint8 paddingValue = 0;
+	QByteArray dataSha256;
 };
