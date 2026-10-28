@@ -1,5 +1,12 @@
 # K230 BurningTool
 
+## 2.2.8 - 2026-10-28
+
+### Changed
+
+- Updated the embedded MMC, OTP, SPI NAND, and SPI NOR loaders.
+- Updated eMMC HS200 tuning in the MMC loader.
+
 ## 2.2.7 - 2026-10-21
 
 ### Changed
