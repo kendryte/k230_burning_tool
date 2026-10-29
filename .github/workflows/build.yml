@@ -435,6 +435,7 @@ jobs:
 
   sign-macos:
     name: Sign and notarize macOS apps and DMGs
+    if: startsWith(github.ref, 'refs/tags/')
     needs: build-macos
     runs-on: [self-hosted, macOS, ARM64, shenzhen_mac]
     environment: macos-signing

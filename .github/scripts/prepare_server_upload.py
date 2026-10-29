@@ -3,6 +3,7 @@
 
 import argparse
 import hashlib
+import http.client
 import json
 import os
 from pathlib import Path, PurePosixPath
@@ -11,6 +12,10 @@ import shutil
 import subprocess
 import tarfile
 import tempfile
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
 import zipfile
 import xml.etree.ElementTree as ET
 
@@ -28,6 +33,7 @@ DEFAULT_WORKFLOW = "build.yml"
 VERSION_PATTERN = r"v[0-9]+\.[0-9]+\.[0-9]+"
 MAX_ARCHIVE_FILES = 10000
 MAX_ARCHIVE_BYTES = 4 * 1024 * 1024 * 1024
+DOWNLOAD_ATTEMPTS = 3
 
 
 def digest(path, algorithm="sha256"):
@@ -430,31 +436,217 @@ def default_output(version, output_format):
     raise ValueError("Output format must be directory, tar.gz, or zip")
 
 
+def download_file(url, destination, token, size=None, checksum=None,
+                  accept="application/octet-stream"):
+    """Keep incomplete transfers in .part files and resume them on the next request."""
+    partial = destination.with_name(destination.name + ".part")
+    for path in (destination, partial):
+        if path.is_symlink() or (path.exists() and not path.is_file()):
+            raise ValueError("Unsafe download file: " + str(path))
+
+    def complete(path):
+        return ((size is None or path.stat().st_size == size) and
+                (checksum is None or digest(path) == checksum))
+
+    if destination.exists():
+        if complete(destination):
+            print("Using cached " + destination.name, flush=True)
+            return
+        # Older versions downloaded directly to the final filename.
+        if size is not None and destination.stat().st_size < size and not partial.exists():
+            destination.replace(partial)
+        else:
+            destination.unlink()
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    for attempt in range(DOWNLOAD_ATTEMPTS):
+        if partial.exists() and size is not None and partial.stat().st_size >= size:
+            if complete(partial):
+                partial.replace(destination)
+                return
+            partial.unlink()
+        offset = partial.stat().st_size if partial.exists() else 0
+        action = f"Resuming {destination.name} at byte {offset}" if offset else (
+            "Downloading " + destination.name)
+        print(action, flush=True)
+        request = urllib.request.Request(url, headers={
+            "Accept": accept,
+            "User-Agent": "k230-server-upload",
+        })
+        # urllib does not copy unredirected headers to the storage-host redirect.
+        request.add_unredirected_header("Authorization", "Bearer " + token)
+        if offset:
+            request.add_header("Range", f"bytes={offset}-")
+        try:
+            try:
+                response = urllib.request.urlopen(request, timeout=30)
+            except urllib.error.HTTPError as error:
+                error.close()
+                # The process may have stopped after the last byte but before rename.
+                if (error.code != 416 or not offset or
+                        error.headers.get("Content-Range") != f"bytes */{offset}"):
+                    raise
+                response = None
+            if response is not None:
+                with response:
+                    if response.status == 206:
+                        match = re.fullmatch(r"bytes (\d+)-(\d+)/(\d+)",
+                                             response.headers.get("Content-Range", ""))
+                        if not match or int(match[1]) != offset:
+                            raise ValueError("Invalid resume response for " + destination.name)
+                        total = int(match[3])
+                        mode = "ab"
+                    elif response.status == 200:
+                        # A server without Range support must replace, never append.
+                        length = response.headers.get("Content-Length")
+                        total = int(length) if length is not None else size
+                        mode = "wb"
+                    else:
+                        raise ValueError("Unexpected download response for " + destination.name)
+                    with partial.open(mode) as stream:
+                        shutil.copyfileobj(response, stream, 1024 * 1024)
+                    if total is not None and partial.stat().st_size != total:
+                        raise OSError("Incomplete transfer")
+            if size is not None and partial.stat().st_size != size:
+                raise OSError("Downloaded size does not match release metadata")
+            if checksum is not None and digest(partial) != checksum:
+                partial.unlink()
+                raise OSError("Checksum mismatch; retrying the file from the beginning")
+            partial.replace(destination)
+            return
+        except (OSError, http.client.HTTPException) as error:
+            if attempt + 1 == DOWNLOAD_ATTEMPTS:
+                raise ValueError(f"Download failed for {destination.name}: {error}. "
+                                 "Rerun the same command to resume.") from error
+            print(f"Transfer interrupted for {destination.name}; retrying "
+                  f"({attempt + 2}/{DOWNLOAD_ATTEMPTS})", flush=True)
+            time.sleep(attempt + 1)
+
+
+def download_cache(directory, output, repo, run_id, version, head_sha):
+    repository_key = hashlib.sha256(repo.encode()).hexdigest()[:12]
+    root = Path(os.path.abspath(Path(directory).expanduser())) if directory else (
+        output.parent / f".k230-server-download.{repository_key}.{run_id}")
+    if root.is_symlink():
+        raise ValueError("Download directory must not be a symlink: " + str(root))
+    root = root.resolve()
+    if inside(output, root) or inside(root, output):
+        raise ValueError("Output and download directory must be separate")
+    root.mkdir(parents=True, exist_ok=True)
+    source = root / "source.json"
+    identity = {"repo": repo, "run_id": run_id, "version": version, "head_sha": head_sha}
+    if source.is_symlink():
+        raise ValueError("Unsafe download cache metadata: " + str(source))
+    if source.exists():
+        if json.loads(source.read_text(encoding="utf-8")) != identity:
+            raise ValueError("Download directory belongs to a different release or workflow run")
+    else:
+        with tempfile.NamedTemporaryFile(mode="w", dir=root, delete=False,
+                                         encoding="utf-8") as stream:
+            json.dump(identity, stream)
+        Path(stream.name).replace(source)
+    for name in ("release", "artifacts", "archives"):
+        path = root / name
+        if path.is_symlink():
+            raise ValueError("Unsafe download directory: " + str(path))
+        path.mkdir(exist_ok=True)
+    return root
+
+
+def extract_artifact(archive, destination):
+    """Rebuild extracted files from the cached ZIP, even after interrupted extraction."""
+    with tempfile.TemporaryDirectory(prefix=".extract-", dir=destination.parent) as temporary:
+        root = Path(temporary)
+        with zipfile.ZipFile(archive) as bundle:
+            members = bundle.infolist()
+            if (len(members) > MAX_ARCHIVE_FILES or
+                    sum(member.file_size for member in members) > MAX_ARCHIVE_BYTES):
+                raise ValueError("Workflow artifact expands beyond the safety limit")
+            for member in members:
+                parts = safe_parts(member.filename)
+                if not parts:
+                    continue
+                target = root.joinpath(*parts)
+                if member.is_dir():
+                    target.mkdir(parents=True, exist_ok=True)
+                else:
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    with bundle.open(member) as source, target.open("xb") as output:
+                        shutil.copyfileobj(source, output)
+        if destination.is_symlink():
+            raise ValueError("Unsafe artifact directory: " + str(destination))
+        if destination.exists():
+            shutil.rmtree(destination)
+        root.replace(destination)
+
+
+def download_inputs(root, run_id, version, repo):
+    release = gh_json(["release", "view", version, "--json", "apiUrl,assets"], repo,
+                      "release assets")
+    api_root = release["apiUrl"].rsplit("/releases/", 1)[0]
+    hostname = urllib.parse.urlparse(api_root).hostname
+    auth_host = "github.com" if hostname == "api.github.com" else hostname
+    token = run_gh(["auth", "token", "--hostname", auth_host]).strip()
+    assets = {asset["name"]: asset for asset in release["assets"]}
+    if "SHA256SUMS" not in assets or len(assets) != len(release["assets"]):
+        raise ValueError("Release has missing checksums or duplicate asset names")
+    for name in assets:
+        if safe_parts(name) != (name,):
+            raise ValueError("Unsafe release asset name: " + name)
+    manifest = root / "release" / "SHA256SUMS"
+    # This small manifest is refreshed so changed assets cannot reuse stale checksums.
+    for path in (manifest, manifest.with_name("SHA256SUMS.part")):
+        if path.exists() or path.is_symlink():
+            path.unlink()
+    asset = assets["SHA256SUMS"]
+    download_file(asset["apiUrl"], manifest, token, asset["size"])
+    checksums = read_manifest(manifest)
+    if set(assets) != set(checksums) | {"SHA256SUMS"}:
+        raise ValueError("SHA256SUMS does not identify the GitHub Release assets")
+    for name, checksum in checksums.items():
+        asset = assets[name]
+        download_file(asset["apiUrl"], root / "release" / name, token,
+                      asset["size"], checksum)
+
+    pages = gh_json(["api", f"{api_root}/actions/runs/{run_id}/artifacts?per_page=100",
+                     "--paginate", "--slurp"], None, "workflow artifacts")
+    artifacts = [artifact for page in pages for artifact in page["artifacts"]]
+    for name in list(REPOSITORY_ARTIFACTS.values()) + [METADATA_ARTIFACT]:
+        matches = [artifact for artifact in artifacts
+                   if artifact["name"] == name and not artifact["expired"]]
+        if len(matches) != 1:
+            raise ValueError("Expected exactly one unexpired workflow artifact: " + name)
+        artifact = matches[0]
+        archive = root / "archives" / f"{int(artifact['id'])}.zip"
+        checksum = artifact.get("digest")
+        checksum = checksum[7:] if checksum and checksum.startswith("sha256:") else None
+        download_file(artifact["archive_download_url"], archive, token, checksum=checksum,
+                      accept="application/vnd.github+json")
+        try:
+            extract_artifact(archive, root / "artifacts" / name)
+        except zipfile.BadZipFile:
+            archive.unlink()
+            raise
+
+
 def download_and_prepare(run_id=None, output=None, repo=DEFAULT_REPOSITORY,
-                         requested_version=None, output_format="tar.gz"):
+                         requested_version=None, output_format="tar.gz", download_dir=None):
     run_id, version, head_sha = resolve_workflow_run(run_id, repo, requested_version)
     output = validate_output(output or default_output(version, output_format))
     if output_format not in ("directory", "tar.gz", "zip"):
         raise ValueError("Output format must be directory, tar.gz, or zip")
 
     output.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix=".k230-server-download.", dir=output.parent) as temporary:
-        root = Path(temporary)
-        release_root = root / "release"
-        artifact_root = root / "artifacts"
-        release_root.mkdir()
-        artifact_root.mkdir()
-        print(f"Downloading GitHub Release {version}", flush=True)
-        run_gh(["release", "download", version, "--dir", release_root], repo)
-        print(f"Downloading server artifacts from workflow run {run_id}", flush=True)
-        command = ["run", "download", run_id, "--dir", artifact_root]
-        for name in list(REPOSITORY_ARTIFACTS.values()) + [METADATA_ARTIFACT]:
-            command.extend(("--name", name))
-        run_gh(command, repo)
+    root = download_cache(download_dir, output, repo, run_id, version, head_sha)
+    print(f"Download cache: {root}", flush=True)
+    try:
+        download_inputs(root, run_id, version, repo)
+        release_root, artifact_root = root / "release", root / "artifacts"
         if output_format != "directory":
             return prepare_archive(release_root, artifact_root, output, output_format,
                                    version, head_sha)
         return prepare(release_root, artifact_root, output, version, head_sha)
+    finally:
+        print(f"Downloads kept in {root}", flush=True)
 
 
 def main():
@@ -466,6 +658,8 @@ def main():
     parser.add_argument("--repo", default=DEFAULT_REPOSITORY,
                         help="GitHub OWNER/REPO (default: %(default)s)")
     parser.add_argument("--version", help="Release version to select or verify")
+    parser.add_argument("--download-dir", type=Path,
+                        help="Persistent download cache; defaults to a per-run folder beside output")
     output = parser.add_mutually_exclusive_group()
     output.add_argument("--zip", action="store_const", const="zip", dest="output_format",
                         help="Create a ZIP instead of the default tar.gz")
@@ -475,7 +669,9 @@ def main():
     args = parser.parse_args()
     try:
         download_and_prepare(args.run_id, args.output, args.repo, args.version,
-                             args.output_format)
+                             args.output_format, args.download_dir)
+    except KeyboardInterrupt:
+        parser.exit(130, "Interrupted; downloaded files are kept for the next run.\n")
     except (ValueError, OSError, tarfile.TarError, zipfile.BadZipFile, ET.ParseError) as error:
         parser.exit(1, str(error) + "\n")
 

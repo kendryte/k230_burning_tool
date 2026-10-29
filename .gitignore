@@ -12,5 +12,6 @@ dist
 
 .clangd
 .cache
+.k230-server-download.*/
 
 .DS_Store

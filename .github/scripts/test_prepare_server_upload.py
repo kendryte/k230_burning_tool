@@ -1,6 +1,7 @@
 """Validate workflow download and conversion to the download-server tree."""
 
 import hashlib
+import http.server
 import importlib.util
 import io
 import json
@@ -8,6 +9,7 @@ from pathlib import Path
 import shutil
 import tarfile
 import tempfile
+import threading
 import unittest
 from unittest import mock
 import zipfile
@@ -185,11 +187,31 @@ class ServerUploadTests(unittest.TestCase):
     def test_downloads_release_and_only_server_artifacts(self):
         destination = self.root / "downloaded-server"
         commands = []
+        responses = {}
+        api_root = "https://api.github.com/repos/" + upload.DEFAULT_REPOSITORY
+        assets = []
+        for path in self.release.iterdir():
+            url = api_root + "/releases/assets/" + path.name
+            responses[url] = path.read_bytes()
+            assets.append({"name": path.name, "size": path.stat().st_size, "apiUrl": url})
+        artifacts = []
+        for index, directory in enumerate(self.artifacts.iterdir(), 1):
+            archive = io.BytesIO()
+            with zipfile.ZipFile(archive, "w") as bundle:
+                for path in directory.iterdir():
+                    bundle.write(path, path.name)
+            url = api_root + f"/actions/artifacts/{index}/zip"
+            responses[url] = archive.getvalue()
+            artifacts.append({"id": index, "name": directory.name, "expired": False,
+                              "archive_download_url": url,
+                              "digest": "sha256:" + hashlib.sha256(responses[url]).hexdigest()})
+        artifacts.append({"id": 99, "name": "unrelated-build", "expired": False})
 
         def fake_gh(arguments, repo=None):
             commands.append((list(arguments), repo))
             if arguments[:2] == ["release", "view"]:
-                return json.dumps({"tagName": self.version})
+                return json.dumps({"tagName": self.version, "assets": assets,
+                                   "apiUrl": api_root + "/releases/1"})
             if arguments[:2] == ["run", "list"]:
                 return json.dumps([{
                     "databaseId": 123,
@@ -211,24 +233,75 @@ class ServerUploadTests(unittest.TestCase):
                     "headSha": self.commit,
                     "url": "https://example.invalid/run/123",
                 })
-            target = Path(arguments[arguments.index("--dir") + 1])
-            if arguments[:2] == ["release", "download"]:
-                shutil.copytree(self.release, target, dirs_exist_ok=True)
-                return ""
-            names = [arguments[index + 1] for index, value in enumerate(arguments) if value == "--name"]
-            for name in names:
-                shutil.copytree(self.artifacts / name, target / name)
-            return ""
+            if arguments[:2] == ["auth", "token"]:
+                return "test-token"
+            if arguments[0] == "api":
+                self.assertIn("/actions/runs/123/artifacts", arguments[1])
+                return json.dumps([{"artifacts": artifacts[:2]}, {"artifacts": artifacts[2:]}])
+            self.fail("Unexpected gh command: " + str(arguments))
 
-        with mock.patch.object(upload, "run_gh", side_effect=fake_gh):
-            upload.download_and_prepare(None, destination, output_format="directory")
+        downloaded = []
+
+        def fake_open(request, timeout):
+            downloaded.append(request.full_url)
+            expected_accept = ("application/vnd.github+json" if "/actions/artifacts/" in
+                               request.full_url else "application/octet-stream")
+            self.assertEqual(request.get_header("Accept"), expected_accept)
+            response = io.BytesIO(responses[request.full_url])
+            response.status = 200
+            response.headers = {"Content-Length": str(len(response.getvalue()))}
+            return response
+
+        with mock.patch.object(upload, "run_gh", side_effect=fake_gh), mock.patch.object(
+                upload.urllib.request, "urlopen", side_effect=fake_open):
+            with mock.patch.object(upload, "prepare", side_effect=KeyboardInterrupt):
+                with self.assertRaises(KeyboardInterrupt):
+                    upload.download_and_prepare(None, destination, output_format="directory")
+            self.assertFalse(destination.exists())
+            caches = list(self.root.glob(".k230-server-download.*"))
+            self.assertEqual(len(caches), 1)
+            first_downloads = list(downloaded)
+            self.assertEqual(set(first_downloads), set(responses))
+            downloaded.clear()
+            upload.download_and_prepare("123", destination, output_format="directory")
+            # Only the small checksum manifest is refreshed on restart.
+            self.assertEqual(downloaded, [api_root + "/releases/assets/SHA256SUMS"])
         self.assertTrue((destination / self.version / "K230BurningTool_linux_arm64_normal_v2.2.6.zip").is_file())
-        self.assertEqual(commands[2][0][:3], ["release", "download", self.version])
-        downloaded_names = [commands[3][0][index + 1] for index, value in enumerate(commands[3][0])
-                            if value == "--name"]
-        self.assertEqual(set(downloaded_names), set(upload.REPOSITORY_ARTIFACTS.values()) |
-                         {upload.METADATA_ARTIFACT})
-        self.assertTrue(all(repo == upload.DEFAULT_REPOSITORY for _, repo in commands))
+        self.assertEqual({path.name for path in (caches[0] / "artifacts").iterdir()},
+                         set(upload.REPOSITORY_ARTIFACTS.values()) | {upload.METADATA_ARTIFACT})
+        self.assertTrue(all(repo == upload.DEFAULT_REPOSITORY for args, repo in commands
+                            if args[0] in ("release", "run")))
+
+    def test_cache_reuses_explicit_legacy_folder_and_rejects_different_run(self):
+        cache = self.root / ".k230-server-download.old"
+        shutil.copytree(self.release, cache / "release")
+        package = next((cache / "release").glob("*.zip"))
+        package.write_bytes(b"partial")
+        self.assertEqual(upload.download_cache(cache, self.output, upload.DEFAULT_REPOSITORY,
+                                               "123", self.version, self.commit), cache)
+        self.assertEqual(package.read_bytes(), b"partial")
+        with self.assertRaisesRegex(ValueError, "different release or workflow run"):
+            upload.download_cache(cache, self.output, upload.DEFAULT_REPOSITORY,
+                                  "124", self.version, self.commit)
+        with self.assertRaisesRegex(ValueError, "must be separate"):
+            upload.download_cache(cache, cache / "output", upload.DEFAULT_REPOSITORY,
+                                  "123", self.version, self.commit)
+
+    def test_cached_artifact_replaces_partial_extraction_and_rejects_traversal(self):
+        archive = self.root / "artifact.zip"
+        destination = self.root / "extracted"
+        destination.mkdir()
+        (destination / "partial").write_bytes(b"partial")
+        with zipfile.ZipFile(archive, "w") as bundle:
+            bundle.writestr("nested/complete", b"complete")
+        upload.extract_artifact(archive, destination)
+        self.assertFalse((destination / "partial").exists())
+        self.assertEqual((destination / "nested/complete").read_bytes(), b"complete")
+        with zipfile.ZipFile(archive, "w") as bundle:
+            bundle.writestr("../outside", b"bad")
+        with self.assertRaisesRegex(ValueError, "Unsafe archive path"):
+            upload.extract_artifact(archive, destination)
+        self.assertFalse((self.root / "outside").exists())
 
     def test_default_output_names(self):
         self.assertEqual(upload.default_output(self.version, "tar.gz"),
@@ -250,6 +323,152 @@ class ServerUploadTests(unittest.TestCase):
                     })):
                 with self.assertRaisesRegex(ValueError, message):
                     upload.download_and_prepare("123", self.root / ("output-" + conclusion + branch))
+
+
+class ResumableDownloadTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.destination = Path(self.temp.name) / "asset"
+        self.partial = self.destination.with_name("asset.part")
+        self.payload = b"download payload\n" * 100000
+        self.checksum = hashlib.sha256(self.payload).hexdigest()
+        self.ranges = []
+        self.authorizations = []
+        self.interrupt = False
+        self.ignore_range = False
+        self.invalid_range = False
+        fixture = self
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def log_message(self, *args):
+                pass
+
+            def do_GET(self):
+                fixture.authorizations.append(self.headers.get("Authorization"))
+                if self.path == "/redirect":
+                    self.send_response(302)
+                    self.send_header("Location", fixture.url)
+                    self.end_headers()
+                    return
+                value = self.headers.get("Range")
+                fixture.ranges.append(value)
+                offset = int(value.removeprefix("bytes=").removesuffix("-")) if value else 0
+                total = len(fixture.payload)
+                if offset == total:
+                    self.send_response(416)
+                    self.send_header("Content-Range", f"bytes */{total}")
+                    self.end_headers()
+                    return
+                if fixture.ignore_range:
+                    offset = 0
+                self.send_response(206 if offset else 200)
+                if offset:
+                    start = offset + 1 if fixture.invalid_range else offset
+                    self.send_header("Content-Range", f"bytes {start}-{total - 1}/{total}")
+                self.send_header("Content-Length", str(total - offset))
+                self.end_headers()
+                if fixture.invalid_range:
+                    return
+                body = fixture.payload[offset:]
+                if fixture.interrupt:
+                    body = body[:1024 * 1024]
+                self.wfile.write(body)
+
+        server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+
+        def stop_server():
+            server.shutdown()
+            server.server_close()
+            thread.join()
+
+        self.addCleanup(stop_server)
+        self.url = f"http://127.0.0.1:{server.server_port}/asset"
+
+    def download(self, size=True):
+        upload.download_file(self.url, self.destination, "test-token",
+                             len(self.payload) if size else None, self.checksum)
+
+    def test_interrupted_transfer_is_kept_and_resumed_on_restart(self):
+        self.interrupt = True
+        with mock.patch.object(upload, "DOWNLOAD_ATTEMPTS", 1):
+            with self.assertRaisesRegex(ValueError, "Rerun the same command"):
+                self.download()
+        offset = self.partial.stat().st_size
+        self.assertEqual(offset, 1024 * 1024)
+        self.assertFalse(self.destination.exists())
+        self.interrupt = False
+        self.download()
+        self.assertEqual(self.ranges, [None, f"bytes={offset}-"])
+        self.assertEqual(self.destination.read_bytes(), self.payload)
+        self.assertFalse(self.partial.exists())
+        self.download()
+        self.assertEqual(len(self.ranges), 2)
+
+    def test_retries_connection_failure_without_restarting_file(self):
+        self.partial.write_bytes(self.payload[:100])
+        real_open = upload.urllib.request.urlopen
+        attempts = []
+
+        def flaky_open(request, timeout):
+            attempts.append(request.get_header("Range"))
+            if len(attempts) == 1:
+                raise OSError("connection reset")
+            return real_open(request, timeout=timeout)
+
+        with mock.patch.object(upload.urllib.request, "urlopen", side_effect=flaky_open), \
+                mock.patch.object(upload.time, "sleep"):
+            self.download()
+        self.assertEqual(attempts, ["bytes=100-", "bytes=100-"])
+        self.assertEqual(self.destination.read_bytes(), self.payload)
+
+    def test_legacy_partial_file_resumes_and_range_ignored_restarts_safely(self):
+        self.destination.write_bytes(self.payload[:123])
+        self.download()
+        self.assertEqual(self.ranges, ["bytes=123-"])
+        self.assertEqual(self.destination.read_bytes(), self.payload)
+        self.destination.write_bytes(self.payload[:321])
+        self.ignore_range = True
+        self.download()
+        self.assertEqual(self.ranges[-1], "bytes=321-")
+        self.assertEqual(self.destination.read_bytes(), self.payload)
+
+    def test_corrupt_cached_file_is_replaced(self):
+        self.destination.write_bytes(b"x" * len(self.payload))
+        self.download()
+        self.assertEqual(self.ranges, [None])
+        self.assertEqual(self.destination.read_bytes(), self.payload)
+
+    def test_corrupt_partial_is_redownloaded_after_checksum_failure(self):
+        self.partial.write_bytes(b"wrong prefix")
+        with mock.patch.object(upload.time, "sleep"):
+            self.download()
+        self.assertEqual(self.ranges, ["bytes=12-", None])
+        self.assertEqual(self.destination.read_bytes(), self.payload)
+
+    def test_redirect_preserves_range_without_forwarding_token(self):
+        self.partial.write_bytes(self.payload[:123])
+        upload.download_file(self.url.replace("/asset", "/redirect"), self.destination,
+                             "test-token", len(self.payload), self.checksum)
+        self.assertEqual(self.authorizations, ["Bearer test-token", None])
+        self.assertEqual(self.ranges, ["bytes=123-"])
+        self.assertEqual(self.destination.read_bytes(), self.payload)
+
+    def test_completed_partial_with_unknown_size_handles_416(self):
+        self.partial.write_bytes(self.payload)
+        self.download(size=False)
+        self.assertEqual(self.destination.read_bytes(), self.payload)
+        self.assertFalse(self.partial.exists())
+
+    def test_invalid_range_preserves_saved_bytes(self):
+        self.partial.write_bytes(self.payload[:123])
+        self.invalid_range = True
+        with self.assertRaisesRegex(ValueError, "Invalid resume response"):
+            self.download()
+        self.assertEqual(self.partial.read_bytes(), self.payload[:123])
+        self.assertFalse(self.destination.exists())
 
 
 if __name__ == "__main__":

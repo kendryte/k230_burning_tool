@@ -101,6 +101,24 @@ a specific release without requiring its run ID, `-o` changes the output path,
 `--zip` creates a ZIP, and `--directory` creates an unpacked tree. `--repo`
 remains available for forks.
 
+Downloads are kept in a `.k230-server-download.<repository-key>.<run-id>` cache
+beside the output. If the network fails or you interrupt the script, rerun the
+same command: completed files are reused and partial transfers resume from their
+saved byte offset. Transfers retry up to three times before stopping. Checksums
+are verified before packaging, and a corrupt cached file is downloaded again.
+The cache remains after success; remove it when you no longer need it.
+
+Use `--download-dir PATH` to choose a cache or reuse a folder left by an older
+version of the script. Select the matching release when adopting an old folder:
+
+```bash
+python3 .github/scripts/prepare_server_upload.py --version v2.2.6 \
+  --download-dir .k230-server-download.OLD_SUFFIX
+```
+
+Each cache is tied to its repository, release, and workflow run. Use a separate
+folder for a different build. The output must be outside the cache.
+
 The archive has no wrapper directory. It writes the version directory, update
 channels, and `k230_burningtool_lastest.txt` directly beneath the extraction
 directory. Repository `Updates.xml` files are stored last in the archive so their
