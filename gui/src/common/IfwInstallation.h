@@ -7,6 +7,7 @@
 struct IfwInstallation {
 	QString root;
 	QString maintenanceTool;
+	QString component;
 	QUrl repository;
 	bool isManaged() const { return !root.isEmpty(); }
 	bool canUpdate() const { return !maintenanceTool.isEmpty() && !repository.isEmpty(); }

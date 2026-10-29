@@ -10,14 +10,79 @@
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QTest>
+#include <QTimer>
 #include <QXmlStreamReader>
+#include <cstring>
 #include <memory>
+
+class TestReply : public QNetworkReply {
+    QByteArray body;
+    qint64 offset = 0;
+
+    qint64 readData(char *data, qint64 size) override {
+        const auto count = qMin(size, qint64(body.size()) - offset);
+        if (!count) return -1;
+        std::memcpy(data, body.constData() + offset, size_t(count));
+        offset += count;
+        return count;
+    }
+
+  public:
+    TestReply(const QNetworkRequest &request, const QByteArray &contents, NetworkError error, QObject *parent)
+        : QNetworkReply(parent), body(contents) {
+        setRequest(request);
+        setUrl(request.url());
+        open(QIODevice::ReadOnly);
+        QTimer::singleShot(0, this, [this, error] {
+            if (isFinished()) return;
+            emit readyRead();
+            if (isFinished()) return;
+            if (error != NoError) setError(error, "Test network error");
+            setFinished(true);
+            emit finished();
+        });
+    }
+
+    qint64 bytesAvailable() const override { return body.size() - offset + QNetworkReply::bytesAvailable(); }
+    void abort() override {
+        if (isFinished()) return;
+        setError(OperationCanceledError, "Aborted");
+        setFinished(true);
+        emit finished();
+    }
+};
+
+class TestNetwork : public QNetworkAccessManager {
+    QNetworkReply *createRequest(Operation, const QNetworkRequest &request, QIODevice *) override {
+        requests.append(request);
+        return new TestReply(request, body, error, this);
+    }
+
+  public:
+    QByteArray body;
+    QNetworkReply::NetworkError error = QNetworkReply::NoError;
+    QList<QNetworkRequest> requests;
+};
 
 class IfwIntegrationTests : public QObject {
     Q_OBJECT
     std::unique_ptr<QTemporaryDir> temp;
     QString executable, tool;
     QJsonObject marker;
+
+    static QString componentName() {
+#ifdef Q_OS_WIN
+        return "com.kendryte.k230burning.windows.x8664.normal";
+#else
+        return "com.kendryte.k230burning.linux.x8664.normal";
+#endif
+    }
+
+    static QByteArray repositoryXml(const QString &version, const QString &component = componentName()) {
+        return QString("<Updates><ApplicationVersion>1.0.0</ApplicationVersion><PackageUpdate>"
+                       "<Name>%1</Name><Version>%2</Version></PackageUpdate></Updates>")
+            .arg(component, version).toUtf8();
+    }
 
     void write(const QString &path, const QByteArray &contents) {
         QFile file(path);
@@ -45,7 +110,7 @@ class IfwIntegrationTests : public QObject {
         write(executable, "application fixture");
         write(tool, "maintenance fixture");
         QVERIFY(QFile::setPermissions(tool, QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner));
-        marker = {{"schema", 1}, {"platform", platform}, {"variant", "normal"},
+        marker = {{"schema", 1}, {"platform", platform}, {"arch", "x86_64"}, {"variant", "normal"},
                   {"executable", "app/bin/" + filename}, {"repository", "https://updates.example.test/linux/x86_64/normal"}};
         saveMarker();
     }
@@ -56,6 +121,7 @@ class IfwIntegrationTests : public QObject {
         QVERIFY(installed.canUpdate());
         QCOMPARE(installed.root, temp->path());
         QCOMPARE(installed.maintenanceTool, tool);
+        QCOMPARE(installed.component, componentName());
     }
 
     void mainWindowHasSingleUpdatesMenu() {
@@ -121,18 +187,122 @@ class IfwIntegrationTests : public QObject {
     }
 
     void disablingAutomaticChecksKeepsManualActions() {
+        TestNetwork installedNetwork;
+        QMenu installedMenu("Updates(&U)");
+        UpdateChecker installedChecker(&installedMenu, QVersionNumber(2, 2, 4), executable, false, &installedNetwork);
         QVERIFY(QFile::remove(temp->path() + "/ifw-installation.json"));
+        TestNetwork portableNetwork;
         QMenu menu("Updates(&U)");
-        UpdateChecker checker(&menu, QVersionNumber(2, 2, 4), executable, false);
-        auto *network = checker.findChild<QNetworkAccessManager *>();
-        QVERIFY(network);
-        QSignalSpy requests(network, &QNetworkAccessManager::finished);
+        UpdateChecker checker(&menu, QVersionNumber(2, 2, 4), executable, false, &portableNetwork);
         QTest::qWait(10500);
-        QCOMPARE(requests.size(), 0);
-        QVERIFY(checker.findChildren<QNetworkReply *>().isEmpty());
+        QVERIFY(installedNetwork.requests.isEmpty());
+        QVERIFY(portableNetwork.requests.isEmpty());
+        QVERIFY(installedMenu.actions()[2]->isEnabled());
+        QVERIFY(!installedMenu.actions()[3]->isVisible());
         QVERIFY(menu.actions()[0]->isEnabled());
         QVERIFY(menu.actions()[1]->isEnabled());
         QVERIFY(!menu.actions()[2]->isVisible());
+    }
+
+    void automaticChecksShowVersionsForBothEditions() {
+        TestNetwork installedNetwork;
+        installedNetwork.body = repositoryXml("2.2.8");
+        QMenu installedMenu("Updates(&U)");
+        UpdateChecker installedChecker(&installedMenu, QVersionNumber(2, 2, 5), executable, true, &installedNetwork);
+        QSignalSpy installedStatus(&installedChecker, &UpdateChecker::statusChanged);
+        QVERIFY(QFile::remove(temp->path() + "/ifw-installation.json"));
+        TestNetwork portableNetwork;
+        portableNetwork.body = R"({"version":2208})";
+        QMenu portableMenu("Updates(&U)");
+        UpdateChecker portableChecker(&portableMenu, QVersionNumber(2, 2, 5), executable, true, &portableNetwork);
+        QSignalSpy portableStatus(&portableChecker, &UpdateChecker::statusChanged);
+
+        QVERIFY(installedNetwork.requests.isEmpty());
+        QVERIFY(portableNetwork.requests.isEmpty());
+        QTRY_COMPARE_WITH_TIMEOUT(installedStatus.size(), 2, 12000);
+        QTRY_COMPARE(portableStatus.size(), 2);
+        const QString expected = "New version available: v2.2.8 (installed: v2.2.5)";
+        QCOMPARE(installedStatus.last().at(0).toString(), expected);
+        QCOMPARE(portableStatus.last().at(0).toString(), expected);
+        QCOMPARE(installedMenu.actions().last()->text(), expected);
+        QCOMPARE(portableMenu.actions().last()->text(), expected);
+        QCOMPARE(installedMenu.title(), QString("Updates(&U) (v2.2.8 available)"));
+        QCOMPARE(portableMenu.title(), QString("Updates(&U) (v2.2.8 available)"));
+        QCOMPARE(installedNetwork.requests.size(), 1);
+        QCOMPARE(portableNetwork.requests.size(), 1);
+    }
+
+    void updateResponses_data() {
+        QTest::addColumn<bool>("managed");
+        QTest::addColumn<QByteArray>("body");
+        QTest::addColumn<QString>("expected");
+        const QString newer = "New version available: v2.2.8 (installed: v2.2.5)";
+        const QString current = "You are up to date (v2.2.5)";
+        const QString failed = "Could not check for updates";
+        QTest::newRow("portable-newer") << false << QByteArray(R"({"version":2208})") << newer;
+        QTest::newRow("portable-same") << false << QByteArray(R"({"version":2205})") << current;
+        QTest::newRow("portable-older") << false << QByteArray(R"({"version":2204})") << current;
+        QTest::newRow("portable-invalid") << false << QByteArray("not json") << failed;
+        QTest::newRow("portable-missing") << false << QByteArray("{}") << failed;
+        QTest::newRow("portable-fraction") << false << QByteArray(R"({"version":2208.1})") << failed;
+        QTest::newRow("portable-negative") << false << QByteArray(R"({"version":-1})") << failed;
+        QTest::newRow("portable-string") << false << QByteArray(R"({"version":"2208"})") << failed;
+        QTest::newRow("portable-oversized") << false << QByteArray(65537, 'x') << failed;
+        QTest::newRow("installed-newer") << true << repositoryXml("2.2.8") << newer;
+        QTest::newRow("installed-same") << true << repositoryXml("2.2.5") << current;
+        QTest::newRow("installed-older") << true << repositoryXml("2.2.4") << current;
+        QTest::newRow("installed-numeric-comparison") << true << repositoryXml("2.10.0")
+            << QString("New version available: v2.10.0 (installed: v2.2.5)");
+        QTest::newRow("installed-other-component") << true << repositoryXml("9.0.0", "other.application") << failed;
+        QTest::newRow("installed-empty") << true << QByteArray("<Updates/>") << failed;
+        QTest::newRow("installed-invalid") << true << QByteArray("<Updates><PackageUpdate>") << failed;
+        QTest::newRow("installed-trailing-junk") << true << repositoryXml("2.2.8") + "junk" << failed;
+        QTest::newRow("installed-invalid-version") << true << repositoryXml("2.2.8bad") << failed;
+        QTest::newRow("installed-oversized") << true << QByteArray(65537, 'x') << failed;
+    }
+
+    void updateResponses() {
+        QFETCH(bool, managed);
+        QFETCH(QByteArray, body);
+        QFETCH(QString, expected);
+        if (!managed) QVERIFY(QFile::remove(temp->path() + "/ifw-installation.json"));
+        TestNetwork network;
+        network.body = body;
+        QMenu menu("Updates(&U)");
+        UpdateChecker checker(&menu, QVersionNumber(2, 2, 5), executable, false, &network);
+        QSignalSpy status(&checker, &UpdateChecker::statusChanged);
+        auto *check = menu.actions()[managed ? 2 : 0];
+        check->trigger();
+        QVERIFY(!check->isEnabled());
+        QTRY_VERIFY(check->isEnabled());
+        QCOMPARE(menu.actions().last()->text(), expected);
+        QCOMPARE(status.size(), 2);
+        QCOMPARE(status.last().at(0).toString(), expected);
+        const QString expectedTitle = expected.startsWith("New version available:")
+            ? QString("Updates(&U) (%1 available)").arg(expected.section(' ', 3, 3)) : QString("Updates(&U)");
+        QCOMPARE(menu.title(), expectedTitle);
+        QCOMPARE(network.requests.size(), 1);
+        const QString url = managed ? "https://updates.example.test/linux/x86_64/normal/Updates.xml"
+            : "https://download.kendryte.com/developer/tools/k230_burningtool/k230_burningtool_lastest.txt";
+        QCOMPARE(network.requests.first().url(), QUrl(url));
+
+        // A failed request must leave manual retries available.
+        network.error = QNetworkReply::HostNotFoundError;
+        check->trigger();
+        QTRY_VERIFY(check->isEnabled());
+        QCOMPARE(menu.actions().last()->text(), QString("Could not check for updates"));
+        // A failed retry must not hide a previously discovered update.
+        QCOMPARE(menu.title(), expectedTitle);
+        network.error = QNetworkReply::NoError;
+        check->trigger();
+        QTRY_VERIFY(check->isEnabled());
+        QCOMPARE(menu.actions().last()->text(), expected);
+        QCOMPARE(menu.title(), expectedTitle);
+
+        network.body = managed ? repositoryXml("2.2.5") : QByteArray(R"({"version":2205})");
+        check->trigger();
+        QTRY_VERIFY(check->isEnabled());
+        QCOMPARE(menu.title(), QString("Updates(&U)"));
     }
 
     void rejectsInvalidMarkers() {
@@ -164,10 +334,11 @@ class IfwIntegrationTests : public QObject {
         QMenu menu("Updates(&U)");
         UpdateChecker checker(&menu, QVersionNumber(2, 2, 4), executable);
         QCOMPARE(menu.title(), QString("Updates(&U)"));
-        QCOMPARE(menu.actions().size(), 2);
+        QCOMPARE(menu.actions().size(), 4);
         QCOMPARE(menu.actions()[0]->text(), QString("Update Application..."));
         QCOMPARE(menu.actions()[1]->text(), QString("Manage Installation..."));
-        QVERIFY(!checker.findChild<QNetworkAccessManager *>());
+        QCOMPARE(menu.actions()[2]->text(), QString("Check for Updates..."));
+        QVERIFY(checker.findChild<QNetworkAccessManager *>());
         QSignalSpy requests(&checker, &UpdateChecker::maintenanceRequested);
         menu.actions()[0]->trigger();
         menu.actions()[1]->trigger();

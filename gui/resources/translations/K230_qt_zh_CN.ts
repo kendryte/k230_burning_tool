@@ -790,6 +790,10 @@
 <context>
     <name>UpdateChecker</name>
     <message>
+        <source>%1 (v%2 available)</source>
+        <translation>%1（可更新至 v%2）</translation>
+    </message>
+    <message>
         <source>Update Application...</source>
         <translation>更新应用程序...</translation>
     </message>
@@ -826,12 +830,12 @@
         <translation type="vanished">无法检查更新： </translation>
     </message>
     <message>
-        <source>A new version is available</source>
-        <translation>有新版本可用</translation>
+        <source>New version available: v%1 (installed: v%2)</source>
+        <translation>有新版本可用：v%1（当前版本：v%2）</translation>
     </message>
     <message>
-        <source>You are up to date</source>
-        <translation>已是最新版本</translation>
+        <source>You are up to date (v%1)</source>
+        <translation>已是最新版本（v%1）</translation>
     </message>
 </context>
 <context>

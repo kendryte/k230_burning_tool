@@ -106,6 +106,14 @@ repository; otherwise the menu reports that updates are not configured.
 **Updates > Manage Installation** lets you manage or uninstall the application
 independently of online updates.
 
+Both editions check for updates about 10 seconds after launch, unless automatic
+checks are disabled in Settings. Installed editions check their configured IFW
+repository; portable editions use the release version feed. Results appear in the
+**Updates** menu. When an update is found, the menu title shows the available
+version, and the menu contains both the available and installed version numbers.
+**Check for Updates** also works manually in either edition when online updates
+are configured.
+
 Portable editions provide **Check for Updates** and **Download Releases** in the
 **Updates** menu. These manual actions remain available when automatic checks are
 disabled. Portable ZIPs are updated by extracting a new release into a new directory.

@@ -32,6 +32,8 @@ IfwInstallation IfwInstallation::detect(const QString &executable) {
 	if (object.value("platform").toString() != platform || object.value("executable").toString() != relative ||
 		QFileInfo(QDir(root).filePath(relative)).canonicalFilePath() != canonical) return result;
 	result.root = QDir::cleanPath(root);
+	result.component = "com.kendryte.k230burning." + platform + "." +
+		object.value("arch").toString().remove('_') + "." + variant;
 	const QFileInfo tool(QDir(result.root).filePath(toolName));
 	if (tool.isFile() && tool.isExecutable() && !tool.isSymLink()) result.maintenanceTool = tool.absoluteFilePath();
 	const QUrl repository(object.value("repository").toString());
