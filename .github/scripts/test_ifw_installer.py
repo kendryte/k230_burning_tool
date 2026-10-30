@@ -15,6 +15,31 @@ import unittest
 ROOT = Path(__file__).resolve().parents[2]
 
 
+def installer_environment(root):
+    temporary = root / "tmp"
+    temporary.mkdir(parents=True)
+    # IFW 4.11 uses a fixed uninstall.vbs filename on Windows. Each scenario
+    # needs its own temp directory so a previous helper cannot delete it.
+    return dict(os.environ, QT_QPA_PLATFORM="offscreen", HOME=str(root / "home"),
+                XDG_DATA_HOME=str(root / "data"), XDG_CONFIG_HOME=str(root / "config"),
+                TMP=str(temporary), TEMP=str(temporary), TMPDIR=str(temporary))
+
+
+def wait_for_uninstall(tool, env, timeout=10):
+    paths = [tool]
+    if tool.suffix.lower() == ".exe":
+        # The helper sleeps after deleting the executable, then removes itself.
+        paths.append(Path(env["TEMP"]) / "uninstall.vbs")
+    deadline = time.monotonic() + timeout
+    while True:
+        remaining = [path for path in paths if path.exists()]
+        if not remaining:
+            return
+        if time.monotonic() >= deadline:
+            raise AssertionError("Uninstall cleanup did not remove: " + ", ".join(map(str, remaining)))
+        time.sleep(0.05)
+
+
 def find_installer(output, host):
     extension = {"linux": "run", "windows": "exe"}[host]
     candidates = [path for path in output.glob("*_setup." + extension) if path.is_file()]
@@ -82,11 +107,10 @@ class IfwInstallerTests(unittest.TestCase):
             installer = find_installer(output, host)
             self.assertEqual({path.name for path in output.iterdir()}, {installer.name, installer.name + ".sha256"})
             installer.chmod(0o755)
-            env = dict(os.environ, QT_QPA_PLATFORM="offscreen", HOME=str(root / "home"),
-                       XDG_DATA_HOME=str(root / "data"), XDG_CONFIG_HOME=str(root / "config"))
             for with_log in (False, True):
                 with self.subTest(with_log=with_log):
                     installed = root / ("installed-with-log" if with_log else "installed-without-log")
+                    env = installer_environment(root / ("with-log" if with_log else "without-log"))
                     result = subprocess.run([str(installer), "--root", str(installed),
                                              "--accept-licenses", "--default-answer", "--confirm-command",
                                              "install", "CreateShortcuts=false"],
@@ -105,11 +129,7 @@ class IfwInstallerTests(unittest.TestCase):
                     self.assertFalse(log.exists())
                     self.assertEqual(saved_log.read_text(), "user-saved log")
                     self.assertFalse((installed / "app/bin" / executable.name).exists())
-                    for _ in range(200):
-                        if not tool.exists():
-                            break
-                        time.sleep(0.05)
-                    self.assertFalse(tool.exists())
+                    wait_for_uninstall(tool, env)
 
     def test_install_update_and_uninstall(self):
         with tempfile.TemporaryDirectory(prefix="ifw smoke ") as temporary:
@@ -117,8 +137,7 @@ class IfwInstallerTests(unittest.TestCase):
             host = "windows" if os.name == "nt" else "linux"
             arch = "arm64" if platform.machine().lower() in ("aarch64", "arm64") else "x86_64"
             ext = ".exe" if host == "windows" else ""
-            env = dict(os.environ, QT_QPA_PLATFORM="offscreen", HOME=str(root / "home"),
-                       XDG_DATA_HOME=str(root / "data"), XDG_CONFIG_HOME=str(root / "config"))
+            env = installer_environment(root)
             # IFW shortcuts must stay inside the test, including Windows known folders.
             source = root / "source"
             (source / "bin").mkdir(parents=True)
@@ -190,12 +209,7 @@ class IfwInstallerTests(unittest.TestCase):
             self.assertFalse((installed / "ifw-installation.json").exists())
             self.assertFalse(log.exists())
             self.assertEqual(saved_log.read_text(), "user-saved log")
-            # Windows uses a short-lived helper to remove the running maintenance executable.
-            for _ in range(200):
-                if not tool.exists():
-                    break
-                time.sleep(0.05)
-            self.assertFalse(tool.exists())
+            wait_for_uninstall(tool, env)
             if shortcuts:
                 self.assertFalse((root / "data/applications/K230BurningTool-Installed.desktop").exists())
 

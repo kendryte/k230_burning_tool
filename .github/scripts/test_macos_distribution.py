@@ -15,7 +15,7 @@ class MacOSDistributionTests(unittest.TestCase):
         cls.cmake = (ROOT / "gui/CMakeLists.txt").read_text()
         cls.logger = (ROOT / "gui/src/widgets/LoggerWindow.cpp").read_text()
 
-    def test_branch_and_tag_builds_use_the_signing_job(self):
+    def test_branch_and_tag_builds_only_sign_on_tags(self):
         build_job = self.workflow.split("\n  build-macos:\n", 1)[1].split(
             "\n  sign-macos:\n", 1
         )[0]
@@ -27,7 +27,7 @@ class MacOSDistributionTests(unittest.TestCase):
         self.assertNotIn("startsWith(github.ref, 'refs/tags/')", build_job)
         self.assertNotIn("--allow-unsigned", build_job)
         self.assertNotIn("validation DMG", build_job)
-        self.assertNotIn("startsWith(github.ref, 'refs/tags/')", sign_job)
+        self.assertIn("    if: startsWith(github.ref, 'refs/tags/')\n", sign_job)
         self.assertIn("environment: macos-signing", sign_job)
 
     def test_packager_repairs_and_verifies_local_app_signatures(self):
