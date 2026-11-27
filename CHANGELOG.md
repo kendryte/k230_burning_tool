@@ -1,5 +1,19 @@
 # K230 BurningTool
 
+## 2.2.9 - 2026-11-27
+
+### Changed
+
+- Synced the embedded MMC, OTP, SPI NAND, and SPI NOR loaders with
+  `k230_flash` 0.0.17.
+
+### Fixed
+
+- Fixed SD card flashing on boards that fail high-speed writes with a CMD25
+  error. The MMC loader now retries at 25 MHz, then at 12.5 MHz if needed.
+- The MMC loader now retries failed SD or eMMC initialization once at default
+  speed and reports the error code if the retry fails.
+
 ## 2.2.8 - 2026-10-28
 
 ### Changed
